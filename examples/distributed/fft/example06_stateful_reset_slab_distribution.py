@@ -37,7 +37,7 @@ with cp.cuda.Device(device_id):
     a[:] = cp.random.rand(*shape, dtype=cp.float32) + 1j * cp.random.rand(*shape, dtype=cp.float32)
 
 # Create a stateful FFT object 'f'.
-with nvmath.distributed.fft.FFT(a, distribution=Slab.X, options={"reshape": False}) as f:
+with nvmath.distributed.fft.FFT(a, distribution=Slab.X, options={"redistribute": False}) as f:
     # Plan the FFT.
     f.plan()
 
@@ -45,8 +45,8 @@ with nvmath.distributed.fft.FFT(a, distribution=Slab.X, options={"reshape": Fals
     b = f.execute(direction=nvmath.distributed.fft.FFTDirection.FORWARD)
 
     # Reset the operand to the values in the frequency domain.
-    # Note that because the FFT object is configured with reshape=False, the distribution of
-    # operand b is Slab.Y
+    # Note that because the FFT object is configured with redistribute=False, the
+    # distribution of operand b is Slab.Y
     # IMPORTANT: When resetting the operand, FFT expects a distribution that is compatible
     # with the distribution that was set when the FFT was planned. In this case, since the
     # original distribution was Slab.X, the reset operand is expected to have either a

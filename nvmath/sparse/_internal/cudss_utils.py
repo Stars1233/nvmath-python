@@ -7,9 +7,63 @@ from collections.abc import Sequence
 import numpy as np
 
 from nvmath.bindings import cudss
+from nvmath.internal.ndbuffer import NDBuffer
+from nvmath.internal.tensor_ifc_ndbuffer import NDBufferTensor
 from nvmath.internal.tensor_wrapper import wrap_operand
+from nvmath.internal.utils import device_ctx
 
 COMPATIBLE_LHS_RHS_PACKAGES = {("scipy", "numpy"), ("cupyx", "cupy"), ("torch", "torch")}
+
+
+class _BatchPtrData:
+    """
+    In batched cuDSS operations the library needs a device array of pointers (one
+    per sample in the batch). When operands are reset between solves, because of
+    the reset_operands()/reset_operands_unchecked() requirements, only the
+    pointer values can change and the device array that holds them is/can be reused.
+    A naive update path would construct transient numpy arrays and NDBuffer wrappers
+    on every call (via wrap_operand -> NumpyTensor -> asndbuffer), which adds
+    substantial Python-side overhead.
+    _BatchPtrData mitigates this overhead by pre-allocating, at creation time, an
+    NDBuffer wrapper backed by a numpy array on the host.
+    When DirectSolver calls the update_cudss_*_batch_ptr functions below, it writes
+    new ptr values directly into ``_host_ndbuf.data`` and calls ``_device_ptrs.copy_``
+    with the already-existing ``_host_ndbuf``, skipping all
+    intermediate object construction.
+
+    Note: this wrapper is intentionally private because it is only used in this file
+    and is transparent to the rest of the code. The DirectSolver class in fact
+    stores _BatchPtrData instances in its ``resources_*_ptrs`` lists and passes
+    them back to the update functions without knowing what these objects are.
+    Since, for now, the only attributes of the underlying NDBufferTensor that the update
+    functions need are ``.tensor`` and ``.device_id``, these are exposed
+    as explicit properties.
+    """
+
+    __slots__ = ("_device_ptrs", "_host_ndbuf")
+
+    def __init__(self, ptr: NDBufferTensor):
+        assert isinstance(ptr, NDBufferTensor), "Internal error."
+        self._device_ptrs = ptr
+        # ptr is a 1-D device array with one element per batch sample,
+        # so ptr.shape[0] is the batch count.
+        self._host_ndbuf = NDBuffer.from_numpy(np.empty(ptr.shape[0], dtype=np.uint64))
+
+    @property
+    def tensor(self):
+        return self._device_ptrs.tensor
+
+    @property
+    def device_id(self):
+        return self._device_ptrs.device_id
+
+    def update_from_host_ptrs(self, ptrs, stream_holder):
+        """
+        Write new pointer values into the host buffer and copy to device.
+        Must be called inside a ``device_ctx`` for the target device.
+        """
+        self._host_ndbuf.data[:] = ptrs
+        self._device_ptrs.tensor.copy_(self._host_ndbuf, stream=stream_holder, blocking=False)
 
 
 # TODO: Add debug log messages.
@@ -62,7 +116,7 @@ def create_cudss_dense_explicit_batch(cuda_index_type, cuda_value_type, index_ty
         batch_count, m.data_ptr, n.data_ptr, m.data_ptr, p.data_ptr, cuda_index_type, cuda_value_type, cudss.Layout.COL_MAJOR
     )
 
-    return [m, n], [p], rhs_ptr
+    return [m, n], [_BatchPtrData(p)], rhs_ptr
 
 
 def create_cudss_dense_implicit_batch(cuda_index_type, cuda_value_type, index_type, batch_indices, rhs, stream_holder):
@@ -109,10 +163,8 @@ def update_cudss_dense_explicit_batch_ptr(rhs_ptr, new_rhs, stream_holder, exist
     # in a memory space consistent with the execution mode.
     assert isinstance(new_rhs, Sequence), "Internal error."
 
-    # Build host array of data pointers for each batch element and copy into the
-    # existing device buffer.
-    host_p = wrap_operand(np.array([r.data_ptr for r in new_rhs], dtype=np.uint64))
-    existing_ptrs[0].copy_(host_p, stream_holder=stream_holder)
+    with device_ctx(existing_ptrs[0].device_id):
+        existing_ptrs[0].update_from_host_ptrs([r.data_ptr for r in new_rhs], stream_holder)
 
 
 def update_cudss_dense_implicit_batch_ptr(rhs_ptr, batch_indices, new_rhs, stream_holder, existing_ptrs):
@@ -170,6 +222,7 @@ def create_cudss_csr_matrix(cuda_index_type, cuda_value_type, matrix_type, matri
         lhs.col_indices.data_ptr,
         lhs.values.data_ptr,
         cuda_index_type,
+        cuda_index_type,
         cuda_value_type,
         matrix_type,
         matrix_view_type,
@@ -215,12 +268,21 @@ def create_cudss_csr_explicit_batch(
         col_indices.data_ptr,
         values.data_ptr,
         cuda_index_type,
+        cuda_index_type,
         cuda_value_type,
         matrix_type,
         matrix_view_type,
         cudss.IndexBase.ZERO,
     )
-    return [m, n, nnz], [crow_indices, col_indices, values], lhs_ptr
+    return (
+        [m, n, nnz],
+        [
+            _BatchPtrData(crow_indices),
+            _BatchPtrData(col_indices),
+            _BatchPtrData(values),
+        ],
+        lhs_ptr,
+    )
 
 
 def create_cudss_csr_implicit_batch(
@@ -277,12 +339,21 @@ def create_cudss_csr_implicit_batch(
         col_indices.data_ptr,
         values.data_ptr,
         cuda_index_type,
+        cuda_index_type,
         cuda_value_type,
         matrix_type,
         matrix_view_type,
         cudss.IndexBase.ZERO,
     )
-    return [m, n, nnz], [crow_indices, col_indices, values], lhs_ptr
+    return (
+        [m, n, nnz],
+        [
+            _BatchPtrData(crow_indices),
+            _BatchPtrData(col_indices),
+            _BatchPtrData(values),
+        ],
+        lhs_ptr,
+    )
 
 
 def create_cudss_batchedcsr_implicit_batch(
@@ -384,15 +455,10 @@ def update_cudss_csr_explicit_batch_ptr(lhs_ptr, new_lhs, stream_holder, existin
     # memory space consistent with the execution mode.
     assert isinstance(new_lhs, Sequence), "Internal error."
 
-    # Build host arrays of pointers for each batch element and copy into the
-    # existing device buffers.
-    host_crow = wrap_operand(np.array([o.crow_indices.data_ptr for o in new_lhs], dtype=np.uint64))
-    host_col = wrap_operand(np.array([o.col_indices.data_ptr for o in new_lhs], dtype=np.uint64))
-    host_val = wrap_operand(np.array([o.values.data_ptr for o in new_lhs], dtype=np.uint64))
-
-    existing_ptrs[0].copy_(host_crow, stream_holder=stream_holder)
-    existing_ptrs[1].copy_(host_col, stream_holder=stream_holder)
-    existing_ptrs[2].copy_(host_val, stream_holder=stream_holder)
+    with device_ctx(existing_ptrs[0].device_id):
+        existing_ptrs[0].update_from_host_ptrs([o.crow_indices.data_ptr for o in new_lhs], stream_holder)
+        existing_ptrs[1].update_from_host_ptrs([o.col_indices.data_ptr for o in new_lhs], stream_holder)
+        existing_ptrs[2].update_from_host_ptrs([o.values.data_ptr for o in new_lhs], stream_holder)
 
 
 def update_cudss_csr_implicit_batch_ptr(lhs_ptr, batch_indices, new_lhs, stream_holder, existing_ptrs):
@@ -414,15 +480,10 @@ def update_cudss_csr_implicit_batch_ptr(lhs_ptr, batch_indices, new_lhs, stream_
     col_indices_sequence = [new_lhs.col_indices.__class__(new_lhs.col_indices.tensor[u]) for u in unpacked_indices]
     values_sequence = [new_lhs.values.__class__(new_lhs.values.tensor[u]) for u in unpacked_indices]
 
-    # Build host arrays of pointers for each batch element
-    # and copy into the existing device buffers.
-    host_crow = wrap_operand(np.array([o.data_ptr for o in crow_indices_sequence], dtype=np.uint64))
-    host_col = wrap_operand(np.array([o.data_ptr for o in col_indices_sequence], dtype=np.uint64))
-    host_val = wrap_operand(np.array([o.data_ptr for o in values_sequence], dtype=np.uint64))
-
-    existing_ptrs[0].copy_(host_crow, stream_holder=stream_holder)
-    existing_ptrs[1].copy_(host_col, stream_holder=stream_holder)
-    existing_ptrs[2].copy_(host_val, stream_holder=stream_holder)
+    with device_ctx(existing_ptrs[0].device_id):
+        existing_ptrs[0].update_from_host_ptrs([o.data_ptr for o in crow_indices_sequence], stream_holder)
+        existing_ptrs[1].update_from_host_ptrs([o.data_ptr for o in col_indices_sequence], stream_holder)
+        existing_ptrs[2].update_from_host_ptrs([o.data_ptr for o in values_sequence], stream_holder)
 
 
 def update_cudss_csr_ptr_wrapper(*, existing_ptrs, lhs_ptr, batch_indices=None, new_lhs=None, stream_holder=None):

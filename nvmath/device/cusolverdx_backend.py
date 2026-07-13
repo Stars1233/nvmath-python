@@ -57,7 +57,7 @@ ALLOWED_CUSOLVERDX_FUNCTIONS = {
     # LU with partial pivoting
     "getrf_partial_pivot": "LU factorization with partial pivoting",
     "getrs_partial_pivot": "LU solve with partial pivoting",
-    "gesv_partial_pivot": "Fused LU without pivoting factorization with solve",
+    "gesv_partial_pivot": "Fused LU with partial pivoting factorization with solve",
     # QR
     "geqrf": "QR factorization",
     "unmqr": "Multiplication of Q from QR factorization",
@@ -67,17 +67,17 @@ ALLOWED_CUSOLVERDX_FUNCTIONS = {
     # Triangular solve
     "trsm": "Triangular matrix-matrix solve",
     # Least squares
-    "gels": "Overdetermined or underdetermined least square problems",
+    "gels": "Overdetermined or underdetermined least squares problems",
     # ======= libmathdx 0.3.2 functions =======
     # QR
     "ungqr": "Q matrix generation from geqrf factorization",
     # LQ
     "unglq": "Q matrix generation from gelqf factorization",
     # Eigenvalues
-    "htev": "Eigenvalue solver for hermitian tridiagonal matrices",
-    "heev": "Eigenvalue solver for hermitian dense matrices",
+    "htev": "Eigenvalue solver for Hermitian tridiagonal matrices",
+    "heev": "Eigenvalue solver for Hermitian dense matrices",
     # Tridiagonal matrices
-    "gtsv_no_pivot": "General tridiagonal matrix solve",
+    "gtsv_no_pivot": "General tridiagonal matrix solve without pivoting",
 }
 
 CUSOLVERDX_0_3_ALLOWED_FUNCTIONS = ("ungqr", "unglq", "htev", "heev", "gtsv_no_pivot")
@@ -166,7 +166,7 @@ def _validate_types_and_values(
     check_positive_integer_sequence(size, "size", 1, 3)
     check_in("precision", precision, ALLOWED_REAL_NP_TYPES)
     check_in("execution", execution, ALLOWED_EXECUTION)
-    check_sm(sm, "sm")
+    check_sm(sm, "cuSOLVERDx")
 
     if arrangement is not None:
         if not isinstance(arrangement, Sequence):
@@ -221,7 +221,7 @@ def _validate_logic(
     job,
 ):
     if not _ENABLE_CUSOLVERDX_0_3 and job is not None:
-        raise RuntimeError("job operator requires libmathdx 0.3.2")
+        raise RuntimeError("job operator requires libmathdx 0.3.2 or later")
 
     if transpose_mode is not None:
         check_arg_supported("transpose_mode", function, TRANSPOSE_SUPPORTED_FUNCTIONS)

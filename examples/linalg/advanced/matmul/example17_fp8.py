@@ -18,7 +18,7 @@ import torch
 import nvmath
 
 # Prepare sample input data. Note that N, M and K must be divisible by 16 for FP8.
-# cuBLAS requires B to be column-major, so we first create a row-major tensor and then
+# cuBLAS requires 'b' to be column-major, so we first create a row-major tensor and then
 # transpose it.
 m, n, k = 64, 32, 48
 a = (torch.rand(m, k, device="cuda") * 10).type(torch.float8_e4m3fn)
@@ -30,12 +30,12 @@ b = (torch.rand(n, k, device="cuda") * 10).type(torch.float8_e4m3fn).T
 scales = {"a": 1, "b": 1, "d": 0.1}
 
 # Perform the multiplication. The result of the multiplication will be:
-# (scales.a * A) @ (scales.b * B) * scales.d
+# (scales.a * a) @ (scales.b * b) * scales.d
 result = nvmath.linalg.advanced.matmul(a, b, quantization_scales=scales)
 
 # Check how scaling helped to fit into the dynamic range of float8_e4m3fn type.
 result_without_scaling = nvmath.linalg.advanced.matmul(a, b, quantization_scales={"a": 1, "b": 1, "d": 1})
 print("Without scaling, most of the elements were clamped to the maximum value of float8_e4m3fn type (448):")
 print(result_without_scaling)
-print(f"\nWith D scale set to {scales['d']}, they were scaled down to fit into the dynamic range of float8_e4m3fn:")
+print(f"\nWith 'd' scale set to {scales['d']}, they were scaled down to fit into the dynamic range of float8_e4m3fn:")
 print(result)

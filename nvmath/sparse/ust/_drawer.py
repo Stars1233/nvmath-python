@@ -13,6 +13,7 @@ import math
 import numpy as np
 
 from ._converters import TensorDecomposer
+from ._utils import resolve_stream
 
 
 class RequiredPackageError(Exception):
@@ -30,14 +31,16 @@ PURPLE = (0xFF, 0x08, 0xFF)
 
 
 def _pos_length(tensor, i):
-    if tensor.pos(i) is not None:
-        return tensor.pos(i).size
+    pos = tensor._pos.get(i)
+    if pos is not None:
+        return pos.size
     return 0
 
 
 def _crd_length(tensor, i):
-    if tensor.crd(i) is not None:
-        return tensor.crd(i).size
+    crd = tensor._crd.get(i)
+    if crd is not None:
+        return crd.size
     return 0
 
 
@@ -65,7 +68,7 @@ def _scale_font(txt, w):
     return off, font
 
 
-def draw_tensor(tensor, name=None):
+def draw_tensor(tensor, name=None, stream=None):
     """
     Draws tensor contents (1D, 2D, 3D).
 
@@ -74,6 +77,7 @@ def draw_tensor(tensor, name=None):
     Args:
         tensor: tensor to draw
         name: filename to save to if not None
+        stream: the stream used to order any access to GPU-resident data
     Returns:
         Image, can be displayed with show()
     """
@@ -176,14 +180,14 @@ def draw_tensor(tensor, name=None):
     for k in range(K):
         drawGrid(k)
 
-    TensorDecomposer(tensor, visit123d).run()
+    TensorDecomposer(tensor, visit123d).run(stream=stream)
 
     if name is not None:
         img.save(name)
     return img
 
 
-def draw_tensor_storage(tensor, name=None):
+def draw_tensor_storage(tensor, name=None, stream=None):
     """
     Draws tensor storage (UST).
 
@@ -192,6 +196,7 @@ def draw_tensor_storage(tensor, name=None):
     Args:
         tensor: tensor to draw
         name: filename to save to if not None
+        stream: the stream used to order any access to GPU-resident data
     Returns:
         Image, can be displayed with show()
     """
@@ -200,6 +205,12 @@ def draw_tensor_storage(tensor, name=None):
         from PIL import Image, ImageDraw, ImageFont  # type: ignore[import-not-found]
     except ImportError as e:
         raise RequiredPackageError("The PIL package is required for visualizing UST.") from e
+
+    # This method indexes single elements of the pos/crd/val arrays, so for
+    # GPU-resident data we copy to the host first (ordered on the provided stream).
+    if tensor.device_id != "cpu":
+        stream_holder = resolve_stream(stream, tensor)
+        tensor = tensor._to("cpu", stream_holder)
 
     M = tensor.num_levels * 2 + 1
     N = _max_length(tensor)
@@ -243,21 +254,21 @@ def draw_tensor_storage(tensor, name=None):
         p = _pos_length(tensor, level)
         drawRow(2 * level, f"pos[{level}]", p)
         for j in range(p):
-            drawRowCell(2 * level, j, str(tensor.pos(level).tensor[j].item()))
+            drawRowCell(2 * level, j, str(tensor._pos[level].tensor[j].item()))
         c = _crd_length(tensor, level)
         drawRow(2 * level + 1, f"crd[{level}]", c)
         for j in range(c):
-            drawRowCell(2 * level + 1, j, str(tensor.crd(level).tensor[j].item()))
+            drawRowCell(2 * level + 1, j, str(tensor._crd[level].tensor[j].item()))
     drawRow(M - 1, "values", tensor.nse)
     for j in range(tensor.nse):
-        drawRowCell(M - 1, j, str(tensor.val.tensor[j].item()))
+        drawRowCell(M - 1, j, str(tensor._val.tensor[j].item()))
 
     if name is not None:
         img.save(name)
     return img
 
 
-def draw_tensor_raw(tensor, name=None):
+def draw_tensor_raw(tensor, name=None, stream=None):
     """
     Draws tensor nonzero structure (2D, 3D).
 
@@ -266,6 +277,7 @@ def draw_tensor_raw(tensor, name=None):
     Args:
         tensor: tensor to draw
         name: filename to save to if not None
+        stream: the stream used to order any access to GPU-resident data
     Returns:
         Image, can be displayed with show()
     """
@@ -317,7 +329,7 @@ def draw_tensor_raw(tensor, name=None):
         draw.line([X - 1, 0, X - 1, Y - 1], fill=RED, width=1)
         draw.line([0, Y - 1, X - 1, Y - 1], fill=RED, width=1)
 
-        TensorDecomposer(tensor, visit2d).run()
+        TensorDecomposer(tensor, visit2d).run(stream=stream)
 
         draw.text([0, Y / 2], "I", fill=BLUE, font=font, stroke_width=1.2)
         draw.text([X / 2, 0], "J", fill=BLUE, font=font, stroke_width=1.2)
@@ -384,7 +396,7 @@ def draw_tensor_raw(tensor, name=None):
         line(0, 0, Z, 0, Y, Z)
         line(X, 0, Z, X, Y, Z)
 
-        TensorDecomposer(tensor, visit3d).run()
+        TensorDecomposer(tensor, visit3d).run(stream=stream)
 
         (x, y, z) = project(X / 2, 0, 0)
         draw.text([x, Y - y - 1], "I", fill=BLUE, font=font, stroke_width=1.2)
@@ -398,7 +410,7 @@ def draw_tensor_raw(tensor, name=None):
     return img
 
 
-def animate_tensor(tensor, name=None):
+def animate_tensor(tensor, name=None, stream=None):
     """
     Animates tensor nonzero structure (3D).
 
@@ -407,6 +419,7 @@ def animate_tensor(tensor, name=None):
     Args:
         tensor: tensor to animate
         name: filename to save to if not None
+        stream: the stream used to order any access to GPU-resident data
     Returns:
         HTML if name is None (to embed in other output)
     """
@@ -439,7 +452,7 @@ def animate_tensor(tensor, name=None):
         points[index, 2] = z / U
         index += 1
 
-    TensorDecomposer(tensor, visit3d).run()
+    TensorDecomposer(tensor, visit3d).run(stream=stream)
 
     # Set up frame.
     cube_vertices = np.array([[0, 0, 0], [X, 0, 0], [X, Y, 0], [0, Y, 0], [0, 0, Z], [X, 0, Z], [X, Y, Z], [0, Y, Z]])

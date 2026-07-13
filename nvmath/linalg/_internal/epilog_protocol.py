@@ -144,7 +144,7 @@ class EpilogOutputHandler(Protocol):
         raise NotImplementedError
 
     @abstractmethod
-    def update_ptr(self, mm_desc_ifc, ptr):
+    def update_pointer(self, mm_desc_ifc, ptr):
         """
         Set the pointer for this epilog.
 
@@ -338,7 +338,7 @@ class ReluAuxHandler(EpilogOutputHandler):
         # Set the pointer to 0x1 to bypass the cuBLAS check.
         mm_desc_ifc.epilogue_aux_pointer = 0x1
 
-    def update_ptr(self, mm_desc_ifc, ptr):
+    def update_pointer(self, mm_desc_ifc, ptr):
         # Set the aux pointer.
         mm_desc_ifc.epilogue_aux_pointer = ptr
 
@@ -395,7 +395,7 @@ class GeluAuxHandler(EpilogOutputHandler):
         if self.aux_dtype_name is not None and self.version >= 120800:
             mm_desc_ifc.epilogue_aux_data_type = typemaps.NAME_TO_DATA_TYPE[self.aux_dtype_name]
 
-    def update_ptr(self, mm_desc_ifc, ptr):
+    def update_pointer(self, mm_desc_ifc, ptr):
         # Set the aux pointer.
         mm_desc_ifc.epilogue_aux_pointer = ptr
 
@@ -459,7 +459,7 @@ class BgradHandler(EpilogOutputHandler):
         # support.
         assert self.bgrad_dtype_name == self.d_dtype_name, "Internal error."
 
-    def update_ptr(self, mm_desc_ifc, ptr):
+    def update_pointer(self, mm_desc_ifc, ptr):
         # Set the bgrad pointer.
         mm_desc_ifc.bias_pointer = ptr
 

@@ -43,11 +43,11 @@ with torch.cuda.device(device_id):
     b = (torch.rand(*row_wise_distribution.shape(rank, (n, k)), device="cuda") * 20 - 10).type(torch.float8_e4m3fn)
 
 # Get a transposed view to obtain column-major memory layout. Note that this
-# also changes the distribution of a and b (see example01 for more information).
-a = a.T  # a is now (k, m) with col_wise_distribution
-b = b.T  # b is now (k, n) with col_wise_distribution
+# also changes the distribution of 'a' and 'b' (see example01 for more information).
+a = a.T  # 'a' is now (k, m) with col_wise_distribution
+b = b.T  # 'b' is now (k, n) with col_wise_distribution
 
-# Distributions for A, B, and result matrix D
+# Distributions for 'a', 'b', and result matrix 'd'
 distributions = [col_wise_distribution, col_wise_distribution, row_wise_distribution]
 
 # Set quantization scales to keep values in range

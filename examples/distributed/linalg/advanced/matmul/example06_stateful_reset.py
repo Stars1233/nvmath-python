@@ -10,7 +10,7 @@ operands is not accessible from the execution space, or if it's desired to bind 
 
 The inputs as well as the result are NumPy ndarrays.
 
-The global operation performed in this example is: A @ B
+The global operation performed in this example is: a @ b
 
 $ mpiexec -n 4 python example06_stateful_reset.py
 """
@@ -18,25 +18,17 @@ $ mpiexec -n 4 python example06_stateful_reset.py
 import logging
 
 import numpy as np
-
-try:
-    from cuda.core import system
-except ImportError:
-    from cuda.core.experimental import system
+from cuda.core import system
 from mpi4py import MPI
 
 import nvmath.distributed
 from nvmath.distributed.distribution import BlockNonCyclic, ProcessGrid
 
 # Initialize nvmath.distributed.
-try:
-    num_devices = system.get_num_devices()
-except AttributeError:
-    num_devices = system.num_devices
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 nranks = comm.Get_size()
-device_id = rank % num_devices
+device_id = rank % system.get_num_devices()
 # cuBLASMp requires NCCL communication backend.
 nvmath.distributed.initialize(device_id, comm, backends=["nccl"])
 
@@ -56,11 +48,11 @@ a = np.random.rand(*row_wise_distribution.shape(rank, (k, m)))
 b = np.random.rand(*col_wise_distribution.shape(rank, (n, k)))
 
 # Get a transposed view to obtain column-major memory layout. Note that this
-# also changes the distribution of a and b (see example01 for more information).
-a = a.T  # a is now (m, k) with col_wise_distribution
-b = b.T  # b is now (k, n) with row_wise_distribution
+# also changes the distribution of 'a' and 'b' (see example01 for more information).
+a = a.T  # 'a' is now (m, k) with col_wise_distribution
+b = b.T  # 'b' is now (k, n) with row_wise_distribution
 
-# Distribution of a, b and output.
+# Distribution of 'a', 'b' and output.
 distributions = [col_wise_distribution, row_wise_distribution, col_wise_distribution]
 
 # Use the stateful object as a context manager to automatically release resources.

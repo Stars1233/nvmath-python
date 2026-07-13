@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 #
-# This code was automatically generated with version 25.5, generator version 0.3.1.dev1303+g031f1197f. Do not modify it directly.
+# This code was automatically generated with version 25.5, generator version 0.3.1.dev1471+g7122059e9. Do not modify it directly.
 
 cimport cython
 from libc.stdint cimport intptr_t
@@ -78,7 +78,8 @@ cdef int get_cuda_version():
 cdef object __symbol_lock = threading.Lock()
 cdef bint __py_nvpl_fft_init = False
 cdef str __current_dll_name = ""
-cdef tuple __lib_dll_names = ("mkl_rt.2.dll", )
+# From MKL 2026.0.0 onward, only mkl_rt.3.dll is shipped; keep mkl_rt.2.dll in the probe order for older installs.
+cdef tuple __lib_dll_names = ("mkl_rt.3.dll", "mkl_rt.2.dll",)
 cdef str __env_dll_override_name = "NVMATH_FFT_CPU_LIBRARY"
 
 cdef void* __nvpl_fft_get_version = NULL

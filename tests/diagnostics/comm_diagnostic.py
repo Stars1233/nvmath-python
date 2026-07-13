@@ -3,11 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
-
-try:
-    from cuda.core import Device, system
-except ImportError:
-    from cuda.core.experimental import Device, system
 import os
 import socket
 import warnings
@@ -15,6 +10,7 @@ from dataclasses import dataclass
 
 import nccl.core as nccl
 import numpy as np
+from cuda.core import Device, system
 from mpi4py import MPI
 
 
@@ -48,10 +44,7 @@ use_nccl = args.nccl
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 nranks = comm.Get_size()
-try:
-    num_devices = system.get_num_devices()
-except AttributeError:
-    num_devices = system.num_devices
+num_devices = system.get_num_devices()
 
 if nranks < 2:
     raise RuntimeError(

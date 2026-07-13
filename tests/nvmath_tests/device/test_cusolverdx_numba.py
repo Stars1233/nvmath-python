@@ -2,13 +2,11 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-import itertools
 from collections.abc import Sequence
 
 import numpy as np
 import pytest
 import scipy
-from numba import cuda
 
 from nvmath.device import (
     CholeskySolver,
@@ -23,13 +21,15 @@ from nvmath.device import (
 )
 
 from .cusolverdx_common import (
-    load_to_shared_strided,
+    load_strided_3d,
     prepare_random_matrix,
-    store_from_shared_strided,
+    store_strided_2d,
+    store_strided_3d,
     verify_relative_error,
     verify_triangular_relative_error,
 )
 from .helpers import requires_ctk
+from .utils.common_axes import all_compiler_params
 
 pytestmark = requires_ctk((12, 6, 85))  # CTK 12.6 Update 3
 
@@ -75,6 +75,39 @@ def reconstruct_lq(a: np.ndarray, tau: np.ndarray, n_cols: int, tau_size: int) -
     return q, lower @ q
 
 
+def _axis_combinations(n_cases: int, axes: Sequence[Sequence]) -> list[tuple]:
+    """
+    Pick n_cases so every pair of binary-axis values appears at least
+    once (pairwise).
+
+    See https://en.wikipedia.org/wiki/Orthogonal_array_testing
+    """
+    _XOR_PAIRS = [(0, 1), (0, 2), (0, 3), (1, 2), (1, 3), (2, 3)]
+    n_cases = min(n_cases, 2 ** len(axes))
+
+    for axis in axes:
+        assert len(axis) == 2
+
+    assert len(axes) <= 4 + len(_XOR_PAIRS)
+
+    cases = []
+    for i in range(n_cases):
+        bits = [(i >> k) & 1 for k in range(4)]
+        case = []
+
+        for binary_count, axis in enumerate(axes):
+            if binary_count < 4:
+                idx = bits[binary_count]
+            else:
+                a, b = _XOR_PAIRS[binary_count - 4]
+                idx = bits[a] ^ bits[b]
+            case.append(axis[idx])
+
+        cases.append(tuple(case))
+
+    return cases
+
+
 # ======================================
 # Load/Store tests
 # ======================================
@@ -90,7 +123,9 @@ def reconstruct_lq(a: np.ndarray, tau: np.ndarray, n_cols: int, tau_size: int) -
         (20, 24, 33, "col_major"),
     ],
 )
-def test_load_store(storage):
+@pytest.mark.parametrize("compiler", all_compiler_params())
+def test_load_store(compiler, storage):
+    cuda = compiler.runtime
     m, n, ld, arr = storage
     batches = 1
 
@@ -107,8 +142,8 @@ def test_load_store(storage):
             strides = (m * ld, 1, ld)
         else:
             strides = (n * ld, ld, 1)
-        load_to_shared_strided(a, a_shared, (batches, m, n), strides)
-        store_from_shared_strided(a_shared, b, (batches, m, n), strides)
+        load_strided_3d(a, a_shared, (batches, m, n), strides)
+        store_strided_3d(a_shared, b, (batches, m, n), strides)
 
     f[1, m * n, 0, m * n * 4 * 3](a_d, b_d)
     cuda.synchronize()
@@ -121,14 +156,32 @@ def test_load_store(storage):
 # ======================================
 
 
-@pytest.mark.parametrize("api", ["runtime_ld", "compiletime_ld"])
-@pytest.mark.parametrize("storage", [((5, 5), None), ((5, 5), (7, 9))])
-@pytest.mark.parametrize("precision", [np.float64, np.float32])
-@pytest.mark.parametrize("arrangement", [("col_major", "col_major"), ["col_major", "row_major"]])
-@pytest.mark.parametrize("data_type", ["real", "complex"])
-@pytest.mark.parametrize("fill_mode", ["upper", "lower"])
-@pytest.mark.parametrize("block_dim", [None, "suggested"])
-def test_func_potrf(api, storage, precision, arrangement, data_type, fill_mode, block_dim):
+_POTRF_CASES = _axis_combinations(
+    16,
+    [
+        ["runtime_ld", "compiletime_ld"],
+        [((5, 5), None), ((5, 5), (7, 9))],
+        [np.float64, np.float32],
+        [("col_major", "col_major"), ("col_major", "row_major")],
+        ["real", "complex"],
+        ["upper", "lower"],
+        [None, "suggested"],
+    ],
+)
+# Not covered in generated cases:
+# complex Hermitian + compiletime_ld + custom ld, both fill modes
+_POTRF_CASES.append(
+    ("compiletime_ld", ((5, 5), (7, 9)), np.float64, ("col_major", "row_major"), "complex", "upper", "suggested")
+)
+_POTRF_CASES.append(
+    ("compiletime_ld", ((5, 5), (7, 9)), np.float64, ("col_major", "row_major"), "complex", "lower", "suggested")
+)
+
+
+@pytest.mark.parametrize("api,storage,precision,arrangement,data_type,fill_mode,block_dim", _POTRF_CASES)
+@pytest.mark.parametrize("compiler", all_compiler_params())
+def test_func_potrf(compiler, api, storage, precision, arrangement, data_type, fill_mode, block_dim):
+    cuda = compiler.runtime
     size, leading_dimensions = storage
     solver = CholeskySolver(
         size=size,
@@ -149,7 +202,7 @@ def test_func_potrf(api, storage, precision, arrangement, data_type, fill_mode, 
     def f(a, info):
         a_shared = cuda.shared.array(n_a, dtype=solver.value_type)
 
-        load_to_shared_strided(a, a_shared, solver.a_shape, solver.a_strides())
+        load_strided_3d(a, a_shared, solver.a_shape, solver.a_strides())
         cuda.syncthreads()
 
         if api == "compiletime_ld":
@@ -158,7 +211,7 @@ def test_func_potrf(api, storage, precision, arrangement, data_type, fill_mode, 
             solver.factorize(a_shared, info, lda=solver.lda)
         cuda.syncthreads()
 
-        store_from_shared_strided(a_shared, a, solver.a_shape, solver.a_strides())
+        store_strided_3d(a_shared, a, solver.a_shape, solver.a_strides())
 
     a = prepare_random_matrix(
         solver.a_shape,
@@ -185,14 +238,32 @@ def test_func_potrf(api, storage, precision, arrangement, data_type, fill_mode, 
         )
 
 
-@pytest.mark.parametrize("api", ["runtime_ld", "compiletime_ld"])
-@pytest.mark.parametrize("storage", [((9, 9, 9), None), ((9, 9, 9), (11, 13))])
-@pytest.mark.parametrize("precision", [np.float64, np.float32])
-@pytest.mark.parametrize("arrangement", [("col_major", "col_major"), ["col_major", "row_major"]])
-@pytest.mark.parametrize("data_type", ["real", "complex"])
-@pytest.mark.parametrize("fill_mode", ["upper", "lower"])
-@pytest.mark.parametrize("block_dim", [None, "suggested"])
-def test_func_potrs(api, storage, precision, arrangement, data_type, fill_mode, block_dim):
+_POTRS_CASES = _axis_combinations(
+    16,
+    [
+        ["runtime_ld", "compiletime_ld"],
+        [((9, 9, 9), None), ((9, 9, 9), (11, 13))],
+        [np.float64, np.float32],
+        [("col_major", "col_major"), ("col_major", "row_major")],
+        ["real", "complex"],
+        ["upper", "lower"],
+        [None, "suggested"],
+    ],
+)
+# Not covered in generated cases:
+# complex Hermitian solve + compiletime_ld + custom ld, both fill modes
+_POTRS_CASES.append(
+    ("compiletime_ld", ((9, 9, 9), (11, 13)), np.float64, ("col_major", "row_major"), "complex", "upper", "suggested")
+)
+_POTRS_CASES.append(
+    ("compiletime_ld", ((9, 9, 9), (11, 13)), np.float64, ("col_major", "row_major"), "complex", "lower", "suggested")
+)
+
+
+@pytest.mark.parametrize("api,storage,precision,arrangement,data_type,fill_mode,block_dim", _POTRS_CASES)
+@pytest.mark.parametrize("compiler", all_compiler_params())
+def test_func_potrs(compiler, api, storage, precision, arrangement, data_type, fill_mode, block_dim):
+    cuda = compiler.runtime
     size, leading_dimensions = storage
     solver = CholeskySolver(
         size=size,
@@ -215,8 +286,8 @@ def test_func_potrs(api, storage, precision, arrangement, data_type, fill_mode, 
         smem_a = cuda.shared.array(n_a, dtype=solver.value_type)
         smem_b = cuda.shared.array(n_b, dtype=solver.value_type)
 
-        load_to_shared_strided(a, smem_a, solver.a_shape, solver.a_strides())
-        load_to_shared_strided(b, smem_b, solver.b_shape, solver.b_strides())
+        load_strided_3d(a, smem_a, solver.a_shape, solver.a_strides())
+        load_strided_3d(b, smem_b, solver.b_shape, solver.b_strides())
         cuda.syncthreads()
 
         if api == "compiletime_ld":
@@ -225,7 +296,7 @@ def test_func_potrs(api, storage, precision, arrangement, data_type, fill_mode, 
             solver.solve(smem_a, smem_b, lda=solver.lda, ldb=solver.ldb)
         cuda.syncthreads()
 
-        store_from_shared_strided(smem_b, b, solver.b_shape, solver.b_strides())
+        store_strided_3d(smem_b, b, solver.b_shape, solver.b_strides())
 
     a = prepare_random_matrix(
         solver.a_shape,
@@ -262,7 +333,9 @@ def test_func_potrs(api, storage, precision, arrangement, data_type, fill_mode, 
 
 @pytest.mark.parametrize("api", ["runtime_ld", "compiletime_ld"])
 @pytest.mark.parametrize("size", [(7, 5), (11, 7), (11, 3), (7, 13), (17, 21), (23, 33), (2, 8), (8, 2)])
-def test_lu_solver_factorize_only_solve_fail(api, size):
+@pytest.mark.parametrize("compiler", all_compiler_params())
+def test_lu_solver_factorize_only_solve_fail(compiler, api, size):
+    cuda = compiler.runtime
     solver = LUSolver(
         size=size,
         execution="Block",
@@ -276,8 +349,8 @@ def test_lu_solver_factorize_only_solve_fail(api, size):
         smem_a = cuda.shared.array(n_a, dtype=solver.value_type)
         smem_b = cuda.shared.array(n_b, dtype=solver.value_type)
 
-        load_to_shared_strided(a, smem_a, solver.a_shape, solver.a_strides())
-        load_to_shared_strided(b, smem_b, solver.b_shape, solver.b_strides())
+        load_strided_3d(a, smem_a, solver.a_shape, solver.a_strides())
+        load_strided_3d(b, smem_b, solver.b_shape, solver.b_strides())
         cuda.syncthreads()
 
         solver.factorize(smem_a, info)
@@ -289,7 +362,7 @@ def test_lu_solver_factorize_only_solve_fail(api, size):
             solver.solve(smem_a, smem_b, lda=solver.lda, ldb=solver.ldb)
         cuda.syncthreads()
 
-        store_from_shared_strided(smem_b, b, solver.b_shape, solver.b_strides())
+        store_strided_3d(smem_b, b, solver.b_shape, solver.b_strides())
 
     a = prepare_random_matrix(
         solver.a_shape,
@@ -317,13 +390,28 @@ def test_lu_solver_factorize_only_solve_fail(api, size):
         cuda.synchronize()
 
 
-@pytest.mark.parametrize("api", ["runtime_ld", "compiletime_ld"])
-@pytest.mark.parametrize("storage", [((8, 12), None), ((8, 12), (13, 13))])
-@pytest.mark.parametrize("precision", [np.float64, np.float32])
-@pytest.mark.parametrize("arrangement", [("col_major", "col_major"), ["row_major", "row_major"]])
-@pytest.mark.parametrize("data_type", ["real", "complex"])
-@pytest.mark.parametrize("block_dim", [None, "suggested"])
-def test_lu_solver_factorize(api, storage, precision, arrangement, data_type, block_dim):
+_LU_FACTORIZE_CASES = _axis_combinations(
+    16,
+    [
+        ["runtime_ld", "compiletime_ld"],
+        [((8, 12), None), ((8, 12), (13, 13))],
+        [np.float64, np.float32],
+        [("col_major", "col_major"), ("row_major", "row_major")],
+        ["real", "complex"],
+        [None, "suggested"],
+    ],
+)
+# Not covered in generated cases:
+# complex + compiletime_ld + custom ld
+_LU_FACTORIZE_CASES.append(
+    ("compiletime_ld", ((8, 12), (13, 13)), np.float64, ("row_major", "row_major"), "complex", "suggested")
+)
+
+
+@pytest.mark.parametrize("api,storage,precision,arrangement,data_type,block_dim", _LU_FACTORIZE_CASES)
+@pytest.mark.parametrize("compiler", all_compiler_params())
+def test_lu_solver_factorize(compiler, api, storage, precision, arrangement, data_type, block_dim):
+    cuda = compiler.runtime
     size, leading_dimensions = storage
 
     solver = LUSolver(
@@ -350,7 +438,7 @@ def test_lu_solver_factorize(api, storage, precision, arrangement, data_type, bl
     def factorize(a, info):
         a_shared = cuda.shared.array(n_a, dtype=solver.value_type)
 
-        load_to_shared_strided(a, a_shared, solver.a_shape, solver.a_strides())
+        load_strided_3d(a, a_shared, solver.a_shape, solver.a_strides())
         cuda.syncthreads()
 
         if api == "compiletime_ld":
@@ -359,7 +447,7 @@ def test_lu_solver_factorize(api, storage, precision, arrangement, data_type, bl
             solver.factorize(a_shared, info, lda=solver.lda)
         cuda.syncthreads()
 
-        store_from_shared_strided(a_shared, a, solver.a_shape, solver.a_strides())
+        store_strided_3d(a_shared, a, solver.a_shape, solver.a_strides())
 
     a_d = cuda.to_device(a)
     info_d = cuda.device_array(solver.info_shape, dtype=solver.info_type)
@@ -381,14 +469,41 @@ def test_lu_solver_factorize(api, storage, precision, arrangement, data_type, bl
         verify_relative_error(a_recreated[batch], a[batch], _PREC_TABLE[solver.precision], _ABS_ERR, solver)
 
 
-@pytest.mark.parametrize("api", ["runtime_ld", "compiletime_ld"])
-@pytest.mark.parametrize("storage", [((11, 11, 7), None), ((11, 11, 7), (13, 13))])
-@pytest.mark.parametrize("precision", [np.float64, np.float32])
-@pytest.mark.parametrize("arrangement", [("col_major", "col_major"), ["col_major", "row_major"]])
-@pytest.mark.parametrize("data_type", ["real", "complex"])
-@pytest.mark.parametrize("transpose_mode", ["non_transposed", "transposed"])
-@pytest.mark.parametrize("block_dim", [None, "suggested"])
-def test_lu_solver(api, storage, precision, arrangement, data_type, transpose_mode, block_dim):
+_LU_SOLVER_CASES = _axis_combinations(
+    16,
+    [
+        ["runtime_ld", "compiletime_ld"],
+        [((11, 11, 7), None), ((11, 11, 7), (13, 13))],
+        [np.float64, np.float32],
+        [("col_major", "col_major"), ("col_major", "row_major")],
+        ["real", "complex"],
+        ["non_transposed", "transposed"],
+        [None, "suggested"],
+    ],
+)
+
+# Not covered in generated cases:
+# conj_transposed + multi-RHS (k=7) + compiletime_ld + custom ld
+_LU_SOLVER_CASES.append(
+    ("compiletime_ld", ((11, 11, 7), (13, 13)), np.float64, ("col_major", "row_major"), "complex", "transposed", "suggested")
+)
+_LU_SOLVER_CASES.append(
+    (
+        "compiletime_ld",
+        ((11, 11, 7), (13, 13)),
+        np.float64,
+        ("col_major", "row_major"),
+        "complex",
+        "non_transposed",
+        "suggested",
+    )
+)
+
+
+@pytest.mark.parametrize("api,storage,precision,arrangement,data_type,transpose_mode,block_dim", _LU_SOLVER_CASES)
+@pytest.mark.parametrize("compiler", all_compiler_params())
+def test_lu_solver(compiler, api, storage, precision, arrangement, data_type, transpose_mode, block_dim):
+    cuda = compiler.runtime
     size, leading_dimensions = storage
 
     if transpose_mode == "transposed" and data_type == "complex":
@@ -414,7 +529,7 @@ def test_lu_solver(api, storage, precision, arrangement, data_type, transpose_mo
     def factorize(a, info):
         a_shared = cuda.shared.array(n_a, dtype=solver.value_type)
 
-        load_to_shared_strided(a, a_shared, solver.a_shape, solver.a_strides())
+        load_strided_3d(a, a_shared, solver.a_shape, solver.a_strides())
         cuda.syncthreads()
 
         if api == "compiletime_ld":
@@ -423,15 +538,15 @@ def test_lu_solver(api, storage, precision, arrangement, data_type, transpose_mo
             solver.factorize(a_shared, info, lda=solver.lda)
         cuda.syncthreads()
 
-        store_from_shared_strided(a_shared, a, solver.a_shape, solver.a_strides())
+        store_strided_3d(a_shared, a, solver.a_shape, solver.a_strides())
 
     @cuda.jit
     def solve(a, b):
         smem_a = cuda.shared.array(n_a, dtype=solver.value_type)
         smem_b = cuda.shared.array(n_b, dtype=solver.value_type)
 
-        load_to_shared_strided(a, smem_a, solver.a_shape, solver.a_strides())
-        load_to_shared_strided(b, smem_b, solver.b_shape, solver.b_strides())
+        load_strided_3d(a, smem_a, solver.a_shape, solver.a_strides())
+        load_strided_3d(b, smem_b, solver.b_shape, solver.b_strides())
         cuda.syncthreads()
 
         if api == "compiletime_ld":
@@ -440,7 +555,7 @@ def test_lu_solver(api, storage, precision, arrangement, data_type, transpose_mo
             solver.solve(smem_a, smem_b, lda=solver.lda, ldb=solver.ldb)
         cuda.syncthreads()
 
-        store_from_shared_strided(smem_b, b, solver.b_shape, solver.b_strides())
+        store_strided_3d(smem_b, b, solver.b_shape, solver.b_strides())
 
     a = prepare_random_matrix(
         solver.a_shape,
@@ -496,17 +611,90 @@ def test_lu_solver(api, storage, precision, arrangement, data_type, transpose_mo
 # ======================================
 
 
-@pytest.mark.parametrize("api", ["runtime_ld", "compiletime_ld"])
-@pytest.mark.parametrize("storage", [((17, 19), None), ((7, 9), (11, 13))])
-@pytest.mark.parametrize("precision", [np.float64, np.float32])
-@pytest.mark.parametrize("arrangement", [("col_major", "col_major"), ["col_major", "row_major"]])
-@pytest.mark.parametrize("data_type", ["real", "complex"])
-@pytest.mark.parametrize("fill_mode", ["upper", "lower"])
-@pytest.mark.parametrize("transpose_mode", ["non_transposed", "transposed"])
-@pytest.mark.parametrize("side", ["left", "right"])
-@pytest.mark.parametrize("diag", ["non_unit", "unit"])
-@pytest.mark.parametrize("block_dim", [None, "suggested"])
-def test_triangular_solver(api, storage, precision, arrangement, data_type, fill_mode, transpose_mode, side, diag, block_dim):
+_TRIANGULAR_CASES = _axis_combinations(
+    16,
+    [
+        ["runtime_ld", "compiletime_ld"],
+        [((17, 19), None), ((7, 9), (11, 13))],
+        [np.float64, np.float32],
+        [("col_major", "col_major"), ("col_major", "row_major")],
+        ["real", "complex"],
+        ["upper", "lower"],
+        ["non_transposed", "transposed"],
+        ["left", "right"],
+        ["non_unit", "unit"],
+        [None, "suggested"],
+    ],
+)
+# Not covered in generated cases:
+# 5-way (data x fill x trans x side x diag) corners, both pairs
+_TRIANGULAR_CASES.append(
+    (
+        "compiletime_ld",
+        ((7, 9), (11, 13)),
+        np.float64,
+        ("col_major", "row_major"),
+        "complex",
+        "upper",
+        "transposed",
+        "right",
+        "unit",
+        "suggested",
+    )
+)
+_TRIANGULAR_CASES.append(
+    (
+        "runtime_ld",
+        ((7, 9), (11, 13)),
+        np.float64,
+        ("col_major", "row_major"),
+        "complex",
+        "lower",
+        "transposed",
+        "left",
+        "unit",
+        "suggested",
+    )
+)
+_TRIANGULAR_CASES.append(
+    (
+        "compiletime_ld",
+        ((17, 19), None),
+        np.float32,
+        ("col_major", "col_major"),
+        "real",
+        "upper",
+        "non_transposed",
+        "right",
+        "unit",
+        None,
+    )
+)
+_TRIANGULAR_CASES.append(
+    (
+        "runtime_ld",
+        ((17, 19), None),
+        np.float32,
+        ("col_major", "col_major"),
+        "real",
+        "lower",
+        "transposed",
+        "right",
+        "non_unit",
+        None,
+    )
+)
+
+
+@pytest.mark.parametrize(
+    "api,storage,precision,arrangement,data_type,fill_mode,transpose_mode,side,diag,block_dim",
+    _TRIANGULAR_CASES,
+)
+@pytest.mark.parametrize("compiler", all_compiler_params())
+def test_triangular_solver(
+    compiler, api, storage, precision, arrangement, data_type, fill_mode, transpose_mode, side, diag, block_dim
+):
+    cuda = compiler.runtime
     size, leading_dimensions = storage
 
     if transpose_mode == "transposed" and data_type == "complex":
@@ -535,8 +723,8 @@ def test_triangular_solver(api, storage, precision, arrangement, data_type, fill
         smem_a = cuda.shared.array(n_a, dtype=solver.value_type)
         smem_b = cuda.shared.array(n_b, dtype=solver.value_type)
 
-        load_to_shared_strided(a, smem_a, solver.a_shape, solver.a_strides())
-        load_to_shared_strided(b, smem_b, solver.b_shape, solver.b_strides())
+        load_strided_3d(a, smem_a, solver.a_shape, solver.a_strides())
+        load_strided_3d(b, smem_b, solver.b_shape, solver.b_strides())
         cuda.syncthreads()
 
         if api == "compiletime_ld":
@@ -545,7 +733,7 @@ def test_triangular_solver(api, storage, precision, arrangement, data_type, fill
             solver.solve(smem_a, smem_b, lda=solver.lda, ldb=solver.ldb)
         cuda.syncthreads()
 
-        store_from_shared_strided(smem_b, b, solver.b_shape, solver.b_strides())
+        store_strided_3d(smem_b, b, solver.b_shape, solver.b_strides())
 
     a = prepare_random_matrix(
         solver.a_shape,
@@ -597,7 +785,9 @@ def test_triangular_solver(api, storage, precision, arrangement, data_type, fill
 
 @pytest.mark.parametrize("api", ["runtime_ld", "compiletime_ld"])
 @pytest.mark.parametrize("size", [(7, 5), (11, 7), (11, 3), (7, 13), (17, 21), (23, 33), (2, 8), (8, 2)])
-def test_lu_partial_pivot_solver_factorize_only_solve_fail(api, size):
+@pytest.mark.parametrize("compiler", all_compiler_params())
+def test_lu_partial_pivot_solver_factorize_only_solve_fail(compiler, api, size):
+    cuda = compiler.runtime
     solver = LUPivotSolver(
         size=size,
         execution="Block",
@@ -611,8 +801,8 @@ def test_lu_partial_pivot_solver_factorize_only_solve_fail(api, size):
         smem_a = cuda.shared.array(n_a, dtype=solver.value_type)
         smem_b = cuda.shared.array(n_b, dtype=solver.value_type)
 
-        load_to_shared_strided(a, smem_a, solver.a_shape, solver.a_strides())
-        load_to_shared_strided(b, smem_b, solver.b_shape, solver.b_strides())
+        load_strided_3d(a, smem_a, solver.a_shape, solver.a_strides())
+        load_strided_3d(b, smem_b, solver.b_shape, solver.b_strides())
         cuda.syncthreads()
 
         solver.factorize(smem_a, ipiv, info)
@@ -624,7 +814,7 @@ def test_lu_partial_pivot_solver_factorize_only_solve_fail(api, size):
             solver.solve(smem_a, ipiv, smem_b, lda=solver.lda, ldb=solver.ldb)
         cuda.syncthreads()
 
-        store_from_shared_strided(smem_b, b, solver.b_shape, solver.b_strides())
+        store_strided_3d(smem_b, b, solver.b_shape, solver.b_strides())
 
     a = prepare_random_matrix(
         solver.a_shape,
@@ -653,13 +843,28 @@ def test_lu_partial_pivot_solver_factorize_only_solve_fail(api, size):
         cuda.synchronize()
 
 
-@pytest.mark.parametrize("api", ["runtime_ld", "compiletime_ld"])
-@pytest.mark.parametrize("storage", [((3, 5), None), ((3, 5), (7, 7))])
-@pytest.mark.parametrize("precision", [np.float64, np.float32])
-@pytest.mark.parametrize("arrangement", [("col_major", "col_major"), ["row_major", "row_major"]])
-@pytest.mark.parametrize("data_type", ["real", "complex"])
-@pytest.mark.parametrize("block_dim", [None, "suggested"])
-def test_lu_pivot_solver_factorize(api, storage, precision, arrangement, data_type, block_dim):
+_LU_PIVOT_FACTORIZE_CASES = _axis_combinations(
+    16,
+    [
+        ["runtime_ld", "compiletime_ld"],
+        [((3, 5), None), ((3, 5), (7, 7))],
+        [np.float64, np.float32],
+        [("col_major", "col_major"), ("row_major", "row_major")],
+        ["real", "complex"],
+        [None, "suggested"],
+    ],
+)
+# Not covered in generated cases:
+# complex + compiletime_ld + custom ld
+_LU_PIVOT_FACTORIZE_CASES.append(
+    ("compiletime_ld", ((3, 5), (7, 7)), np.float64, ("row_major", "row_major"), "complex", "suggested")
+)
+
+
+@pytest.mark.parametrize("api,storage,precision,arrangement,data_type,block_dim", _LU_PIVOT_FACTORIZE_CASES)
+@pytest.mark.parametrize("compiler", all_compiler_params())
+def test_lu_pivot_solver_factorize(compiler, api, storage, precision, arrangement, data_type, block_dim):
+    cuda = compiler.runtime
     size, leading_dimensions = storage
 
     solver = LUPivotSolver(
@@ -685,7 +890,7 @@ def test_lu_pivot_solver_factorize(api, storage, precision, arrangement, data_ty
     def factorize(a, info, ipiv):
         a_shared = cuda.shared.array(n_a, dtype=solver.value_type)
 
-        load_to_shared_strided(a, a_shared, solver.a_shape, solver.a_strides())
+        load_strided_3d(a, a_shared, solver.a_shape, solver.a_strides())
         cuda.syncthreads()
 
         if api == "compiletime_ld":
@@ -694,7 +899,7 @@ def test_lu_pivot_solver_factorize(api, storage, precision, arrangement, data_ty
             solver.factorize(a_shared, ipiv, info, lda=solver.lda)
         cuda.syncthreads()
 
-        store_from_shared_strided(a_shared, a, solver.a_shape, solver.a_strides())
+        store_strided_3d(a_shared, a, solver.a_shape, solver.a_strides())
 
     a_d = cuda.to_device(a)
     info_d = cuda.device_array(solver.info_shape, dtype=solver.info_type)
@@ -727,14 +932,32 @@ def test_lu_pivot_solver_factorize(api, storage, precision, arrangement, data_ty
         verify_relative_error(a_recreated[batch], a[batch], _PREC_TABLE[solver.precision], _ABS_ERR, solver)
 
 
-@pytest.mark.parametrize("api", ["runtime_ld", "compiletime_ld"])
-@pytest.mark.parametrize("storage", [((7, 7), None), ((7, 7, 3), (11, 11))])
-@pytest.mark.parametrize("precision", [np.float64, np.float32])
-@pytest.mark.parametrize("arrangement", [("col_major", "col_major"), ["row_major", "row_major"]])
-@pytest.mark.parametrize("data_type", ["real", "complex"])
-@pytest.mark.parametrize("transpose_mode", ["non_transposed", "transposed"])
-@pytest.mark.parametrize("block_dim", [None, "suggested"])
-def test_lu_pivot_solver(api, storage, precision, arrangement, data_type, transpose_mode, block_dim):
+_LU_PIVOT_SOLVER_CASES = _axis_combinations(
+    16,
+    [
+        ["runtime_ld", "compiletime_ld"],
+        [((7, 7), None), ((7, 7, 3), (11, 11))],
+        [np.float64, np.float32],
+        [("col_major", "col_major"), ("row_major", "row_major")],
+        ["real", "complex"],
+        ["non_transposed", "transposed"],
+        [None, "suggested"],
+    ],
+)
+# Not covered in generated cases:
+# batched k=3 + conj_transposed + compiletime_ld + row_major
+_LU_PIVOT_SOLVER_CASES.append(
+    ("compiletime_ld", ((7, 7, 3), (11, 11)), np.float64, ("row_major", "row_major"), "complex", "transposed", "suggested")
+)
+_LU_PIVOT_SOLVER_CASES.append(
+    ("compiletime_ld", ((7, 7, 3), (11, 11)), np.float64, ("row_major", "row_major"), "complex", "non_transposed", "suggested")
+)
+
+
+@pytest.mark.parametrize("api,storage,precision,arrangement,data_type,transpose_mode,block_dim", _LU_PIVOT_SOLVER_CASES)
+@pytest.mark.parametrize("compiler", all_compiler_params())
+def test_lu_pivot_solver(compiler, api, storage, precision, arrangement, data_type, transpose_mode, block_dim):
+    cuda = compiler.runtime
     size, leading_dimensions = storage
 
     if transpose_mode == "transposed" and data_type == "complex":
@@ -761,7 +984,7 @@ def test_lu_pivot_solver(api, storage, precision, arrangement, data_type, transp
     def factorize(a, info, ipiv):
         a_shared = cuda.shared.array(n_a, dtype=solver.value_type)
 
-        load_to_shared_strided(a, a_shared, solver.a_shape, solver.a_strides())
+        load_strided_3d(a, a_shared, solver.a_shape, solver.a_strides())
         cuda.syncthreads()
 
         if api == "compiletime_ld":
@@ -770,15 +993,15 @@ def test_lu_pivot_solver(api, storage, precision, arrangement, data_type, transp
             solver.factorize(a_shared, ipiv, info, lda=solver.lda)
         cuda.syncthreads()
 
-        store_from_shared_strided(a_shared, a, solver.a_shape, solver.a_strides())
+        store_strided_3d(a_shared, a, solver.a_shape, solver.a_strides())
 
     @cuda.jit
     def solve(a, b, ipiv):
         smem_a = cuda.shared.array(n_a, dtype=solver.value_type)
         smem_b = cuda.shared.array(n_b, dtype=solver.value_type)
 
-        load_to_shared_strided(a, smem_a, solver.a_shape, solver.a_strides())
-        load_to_shared_strided(b, smem_b, solver.b_shape, solver.b_strides())
+        load_strided_3d(a, smem_a, solver.a_shape, solver.a_strides())
+        load_strided_3d(b, smem_b, solver.b_shape, solver.b_strides())
         cuda.syncthreads()
 
         if api == "compiletime_ld":
@@ -787,7 +1010,7 @@ def test_lu_pivot_solver(api, storage, precision, arrangement, data_type, transp
             solver.solve(smem_a, ipiv, smem_b, lda=solver.lda, ldb=solver.ldb)
         cuda.syncthreads()
 
-        store_from_shared_strided(smem_b, b, solver.b_shape, solver.b_strides())
+        store_strided_3d(smem_b, b, solver.b_shape, solver.b_strides())
 
     a = prepare_random_matrix(
         solver.a_shape,
@@ -866,32 +1089,37 @@ def get_size_multiplty_qrlq(size: Sequence[int], operation: str, side: str) -> t
     return size_multiply
 
 
-def is_proper_spec(spec) -> bool:
-    size, leading_dimensions, operation, side = spec
-    size_multiply = get_size_multiplty_qrlq(size, operation, side)
-
-    return (
-        not (leading_dimensions is not None and max(size) > min(leading_dimensions))
-        and not (side == "left" and size_multiply[2] > size_multiply[0])
-        and not (side == "right" and size_multiply[2] > size_multiply[1])
+def _qrlq_cases(operation: str, side: str, storages: list) -> list[tuple]:
+    base = _axis_combinations(
+        16,
+        [
+            ["runtime_ld", "compiletime_ld"],
+            storages,
+            [np.float64, np.float32],
+            [("col_major", "col_major"), ("row_major", "row_major")],
+            ["real", "complex"],
+            ["non_transposed", "transposed"],
+        ],
     )
+    return [(operation, side, *cases) for cases in base]
 
 
-@pytest.mark.parametrize("api", ["runtime_ld", "compiletime_ld"])
+_QR_LEFT_CASES = _qrlq_cases("qr", "left", [((14, 13, 19), None), ((21, 13, 11), (23, 23))])
+_QR_RIGHT_CASES = _qrlq_cases("qr", "right", [((21, 13, 11), None), ((14, 13, 19), (24, 24))])
+_LQ_LEFT_CASES = _qrlq_cases("lq", "left", [((11, 17, 5), None), ((11, 17, 5), (23, 23))])
+_LQ_RIGHT_CASES = _qrlq_cases("lq", "right", [((11, 17, 5), None), ((11, 17, 5), (24, 24))])
+
+_QRLQ_CASES = _QR_LEFT_CASES + _QR_RIGHT_CASES + _LQ_LEFT_CASES + _LQ_RIGHT_CASES
+
+
 @pytest.mark.parametrize(
-    "spec",
-    [
-        v
-        for v in itertools.product([(14, 13, 19), (21, 13, 11)], [None, (23, 23), (24, 24)], ["qr", "lq"], ["left", "right"])
-        if is_proper_spec(v)
-    ],
+    "operation,side,api,storage,precision,arrangement,data_type,transpose_mode",
+    _QRLQ_CASES,
 )
-@pytest.mark.parametrize("precision", [np.float64, np.float32])
-@pytest.mark.parametrize("arrangement", [("col_major", "col_major"), ["row_major", "row_major"]])
-@pytest.mark.parametrize("data_type", ["real", "complex"])
-@pytest.mark.parametrize("transpose_mode", ["non_transposed", "transposed"])
-def test_qrlq(api, spec, precision, arrangement, data_type, transpose_mode):
-    size, leading_dimensions, operation, side = spec
+@pytest.mark.parametrize("compiler", all_compiler_params())
+def test_qrlq(compiler, operation, side, api, storage, precision, arrangement, data_type, transpose_mode):
+    cuda = compiler.runtime
+    size, leading_dimensions = storage
 
     size_multiply = get_size_multiplty_qrlq(size, operation, side)
     if transpose_mode == "transposed" and data_type == "complex":
@@ -944,8 +1172,8 @@ def test_qrlq(api, spec, precision, arrangement, data_type, transpose_mode):
         smem_c = cuda.shared.array(n_c, dtype=factorizer.value_type)
         smem_tau = cuda.shared.array(n_tau, dtype=factorizer.value_type)
 
-        load_to_shared_strided(a, smem_a, factorizer.a_shape, factorizer.a_strides())
-        load_to_shared_strided(c, smem_c, multiplier.c_shape, multiplier.c_strides())
+        load_strided_3d(a, smem_a, factorizer.a_shape, factorizer.a_strides())
+        load_strided_3d(c, smem_c, multiplier.c_shape, multiplier.c_strides())
         cuda.syncthreads()
 
         if api == "compiletime_ld":
@@ -954,8 +1182,8 @@ def test_qrlq(api, spec, precision, arrangement, data_type, transpose_mode):
             factorizer.factorize(smem_a, smem_tau, lda=factorizer.lda)
         cuda.syncthreads()
 
-        store_from_shared_strided(smem_a, a, factorizer.a_shape, factorizer.a_strides())
-        store_from_shared_strided(smem_tau, tau, factorizer.tau_shape, factorizer.tau_strides)
+        store_strided_3d(smem_a, a, factorizer.a_shape, factorizer.a_strides())
+        store_strided_2d(smem_tau, tau, factorizer.tau_shape, factorizer.tau_strides)
         cuda.syncthreads()
 
         if api == "compiletime_ld":
@@ -964,7 +1192,7 @@ def test_qrlq(api, spec, precision, arrangement, data_type, transpose_mode):
             multiplier.multiply(smem_a, smem_tau, smem_c, lda=multiplier.lda, ldc=multiplier.ldb)
         cuda.syncthreads()
 
-        store_from_shared_strided(smem_c, c, multiplier.c_shape, multiplier.c_strides())
+        store_strided_3d(smem_c, c, multiplier.c_shape, multiplier.c_strides())
 
     a_d = cuda.to_device(a)
     c_d = cuda.to_device(c)
@@ -999,20 +1227,32 @@ def test_qrlq(api, spec, precision, arrangement, data_type, transpose_mode):
 # ======================================
 
 
-@pytest.mark.parametrize("api", ["runtime_ld", "compiletime_ld"])
-@pytest.mark.parametrize(
-    "storage",
+_GELS_CASES = _axis_combinations(
+    16,
     [
-        ((17, 11, 5), (18, 18)),
-        ((11, 17, 5), None),
+        ["runtime_ld", "compiletime_ld"],
+        [((17, 11, 5), (18, 18)), ((11, 17, 5), None)],
+        [np.float64, np.float32],
+        [("col_major", "col_major"), ("row_major", "row_major")],
+        ["real", "complex"],
+        ["non_transposed", "transposed"],
+        [None, "suggested"],
     ],
 )
-@pytest.mark.parametrize("precision", [np.float64, np.float32])
-@pytest.mark.parametrize("arrangement", [("col_major", "col_major"), ["row_major", "row_major"]])
-@pytest.mark.parametrize("data_type", ["real", "complex"])
-@pytest.mark.parametrize("transpose_mode", ["non_transposed", "transposed"])
-@pytest.mark.parametrize("block_dim", [None, "suggested"])
-def test_func_gels(api, storage, precision, arrangement, data_type, transpose_mode, block_dim):
+# Not covered in generated cases:
+# both is_overdetermined branches with conj_transposed + row_major
+_GELS_CASES.append(
+    ("compiletime_ld", ((11, 17, 5), None), np.float64, ("row_major", "row_major"), "complex", "transposed", "suggested")
+)
+_GELS_CASES.append(
+    ("compiletime_ld", ((17, 11, 5), (18, 18)), np.float64, ("row_major", "row_major"), "complex", "transposed", "suggested")
+)
+
+
+@pytest.mark.parametrize("api,storage,precision,arrangement,data_type,transpose_mode,block_dim", _GELS_CASES)
+@pytest.mark.parametrize("compiler", all_compiler_params())
+def test_func_gels(compiler, api, storage, precision, arrangement, data_type, transpose_mode, block_dim):
+    cuda = compiler.runtime
     size, leading_dimensions = storage
 
     if transpose_mode == "transposed" and data_type == "complex":
@@ -1058,8 +1298,8 @@ def test_func_gels(api, storage, precision, arrangement, data_type, transpose_mo
         smem_bx = cuda.shared.array(n_bx, dtype=solver.value_type)
         smem_tau = cuda.shared.array(n_tau, dtype=solver.value_type)
 
-        load_to_shared_strided(a, smem_a, solver.a_shape, solver.a_strides())
-        load_to_shared_strided(b, smem_bx, solver.b_shape, solver.bx_strides())
+        load_strided_3d(a, smem_a, solver.a_shape, solver.a_strides())
+        load_strided_3d(b, smem_bx, solver.b_shape, solver.bx_strides())
         cuda.syncthreads()
 
         if api == "compiletime_ld":
@@ -1068,9 +1308,9 @@ def test_func_gels(api, storage, precision, arrangement, data_type, transpose_mo
             solver.solve(smem_a, smem_tau, smem_bx, lda=solver.lda, ldb=solver.ldb)
         cuda.syncthreads()
 
-        store_from_shared_strided(smem_a, a, solver.a_shape, solver.a_strides())
-        store_from_shared_strided(smem_bx, b, solver.x_shape, solver.bx_strides())
-        store_from_shared_strided(smem_tau, tau, solver.tau_shape, solver.tau_strides)
+        store_strided_3d(smem_a, a, solver.a_shape, solver.a_strides())
+        store_strided_3d(smem_bx, b, solver.x_shape, solver.bx_strides())
+        store_strided_2d(smem_tau, tau, solver.tau_shape, solver.tau_strides)
 
     a_d = cuda.to_device(a)
     b_d = cuda.to_device(b)

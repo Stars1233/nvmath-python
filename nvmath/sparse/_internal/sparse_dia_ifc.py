@@ -138,6 +138,9 @@ class DIATensorHolder(SparseTensorHolder):
         No copy is performed if the DIATensor is already on the requested device.
         """
 
+        if self.tensor_package == "nvmath":
+            return super().to(device_id=device_id, stream_holder=stream_holder)
+
         target_offsets = self.offsets.to(device_id=device_id, stream_holder=stream_holder)
         target_values = self.values.to(device_id=device_id, stream_holder=stream_holder)
 

@@ -28,7 +28,7 @@ from nvmath.fft import ExecutionCPU, ExecutionCUDA
 from nvmath.fft.fft import axis_order_in_memory, calculate_strides, get_fft_plan_traits
 from nvmath.memory import _MEMORY_MANAGER
 
-from ..helpers import check_freed_after
+from ..helpers import assert_reset_to_none_behavior, check_freed_after
 from .utils.axes_utils import (
     get_fft_dtype,
     get_ifft_dtype,
@@ -165,7 +165,6 @@ def test_stateful_nd_default_allocator(
 
     allocations = intercept_default_allocations(monkeypatch)
     expected_key = "torch" if framework == Framework.torch else "cupy"
-    expected_allocations = 1 if exec_backend == ExecBackend.cufft else 0
 
     if dtype == DType.float16 and batched == "right":
         with pytest.raises(ValueError, match="is currently not supported for strided inputs"):
@@ -194,6 +193,8 @@ def test_stateful_nd_default_allocator(
         options={"result_layout": result_layout.value},
     ) as f:
         f.plan()
+        # The Workspace fast-path bypasses the allocator entirely for 0-byte plans.
+        expected_allocations = 1 if exec_backend == ExecBackend.cufft and f.workspace.size > 0 else 0
         fft_0 = f.execute()
 
         assert allocations[expected_key] == expected_allocations, f"{allocations}, {expected_key}"
@@ -254,11 +255,12 @@ def test_stateful_nd_custom_allocator(seeder, monkeypatch, framework, exec_backe
     allocations = intercept_default_allocations(monkeypatch)
     logger = logging.getLogger("dummy_logger")
     allocator = _MEMORY_MANAGER["_raw"](device_id=0, logger=logger)
-    expected_allocations = 1 if exec_backend == ExecBackend.cufft else 0
     expected_key = "raw"
 
     with nvmath.fft.FFT(signal, execution=exec_backend.nvname, options={"allocator": allocator}) as f:
         f.plan()
+        # The Workspace fast-path bypasses the allocator entirely for 0-byte plans.
+        expected_allocations = 1 if exec_backend == ExecBackend.cufft and f.workspace.size > 0 else 0
         fft = f.execute(direction=Direction.forward.value)
 
         assert allocations[expected_key] == expected_allocations, f"{allocations}, {expected_key}"
@@ -313,10 +315,15 @@ def test_stateful_release_workspace(seeder, monkeypatch, framework, exec_backend
     else:
         raise ValueError(f"Unknown framework: {framework}")
 
-    num_allocs_1, num_allocs_2 = (1, 2) if exec_backend == ExecBackend.cufft else (0, 0)
-
     with nvmath.fft.FFT(signal_0, execution=exec_backend.nvname) as f:
         f.plan()
+        # The Workspace fast-path bypasses the allocator entirely for 0-byte plans;
+        # if the plan needs a workspace, the first execute allocates once and the
+        # second reuses it (or re-allocates after a release_workspace=True).
+        if exec_backend == ExecBackend.cufft and f.workspace.size > 0:
+            num_allocs_1, num_allocs_2 = 1, 2
+        else:
+            num_allocs_1, num_allocs_2 = 0, 0
         fft_0 = f.execute(direction=Direction.forward.value, release_workspace=release_workspace)
 
         assert allocations[expected_key] == num_allocs_1, f"{allocations}, {expected_key}"
@@ -324,7 +331,9 @@ def test_stateful_release_workspace(seeder, monkeypatch, framework, exec_backend
         f.reset_operand(signal_1)
         fft_1 = f.execute(direction=Direction.forward.value, release_workspace=release_workspace)
 
-        assert allocations[expected_key] == num_allocs_2 if release_workspace else 1, f"{allocations}, {expected_key}"
+        assert allocations[expected_key] == (num_allocs_2 if release_workspace else num_allocs_1), (
+            f"{allocations}, {expected_key}"
+        )
         assert all(allocations[key] == 0 for key in allocations if key != expected_key), f"{allocations}, {expected_key}"
 
         assert_array_type(fft_0, framework, mem_backend, get_fft_dtype(dtype))
@@ -1480,99 +1489,6 @@ def test_reference_count(use_plan_execute):
 
 
 @pytest.mark.parametrize(
-    (
-        "framework",
-        "exec_backend",
-        "mem_backend",
-        "shape",
-        "ndim",
-        "axes",
-    ),
-    [
-        (
-            framework,
-            exec_backend,
-            mem_backend,
-            shape,
-            ndim,
-            axes,
-        )
-        for framework in Framework.enabled()
-        for exec_backend in supported_backends.exec
-        for mem_backend in supported_backends.framework_mem[framework]
-        for shape, ndim, axes in [
-            ((128,), 1, (0,)),
-            ((128,), 1, (-1,)),
-            ((64, 128), 2, (1,)),
-            ((64, 128), 2, (0, 1)),
-            ((64, 128), 2, (-1,)),
-        ]
-    ],
-)
-def test_key_from_init_matches_create_key(
-    seeder,
-    framework,
-    exec_backend,
-    mem_backend,
-    shape,
-    ndim,
-    axes,
-):
-    """
-    This test verifies that using the same data to create an FFT object and
-    calling get_key() on the object produces the same key as calling
-    the static create_key() method.
-    """
-
-    dtype = DType.complex64
-
-    # Generate random operand
-    signal = get_random_input_data(framework, shape, dtype, mem_backend)
-
-    # Create FFT object and get key from instance method
-    with nvmath.fft.FFT(signal, axes=axes, execution=exec_backend.nvname) as f:
-        f.plan()
-        key_from_instance = f.get_key()
-
-    # Get key from static method
-    key_from_static = nvmath.fft.FFT.create_key(signal, axes=axes, execution=exec_backend.nvname)
-
-    # Verify they match
-    assert key_from_instance == key_from_static, (
-        f"Keys do not match for ndim={ndim}, axes={axes}\nInstance key: {key_from_instance}\nStatic key: {key_from_static}"
-    )
-
-
-@pytest.mark.parametrize("exec_backend", supported_backends.exec)
-def test_key_cross_device_strided_operand(exec_backend):
-    """
-    create_key() and get_key() should return the same key for cross-device execution
-    with a strided (non-contiguous) NumPy array as user-provided operand.
-    """
-
-    base_shape = 10, 30, 40
-    a = np.arange(np.prod(base_shape), dtype=np.float32).reshape(base_shape)
-    # Create a strided (non-contiguous) array via slicing
-    a = a[4:, 3:, 1:]
-
-    axes = (-2, -1)
-    options = {"fft_type": "R2C"}
-
-    # Get key from static method (computes from user's original operand)
-    key_from_static = nvmath.fft.FFT.create_key(a, axes=axes, options=options, execution=exec_backend.nvname)
-
-    # Create FFT object and get key from instance method
-    with nvmath.fft.FFT(a, axes=axes, options=options, execution=exec_backend.nvname) as fft:
-        fft.plan()
-        key_from_instance = fft.get_key()
-
-    # Verify they match
-    assert key_from_instance == key_from_static, (
-        f"Keys do not match for cross-device strided operand.\nInstance key: {key_from_instance}\nStatic key: {key_from_static}"
-    )
-
-
-@pytest.mark.parametrize(
     ("framework", "exec_backend"),
     [
         (framework, exec_backend)
@@ -1812,137 +1728,6 @@ def test_c2r_reset_operand_between_executes(framework, exec_backend):
         assert_norm_close(r3, ref)
 
 
-@pytest.mark.parametrize(
-    ("framework", "exec_backend", "mem_backend", "shape1", "shape2", "axes"),
-    [
-        (framework, exec_backend, mem_backend, shape1, shape2, axes)
-        for framework in Framework.enabled()
-        for exec_backend in supported_backends.exec
-        for mem_backend in supported_backends.framework_mem[framework]
-        for shape1, shape2, axes in [
-            # 1D FFT with rearranged batch dims
-            ((2, 3, 64), (3, 2, 64), (2,)),
-            ((4, 2, 32), (2, 4, 32), (2,)),
-            # 2D FFT with rearranged batch dims
-            ((2, 3, 16, 32), (3, 2, 16, 32), (2, 3)),
-            ((5, 2, 8, 16), (2, 5, 8, 16), (2, 3)),
-        ]
-    ],
-)
-def test_rearranged_batch_dims_produce_same_key(framework, exec_backend, mem_backend, shape1, shape2, axes):
-    """
-    Verify that rearranging batch dimensions produces the same FFT key
-    for both 1D and 2D FFTs.
-    This is the premise for test_reset_operand_with_rearranged_batch_dims.
-
-    For the 1D case with shape1=(2,3,64), shape2=(3,2,64), axes=(2,):
-
-                            Operand 1           Operand 2
-                            ---------           ---------
-    shape                   (2, 3, 64)          (3, 2, 64)          <- different
-    strides                 (192, 64, 1)        (128, 64, 1)        <- different
-
-    FFT axis (2):
-      stride                1                   1                   <- same
-      size                  64                  64                  <- same
-
-    Batch axes (0, 1):
-      batch_size            2 x 3 = 6           3 x 2 = 6           <- same
-      sorted batch strides  (64, 192)           (64, 128)           <- different
-
-    cuFFT plan parameters, the full key includes all of these:
-      istride               1                   1                   <- same
-      idistance             64 (min batch str)  64 (min batch str)  <- same
-      ostride               1                   1                   <- same
-      odistance             64                  64                  <- same
-      fft_batch_size        6                   6                   <- same
-      embedding_shape       (64,)               (64,)               <- same
-      fft_in/out_shape      (64,)               (64,)               <- same
-      data types            all identical                           <- same
-
-    cuFFT treats batches as a flat sequence with a single distance
-    parameter; it does not see the multi-dimensional batch layout.
-    Since all key components match, the key is the same.
-    """
-    dtype = DType.complex64
-    operand1 = get_random_input_data(framework, shape1, dtype, mem_backend)
-    operand2 = get_random_input_data(framework, shape2, dtype, mem_backend)
-
-    key1 = nvmath.fft.FFT.create_key(operand1, axes=axes, execution=exec_backend.nvname)
-    key2 = nvmath.fft.FFT.create_key(operand2, axes=axes, execution=exec_backend.nvname)
-    assert key1 == key2, (
-        f"Expected matching keys for rearranged batch dims.\n"
-        f"  shape1={shape1}, shape2={shape2}, axes={axes}\n"
-        f"  key1={key1}\n  key2={key2}"
-    )
-
-
-@pytest.mark.parametrize(
-    ("shape", "transpose_axes", "fft_axes"),
-    [
-        # 1D FFT: transpose batch dims of a (3,2,64) source to get (2,3,64)
-        # with non-contiguous strides
-        ((3, 2, 64), (1, 0, 2), (2,)),
-        # 2D FFT: transpose batch dims
-        ((3, 2, 16, 32), (1, 0, 2, 3), (2, 3)),
-    ],
-)
-def test_transposed_strides_produce_same_key(shape, transpose_axes, fft_axes):
-    """
-    Verify that a contiguous operand and a transposed view with the same
-    shape but different strides produce the same FFT key.
-    This is the premise for test_reset_operand_with_transposed_strides.
-
-    For the 1D case with shape=(3,2,64), transpose_axes=(1,0,2),
-    fft_axes=(2,):
-
-                            Operand 1           Operand 2
-                            ---------           ---------
-    shape                   (2, 3, 64)          (2, 3, 64)          <- same
-    strides                 (192, 64, 1)        (64, 128, 1)        <- different
-
-    FFT axis (2):
-      stride                1                   1                   <- same
-      size                  64                  64                  <- same
-
-    Batch axes (0, 1):
-      batch_size            2 x 3 = 6           2 x 3 = 6           <- same
-      sorted batch strides  (64, 192)           (64, 128)           <- different
-
-    cuFFT plan parameters, the full key includes all of these:
-      istride               1                   1                   <- same
-      idistance             64 (min batch str)  64 (min batch str)  <- same
-      ostride               1                   1                   <- same
-      odistance             64 (min result      64 (min result      <- same
-                              batch stride)       batch stride)
-      fft_batch_size        6                   6                   <- same
-      embedding_shape       (64,)               (64,)               <- same
-      fft_in/out_shape      (64,)               (64,)               <- same
-      data types            all identical                           <- same
-
-    cuFFT treats batches as a flat sequence with a single distance
-    parameter; it does not see the multi-dimensional batch layout.
-    Since all key components match, the key should be the same.
-    """
-    operand1_shape = tuple(shape[a] for a in transpose_axes)
-
-    dtype = np.complex64
-    operand1 = np.random.rand(*operand1_shape).astype(dtype)
-    operand2 = np.random.rand(*shape).astype(dtype).transpose(transpose_axes)
-
-    assert operand1.shape == operand2.shape
-    assert operand1.strides != operand2.strides
-
-    key1 = nvmath.fft.FFT.create_key(operand1, axes=fft_axes, execution="cuda")
-    key2 = nvmath.fft.FFT.create_key(operand2, axes=fft_axes, execution="cuda")
-    assert key1 == key2, (
-        f"Expected matching keys for same shape with different strides.\n"
-        f"  shape={operand1.shape}\n"
-        f"  operand1 strides={operand1.strides}, operand2 strides={operand2.strides}\n"
-        f"  key1={key1}\n  key2={key2}"
-    )
-
-
 def _reset_operand_different_shape_strides_impl(
     operand1, operand2, axes, exec_backend, reset_fn, result_layout="optimized", expect_optimized_layout=None
 ):
@@ -2110,3 +1895,18 @@ def test_reset_operand_with_transposed_strides(
     _reset_operand_different_shape_strides_impl(
         operand1, operand2, fft_axes, exec_backend, reset_fn, result_layout, expect_optimized
     )
+
+
+@pytest.mark.parametrize("with_release", [False, True])
+def test_reset_operand_none(with_release):
+    """reset_operand(None) always raises ValueError. See assert_reset_to_none_behavior."""
+    cp = pytest.importorskip("cupy")
+
+    a = cp.random.rand(16).astype(cp.complex64)
+    with nvmath.fft.FFT(a, execution="cuda") as fft:
+        fft.plan()
+        assert_reset_to_none_behavior(
+            with_release=with_release,
+            single_operand=True,
+            obj=fft,
+        )

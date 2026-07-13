@@ -22,6 +22,12 @@ from .matmulmod import (
     SideMode,
     matmul,
 )
+from .solvermod import (
+    DirectSolver,
+    DirectSolverOptions,
+    InvalidDirectSolverState,
+    direct_solver,
+)
 
 __all__ = (
     "DiagonalMatrixQualifier",
@@ -40,4 +46,8 @@ __all__ = (
     "SideMode",
     "FillMode",
     "DiagType",
+    "DirectSolverOptions",
+    "DirectSolver",
+    "direct_solver",
+    "InvalidDirectSolverState",
 )

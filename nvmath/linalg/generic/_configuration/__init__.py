@@ -7,6 +7,7 @@ from .layout import (
     mm_layout_checker_getter,
 )
 from .match import (
+    select_blas_group_mm_function,
     select_blas_mm_function,
 )
 from .qualifiers import (
@@ -33,5 +34,6 @@ __all__ = [
     "TriangularMatrixQualifier",
     "vector_to_square",
     "select_blas_mm_function",
+    "select_blas_group_mm_function",
     "CACHED_LAYOUT_CHECKERS",
 ]

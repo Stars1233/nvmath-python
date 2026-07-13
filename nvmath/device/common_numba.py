@@ -20,7 +20,7 @@ from nvmath.bindings import mathdx
 
 from .llvm_array import LLVMArray
 from .types import Complex, Vector, complex32, complex64, complex128, half2, half4, np_float16x2, np_float16x4
-from .vector_types_numba import float16x2_type, float16x4_type, float32x2_type, float64x2_type
+from .vector_types_numba import VectorTypeClass, float16x2_type, float16x4_type, float32x2_type, float64x2_type
 
 NP_TYPES_TO_NUMBA_FE_TYPES = {
     np.float16: np.float16,
@@ -88,22 +88,12 @@ def overload_type_attribute(numba_type, attribute_base, attribute):
 
 @typeof_impl.register(Complex)
 def typeof_complex(val: Complex, c: typing.Context) -> Any:
-    if val.real_dtype == np.float16:
-        return types.NumberClass(float16x2_type)
-    elif val.real_dtype == np.float32:
-        return types.NumberClass(float32x2_type)
-    elif val.real_dtype == np.float64:
-        return types.NumberClass(float64x2_type)
-
-    raise RuntimeError(f"Unsupported complex real dtype {val.real_dtype}")
+    return VectorTypeClass(val._numba_type)
 
 
 @typeof_impl.register(Vector)
 def typeof_vector(val: Vector, c: typing.Context) -> Any:
-    if val.real_dtype != np.float16 or val.size not in (2, 4):
-        raise RuntimeError(f"Unsupported vector type {val.real_dtype}x{val.size}")
-
-    return types.NumberClass(float16x2_type if val.size == 2 else float16x4_type)
+    return VectorTypeClass(val._numba_type)
 
 
 @intrinsic

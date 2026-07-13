@@ -1041,7 +1041,7 @@ def test_wrong_execution_backend(framework, mem_backend, dtype):
         ValueError,
         match="The 'execution' options must be",
     ):
-        fn(sample, execution="tpu", options={"device_id": 1})
+        fn(sample, execution="tpu")
 
     with pytest.raises(
         ValueError,
@@ -1056,7 +1056,6 @@ def test_wrong_execution_backend(framework, mem_backend, dtype):
         fn(
             sample,
             execution={"name": "tty", "num_threads": 7},
-            options={"device_id": 1},
         )
 
     with pytest.raises(
@@ -1073,7 +1072,7 @@ def test_wrong_execution_backend(framework, mem_backend, dtype):
         ValueError,
         match="The 'execution' options must be",
     ):
-        fn(sample, execution=7, options={"device_id": 1})
+        fn(sample, execution=7)
 
     with pytest.raises(
         ValueError,
@@ -1085,7 +1084,7 @@ def test_wrong_execution_backend(framework, mem_backend, dtype):
         ValueError,
         match="The 'execution' options must be",
     ):
-        fn(sample, execution={"name": lambda x: x}, options={"device_id": 1})
+        fn(sample, execution={"name": lambda x: x})
 
     with pytest.raises(
         TypeError,
@@ -1112,18 +1111,6 @@ def test_cpu_execution_wrong_options(framework, exec_backend, mem_backend, dtype
     sample = get_random_input_data(framework, (16,), dtype, mem_backend)
     fn = nvmath.fft.fft if is_complex(dtype) else nvmath.fft.rfft
     assert exec_backend.nvname == "cpu"
-
-    with pytest.raises(
-        ValueError,
-        match="The 'device_id' is not a valid option when 'execution' is specified to be 'cpu'",
-    ):
-        fn(sample, execution="CPU", options={"device_id": 1})
-
-    with pytest.raises(
-        ValueError,
-        match="The 'device_id' is not a valid option when 'execution' is specified to be 'cpu'",
-    ):
-        fn(sample, execution="cpu", options={"last_axis_parity": "odd", "device_id": 1})
 
     with pytest.raises(
         TypeError,
@@ -1229,50 +1216,6 @@ def test_gpu_execution_wrong_options(framework, exec_backend, mem_backend, dtype
         match="unexpected keyword argument 'num_threads'",
     ):
         fn(sample, execution={"name": "cuda", "num_threads": 3, "device_id": 1})
-
-
-@pytest.mark.parametrize(
-    ("framework", "exec_backend", "mem_backend", "dtype"),
-    [
-        (
-            framework,
-            exec_backend,
-            MemBackend.cuda,
-            dtype,
-        )
-        for framework in Framework.enabled()
-        if framework == Framework.cupy or framework == Framework.torch
-        for exec_backend in supported_backends.exec
-        if exec_backend == ExecBackend.cufft
-        for dtype in [DType.float32, DType.complex64]
-    ],
-)
-def test_conflicting_device_id_option(framework, exec_backend, mem_backend, dtype):
-    sample = get_random_input_data(framework, (16,), dtype, mem_backend)
-    fn = nvmath.fft.fft if is_complex(dtype) else nvmath.fft.rfft
-    assert exec_backend.nvname == "cuda"
-
-    fn(
-        sample,
-        execution={
-            "name": "CUDA",
-            "device_id": 1,
-        },
-        options={"device_id": 1},
-    )
-
-    with pytest.raises(
-        ValueError,
-        match="Got conflicting 'device_id' passed in 'execution' \\(2\\) and 'options' \\(1\\)",
-    ):
-        fn(
-            sample,
-            execution={
-                "name": "CUDA",
-                "device_id": 2,
-            },
-            options={"device_id": 1},
-        )
 
 
 @pytest.mark.parametrize(

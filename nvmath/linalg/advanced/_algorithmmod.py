@@ -10,7 +10,10 @@ __all__ = ["Algorithm"]
 
 import dataclasses
 
-from nvmath.bindings.cublasLt import MatmulHeuristicResult  # type: ignore
+import numpy as np
+import numpy.typing as npt
+
+from nvmath.bindings.cublasLt import MatmulHeuristicResult, matmul_heuristic_result_dtype
 from nvmath.linalg._internal.algo_cap_ifc import AlgoCapInterface
 from nvmath.linalg._internal.algo_config_ifc import AlgoConfigInterface
 from nvmath.linalg._internal.enum_to_tuples import (
@@ -147,3 +150,21 @@ class Algorithm:
     @cluster_shape.setter
     def cluster_shape(self, shape: tuple[int | str, ...] | str) -> None:
         self.config_ifc.cluster_shape_id = CLUSTER_SHAPE_TO_ENUM[shape]
+
+    def as_numpy(self) -> npt.NDArray:
+        """Return a copy of this `Algorithm` as a NumPy array.
+
+        Converts the `Algorithm` to a NumPy array of type `matmul_heuristic_result_dtype`
+        which may then be saved to disk using ``np.save(..., allow_pickle=False)``.
+        """
+        return np.frombuffer(buffer=bytes(memoryview(self.algorithm)), dtype=matmul_heuristic_result_dtype)  # type: ignore
+
+    @classmethod
+    def from_numpy(cls, array: npt.NDArray) -> "Algorithm":
+        """Create an `Algorithm` from a NumPy array.
+
+        Creates an `Algorithm` by copying a NumPy array of type
+        `matmul_heuristic_result_dtype`. The array must be of size 1, and may have been
+        loaded from disk using ``np.load(..., allow_pickle=False)``.
+        """
+        return Algorithm(MatmulHeuristicResult.from_data(np.copy(array)))

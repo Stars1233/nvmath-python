@@ -3,17 +3,14 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import gc
+import logging
 import os
 import re
 import subprocess
 import sys
 
-try:
-    from cuda.core import Device, system
-    from cuda.core._utils.cuda_utils import CUDAError
-except ImportError:
-    from cuda.core.experimental import Device, system
-    from cuda.core.experimental._utils.cuda_utils import CUDAError
+from cuda.core import Device, system
+from cuda.core._utils.cuda_utils import CUDAError
 
 try:
     import cupy as cp
@@ -30,11 +27,7 @@ else:
 import pytest
 
 try:
-    try:
-        num_devices = system.get_num_devices()
-    except AttributeError:
-        num_devices = system.num_devices
-    DEVICE_COUNT = num_devices
+    DEVICE_COUNT = system.get_num_devices()
 except CUDAError:
     DEVICE_COUNT = 0
 
@@ -65,17 +58,29 @@ def run_sample(samples_path, filename, env=None, use_subprocess=False, use_mpi=F
         pytest.skip(f"Sample ({filename}) skipped due to limited device counts : ({DEVICE_COUNT})")
     fullpath = os.path.join(samples_path, filename)
     script = parse_python_script(fullpath)
+
+    if env is None:
+        env = {}
+    # Set __file__ so that example scripts can resolve relative paths
+    # (e.g., to the common directory)
+    env["__file__"] = fullpath
+
     try:
         old_argv = sys.argv
         sys.argv = [fullpath]
         SYS_PATH_BACKUP = sys.path.copy()
         sys.path.append(samples_path)
+        ROOT_LOG_LEVEL_BACKUP = logging.getLogger().level
         if use_mpi:
             assert use_subprocess
             # Check if the filename indicates with how many processes to run, for example:
             # `example_something_4p.py` is to be run with 4 processes.
             m = re.search(r".*_(\d+)p.py$", filename)
-            uses_nccl = "distributed/linalg/advanced/matmul" in fullpath
+            uses_nccl = (
+                "distributed/linalg/advanced/matmul" in fullpath
+                or "distributed/linalg/generic/direct_solver" in fullpath
+                or "nccl" in filename
+            )
             if m:
                 num_procs = m.group(1)
                 if uses_nccl and int(num_procs) > DEVICE_COUNT:
@@ -102,7 +107,7 @@ def run_sample(samples_path, filename, env=None, use_subprocess=False, use_mpi=F
                 else:
                     raise RuntimeError(f"Subprocess failed: {result.stderr}")
         else:
-            exec(script, env if env is not None else {})
+            exec(script, env)
     except ImportError as e:
         # for samples requiring any of optional dependencies
         for m in ("torch", "cupy"):
@@ -114,6 +119,8 @@ def run_sample(samples_path, filename, env=None, use_subprocess=False, use_mpi=F
     except Exception as e:
         if str(e) == "libcudadevrt.a not found":
             pytest.skip(f"Skipping test {filename} since libcudadevrt.a is not found.")
+        elif "requires libmathdx 0.3.2" in str(e):
+            pytest.skip(f"Skipping test {filename}: {e}")
         else:
             msg = "\n"
             msg += f"Got error ({filename}):\n"
@@ -122,6 +129,7 @@ def run_sample(samples_path, filename, env=None, use_subprocess=False, use_mpi=F
     finally:
         sys.path = SYS_PATH_BACKUP
         sys.argv = old_argv
+        logging.getLogger().setLevel(ROOT_LOG_LEVEL_BACKUP)
         # further reduce the memory watermark
         gc.collect()
         if cp is not None:

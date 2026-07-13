@@ -39,7 +39,7 @@ with nvmath.distributed.fft.FFT(a, distribution=nvmath.distributed.distribution.
     f.plan()
 
     # Execute the FFT.
-    # The distribution of operand b will be Slab.Y because reshape=True.
+    # The distribution of operand b will be Slab.Y because redistribute=True.
     b = f.execute()
 
     # Reset the operand inplace. Note that this implies maintaining the same
@@ -48,7 +48,7 @@ with nvmath.distributed.fft.FFT(a, distribution=nvmath.distributed.distribution.
         a[:] = cp.random.rand(*shape, dtype=cp.float32) + 1j * cp.random.rand(*shape, dtype=cp.float32)
 
     # Execute a new forward FFT with the modified operand.
-    # The distribution of operand c will be Slab.Y because reshape=True.
+    # The distribution of operand c will be Slab.Y because redistribute=True.
     c = f.execute()
 
     # Synchronize the default stream

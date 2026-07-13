@@ -155,9 +155,7 @@ def test_algorithms(framework, serialize, use_cuda):
     with Matmul(a, b) as mm:
         algos = mm.plan(preferences=MatmulPlanPreferences(limit=10))
         if serialize:
-            import pickle
-
-            algos = pickle.loads(pickle.dumps(algos))
+            raise NotImplementedError("Generic matmuls do not have plan objects.")
     c = d = sample_matrix(framework, "float32", (20, 20), use_cuda)
 
     # Test providing multiple algorithms

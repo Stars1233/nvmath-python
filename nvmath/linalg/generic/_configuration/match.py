@@ -11,13 +11,13 @@ It supports both CPU (NVPL) and GPU (cuBLAS) backends and handles various matrix
 including general, symmetric, hermitian, triangular, and diagonal matrices.
 """
 
-import logging
 import typing
 
 import numpy as np
 
 import nvmath.bindings.cublas as cublas
 from nvmath._internal.templates import ExecutionCPU, ExecutionCUDA
+from nvmath._internal.utils import LoggerLike
 from nvmath.internal import tensor_wrapper, typemaps, utils
 from nvmath.linalg._internal.batch import BatchTraits
 from nvmath.linalg._internal.layout import BLASMMTraitsView
@@ -58,7 +58,7 @@ MMFunctionGetter: typing.TypeAlias = typing.Callable[
         ExecutionCUDA | ExecutionCPU,
         typemaps.cudaDataType,
         str,
-        logging.Logger,
+        LoggerLike,
         typing.Literal["", "stride", "group"],
     ],
     typing.Callable,
@@ -69,7 +69,7 @@ def select_blas_mm_function(
     batch_traits: tuple[BatchTraits, BatchTraits, BatchTraits],
     mm_traits: BLASMMTraitsView,
     qualifiers: MatrixQualifier,
-    logger: logging.Logger,
+    logger: LoggerLike,
     execution: ExecutionCUDA | ExecutionCPU,
 ) -> tuple[WrappedMMFunction, str]:
     """Return a matrix multiplication function which matches the provided arguments."""
@@ -107,7 +107,7 @@ def _select_blas_mm_function_from_qualifiers(
     batch_traits: tuple[BatchTraits, BatchTraits, BatchTraits],
     mm_traits: BLASMMTraitsView,
     qualifiers: MatrixQualifier,
-    logger: logging.Logger,
+    logger: LoggerLike,
     execution: ExecutionCUDA | ExecutionCPU,
     mm_function_getter: MMFunctionGetter,
     mm_enum_mapper: typing.Callable,
@@ -604,6 +604,131 @@ def _select_blas_mm_function_from_qualifiers(
                 )
     else:
         msg = f"No available generic matrix multiplication matches the provided matrices: {qualifiers}."
+        raise ValueError(msg)
+
+    return wrapped, func.__name__
+
+
+def select_blas_group_mm_function(
+    batch_traits: list[BatchTraits],
+    mm_traits: list[BLASMMTraitsView],
+    qualifiers: list[MatrixQualifier],
+    logger: LoggerLike,
+    execution: ExecutionCUDA | ExecutionCPU,
+) -> tuple[WrappedMMFunction, str]:
+    """Return a matrix multiplication function which matches the provided arguments."""
+
+    # At this level, we only select the appropriate library
+    match execution:
+        case ExecutionCPU():
+            mm_function_getter = nvpl_mm_function
+            mm_enum_mapper = nvpl_enum_mapper
+            mm_alpha_beta_picker = get_address_zeroth_element
+        case ExecutionCUDA():
+            mm_function_getter = cublas_mm_function
+            mm_enum_mapper = cublas_enum_mapper
+            mm_alpha_beta_picker = get_address_zeroth_element
+        case _:
+            raise ValueError("Only ExecutionCUDA and ExecutionCPU are supported.")
+
+    return _select_blas_group_mm_function_from_qualifiers(
+        batch_traits,
+        mm_traits,
+        qualifiers,
+        logger,
+        execution,
+        mm_function_getter,
+        mm_enum_mapper,
+        mm_alpha_beta_picker,
+    )
+
+
+def _select_blas_group_mm_function_from_qualifiers(
+    batch_traits: list[BatchTraits],
+    mm_traits: list[BLASMMTraitsView],
+    qualifiers: list[MatrixQualifier],
+    logger: LoggerLike,
+    execution: ExecutionCUDA | ExecutionCPU,
+    mm_function_getter: MMFunctionGetter,
+    mm_enum_mapper: typing.Callable,
+    mm_alpha_beta_picker: typing.Callable,
+) -> tuple[WrappedMMFunction, str]:
+    """Match and wrap a matrix multiplication function based on the provided arguments."""
+    # NOTE: The parameters of this function are only the operands that will be resettable by
+    # reset_operands(); the rest of the parameters should be unchanged by reset_operands.
+    # Therefore we can amortize the cost of those bits.
+    group_count = len(mm_traits)
+    if all(GeneralMatrixQualifier.is_valid(q) for q in qualifiers):
+        # Allocate separate numpy arrays for each parameter
+        transa_array = np.array([mm_enum_mapper(m.a_layout_traits.operation) for m in mm_traits], dtype=np.intc)
+        transb_array = np.array([mm_enum_mapper(m.b_layout_traits.operation) for m in mm_traits], dtype=np.intc)
+        transc_array = np.array([mm_enum_mapper(m.c_layout_traits.operation) for m in mm_traits], dtype=np.intc)
+        assert np.all(transc_array == mm_enum_mapper(cublas.Operation.N))
+        # NOTE: Switch between LP64 and ILP64 here
+        integer_dtype = np.int32
+        # integer_dtype = np.int64
+        m_array = np.array([m.M for m in mm_traits], dtype=integer_dtype)
+        n_array = np.array([m.N for m in mm_traits], dtype=integer_dtype)
+        k_array = np.array([m.K for m in mm_traits], dtype=integer_dtype)
+        lda_array = np.array([m.a_layout_traits.ld for m in mm_traits], dtype=integer_dtype)
+        ldb_array = np.array([m.b_layout_traits.ld for m in mm_traits], dtype=integer_dtype)
+        ldc_array = np.array([m.c_layout_traits.ld for m in mm_traits], dtype=integer_dtype)
+        group_size_array = np.array([max(1, b.count) for b in batch_traits], dtype=integer_dtype)
+
+        func = mm_function_getter(
+            execution,
+            mm_traits[0].a_layout_traits.dtype,
+            GeneralMatrixQualifier.abbreviation,
+            logger,
+            "group",
+        )
+
+        def wrapped(
+            Aarray: tensor_wrapper.TensorHolder,
+            Barray: tensor_wrapper.TensorHolder,
+            Carray: tensor_wrapper.TensorHolder,
+            alpha_array: np.ndarray,
+            beta_array: np.ndarray,
+            stream_holder: utils.StreamHolder | None,
+        ) -> None:
+            # A,B pointers are swapped in _execute()
+            logger.debug(
+                "Calling %s(operationA=%s, operationB=%s, m=%s, n=%s, k=%s, alpha=%s, lda=%s, "
+                "ldb=%s, beta=%s, ldc=%s, groupCount=%d, groupSize=%s)",
+                func.__name__,
+                transa_array,
+                transb_array,
+                m_array,
+                n_array,
+                k_array,
+                alpha_array,
+                lda_array,
+                ldb_array,
+                beta_array,
+                ldc_array,
+                group_count,
+                group_size_array,
+            )
+            func(
+                transa_array.ctypes.data,
+                transb_array.ctypes.data,
+                m_array.ctypes.data,
+                n_array.ctypes.data,
+                k_array.ctypes.data,
+                alpha_array.ctypes.data,
+                Aarray.data_ptr,
+                lda_array.ctypes.data,
+                Barray.data_ptr,
+                ldb_array.ctypes.data,
+                beta_array.ctypes.data,
+                Carray.data_ptr,
+                ldc_array.ctypes.data,
+                group_count,
+                group_size_array.ctypes.data,
+                stream_holder=stream_holder,
+            )
+    else:
+        msg = f"No available explicitly batched generic matrix multiplication matches the provided matrices: {qualifiers}."
         raise ValueError(msg)
 
     return wrapped, func.__name__

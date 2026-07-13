@@ -1,0 +1,11 @@
+---
+# Uncomment a section header and replace with your own note.
+#release_summary:
+features:
+#api:
+#deprecations:
+#fixes:
+#issues:
+#security:
+#doc:
+ - Distributed matrix multiplication now registers operand B with NCCL symmetric memory whenever possible, which improves Allgather+GEMM performance.

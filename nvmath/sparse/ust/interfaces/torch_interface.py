@@ -240,7 +240,7 @@ def _ust_mul_inplace(func, types, args=(), kwargs=None) -> torch.Tensor:
     if not isinstance(B, numbers.Number):
         raise NotImplementedError("`TorchUST` mul: Unexpected operands")
     # print("ust_mul_inplace(", A.shape, ",", B, ")")
-    v = A.ust.val.tensor
+    v = A.ust._val.tensor
     v *= B  # good performance
     return A
 

@@ -7,6 +7,7 @@ from libcpp.vector cimport vector
 from libcpp cimport bool as cppbool
 from libcpp cimport nullptr_t, nullptr
 from libcpp.memory cimport unique_ptr
+from .common_types cimport cuComplex, cuDoubleComplex
 
 
 cdef extern from * nogil:
@@ -140,14 +141,8 @@ cdef extern from * nogil:
         void* data()
 
 
-cdef extern from "<cuComplex.h>" nogil:
-    ctypedef struct cuComplex:
-        pass
-    ctypedef struct cuDoubleComplex:
-        pass
-
-
 ctypedef fused ResT:
+    intptr_t
     int
     int32_t
     int64_t

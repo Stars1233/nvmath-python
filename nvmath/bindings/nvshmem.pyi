@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-import _cython_3_2_4
+import _cython_3_2_5
 import enum
 import numpy.dtypes
 from _typeshed import Incomplete
@@ -31,24 +31,24 @@ TEAM_WORLD: int
 TEAM_WORLD_INDEX: int
 __pyx_capi__: dict
 __test__: dict
-align: _cython_3_2_4.cython_function_or_method
-barrier_all_on_stream: _cython_3_2_4.cython_function_or_method
-calloc: _cython_3_2_4.cython_function_or_method
-check_status: _cython_3_2_4.cython_function_or_method
-free: _cython_3_2_4.cython_function_or_method
-get_uniqueid: _cython_3_2_4.cython_function_or_method
-hostlib_finalize: _cython_3_2_4.cython_function_or_method
-hostlib_init_attr: _cython_3_2_4.cython_function_or_method
+align: _cython_3_2_5.cython_function_or_method
+barrier_all_on_stream: _cython_3_2_5.cython_function_or_method
+calloc: _cython_3_2_5.cython_function_or_method
+check_status: _cython_3_2_5.cython_function_or_method
+free: _cython_3_2_5.cython_function_or_method
+get_uniqueid: _cython_3_2_5.cython_function_or_method
+hostlib_finalize: _cython_3_2_5.cython_function_or_method
+hostlib_init_attr: _cython_3_2_5.cython_function_or_method
 init_attr_dtype: numpy.dtypes.VoidDType
-init_status: _cython_3_2_4.cython_function_or_method
-int_p: _cython_3_2_4.cython_function_or_method
-malloc: _cython_3_2_4.cython_function_or_method
-my_pe: _cython_3_2_4.cython_function_or_method
-n_pes: _cython_3_2_4.cython_function_or_method
-ptr: _cython_3_2_4.cython_function_or_method
-set_attr_uniqueid_args: _cython_3_2_4.cython_function_or_method
-sync_all_on_stream: _cython_3_2_4.cython_function_or_method
-team_my_pe: _cython_3_2_4.cython_function_or_method
+init_status: _cython_3_2_5.cython_function_or_method
+int_p: _cython_3_2_5.cython_function_or_method
+malloc: _cython_3_2_5.cython_function_or_method
+my_pe: _cython_3_2_5.cython_function_or_method
+n_pes: _cython_3_2_5.cython_function_or_method
+ptr: _cython_3_2_5.cython_function_or_method
+set_attr_uniqueid_args: _cython_3_2_5.cython_function_or_method
+sync_all_on_stream: _cython_3_2_5.cython_function_or_method
+team_my_pe: _cython_3_2_5.cython_function_or_method
 uniqueid_dtype: numpy.dtypes.VoidDType
 
 class Flags(enum.IntEnum):
@@ -60,10 +60,16 @@ class Flags(enum.IntEnum):
     INIT_WITH_SHMEM: ClassVar[Flags] = ...
     INIT_WITH_UNIQUEID: ClassVar[Flags] = ...
     _generate_next_value_: ClassVar[Callable] = ...
+    _hashable_values_: ClassVar[list] = ...
     _member_map_: ClassVar[dict] = ...
     _member_names_: ClassVar[list] = ...
     _member_type_: ClassVar[type[int]] = ...
+    _unhashable_values_: ClassVar[list] = ...
+    _unhashable_values_map_: ClassVar[dict] = ...
+    _use_args_: ClassVar[bool] = ...
     _value2member_map_: ClassVar[dict] = ...
+    def __format__(self, *args, **kwargs) -> str:
+        """Convert to a string according to format_spec."""
 
 class InitAttr:
     """InitAttr()"""
@@ -98,10 +104,16 @@ class Status(enum.IntEnum):
     ERROR_SYMMETRY: ClassVar[Status] = ...
     SUCCESS: ClassVar[Status] = ...
     _generate_next_value_: ClassVar[Callable] = ...
+    _hashable_values_: ClassVar[list] = ...
     _member_map_: ClassVar[dict] = ...
     _member_names_: ClassVar[list] = ...
     _member_type_: ClassVar[type[int]] = ...
+    _unhashable_values_: ClassVar[list] = ...
+    _unhashable_values_map_: ClassVar[dict] = ...
+    _use_args_: ClassVar[bool] = ...
     _value2member_map_: ClassVar[dict] = ...
+    def __format__(self, *args, **kwargs) -> str:
+        """Convert to a string according to format_spec."""
 
 class UniqueId(uniqueid):
     @classmethod

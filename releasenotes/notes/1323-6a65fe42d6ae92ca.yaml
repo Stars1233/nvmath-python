@@ -1,0 +1,13 @@
+---
+# Uncomment a section header and replace with your own note.
+#release_summary:
+#features:
+api:
+#deprecations:
+#fixes:
+#issues:
+#security:
+#doc:
+ - >
+  Changed :attr:`nvmath.bindings.cufftMp.XtSubFormat.FORMAT_FORMAT_UNDEFINED`
+  to :attr:`nvmath.bindings.cufftMp.XtSubFormat.FORMAT_UNDEFINED`.

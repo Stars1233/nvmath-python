@@ -13,7 +13,7 @@ on the same device as the inputs (GPU in this example).
 nvmath-python also accepts operands that are on the NVSHMEM symmetric heap. If the
 inputs are on NVSHMEM symmetric memory, the result will be as well.
 
-The global operation performed in this example is: A.T @ B
+The global operation performed in this example is: a.T @ b
 
 $ mpiexec -n 4 python example01_cupy_nvshmem.py
 """
@@ -51,9 +51,9 @@ m, n, k = 128, 512, 1024
 row_wise_distribution = Slab.X  # partitioning on rows
 col_wise_distribution = Slab.Y  # partitioning on columns
 
-# Get the shape of inputs a and b on this rank according to this distribution.
-a_shape = col_wise_distribution.shape(rank, (k, m))  # a is transposed and partitioned on m
-b_shape = col_wise_distribution.shape(rank, (k, n))  # b is partitioned on n
+# Get the shape of inputs 'a' and 'b' on this rank according to this distribution.
+a_shape = col_wise_distribution.shape(rank, (k, m))  # 'a' is transposed and partitioned on m
+b_shape = col_wise_distribution.shape(rank, (k, n))  # 'b' is partitioned on n
 
 # In this example we allocate the matrices on NVSHMEM symmetric memory.
 
@@ -68,18 +68,18 @@ with cp.cuda.Device(device_id):
 
 # Specify distribution of input and output matrices.
 
-# Note: The choice of distribution for a, b and output as well as whether a and b are
-# transposed influences the distributed algorithm used by cuBLASMp and can have a
+# Note: The choice of distribution for 'a', 'b' and output as well as whether 'a' and 'b'
+# are transposed influences the distributed algorithm used by cuBLASMp and can have a
 # substantial impact on performance.
 # The following configuration will run AllGather+GEMM.
 # Refer to https://docs.nvidia.com/cuda/cublasmp/usage/tp.html for more information.
 
-# Distribution of a, b and output.
+# Distribution of 'a', 'b' and output.
 distributions = [col_wise_distribution, col_wise_distribution, row_wise_distribution]
 
 # Perform the distributed matrix multiplication.
 qualifiers = np.zeros((3,), dtype=matrix_qualifiers_dtype)
-qualifiers[0]["is_transpose"] = True  # a is transposed
+qualifiers[0]["is_transpose"] = True  # 'a' is transposed
 result = nvmath.distributed.linalg.advanced.matmul(
     a,
     b,

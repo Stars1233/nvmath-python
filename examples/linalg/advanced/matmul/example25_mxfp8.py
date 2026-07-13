@@ -12,9 +12,9 @@ Key differences from FP8:
   and improves the accuracy of MXFP8 operations.
 - MXFP8 scales are uint8 numbers in exponent-only format, representing values of the form
   2^n, where n is an integer between -127 and 128.
-- In MXFP8 mode, if D is FP8, it is scaled automatically during the matmul operation and
-  the quantization scales used are returned as "d_out_scale". This is covered in the next
-  example.
+- In MXFP8 mode, if the output is FP8, it is scaled automatically during the matmul, and the
+  scale factors that were applied are returned in the auxiliary output under the
+  `d_out_scale` key. This is covered in the next example.
 
 To use MXFP8, set the `block_scaling` option to True.
 
@@ -30,13 +30,13 @@ import torch
 import nvmath
 
 # Prepare sample input data. Note that N, M and K must be divisible by 128 for MXFP8.
-# cuBLAS requires B to be column-major, so we first create a row-major tensor and then
+# cuBLAS requires 'b' to be column-major, so we first create a row-major tensor and then
 # transpose it.
-a = torch.eye(256, device="cuda", dtype=torch.float8_e4m3fn)  # A is an identity matrix
-b = torch.ones((256, 256), device="cuda", dtype=torch.float8_e4m3fn).T  # B is filled with ones
+a = torch.eye(256, device="cuda", dtype=torch.float8_e4m3fn)  # 'a' is an identity matrix
+b = torch.ones((256, 256), device="cuda", dtype=torch.float8_e4m3fn).T  # 'b' is filled with ones
 
-# Prepare quantization scales for A and B using the `create_mxfp8_scale` helper.
-# While MXFP8 allows different scales for different blocks in A and B,
+# Prepare quantization scales for 'a' and 'b' using the `create_mxfp8_scale` helper.
+# While MXFP8 allows different scales for different blocks in 'a' and 'b',
 # this helper creates uniform scaling across all blocks.
 # For more advanced scale configurations, see the cuBLAS documentation and
 # the `to_block_scale` and `get_block_scale_offset` helpers.
@@ -57,4 +57,4 @@ reference = a.type(torch.float16) @ b.type(torch.float16)
 print(f"Reference result (without scaling):\n{reference}")
 
 # Print the result with scaling applied
-print(f"Result with scaling (A scaled by 0.5, B scaled by 8):\n{result}")
+print(f"Result with scaling ('a' scaled by 0.5, 'b' scaled by 8):\n{result}")

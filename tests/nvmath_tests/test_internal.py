@@ -4,15 +4,14 @@
 
 import gc
 import importlib
+import subprocess
+import sys
 import threading
 import typing
 import weakref
 
-try:
-    from cuda.core import system
-except ImportError:
-    from cuda.core.experimental import system
 import pytest
+from cuda.core import system
 from hypothesis import given
 from hypothesis import strategies as st
 
@@ -21,10 +20,7 @@ from nvmath.internal._device_utils import get_device
 from nvmath.internal.utils import cached_get_or_create_stream
 from nvmath.memory import _MEMORY_MANAGER
 
-try:
-    _device_count = system.get_num_devices()
-except AttributeError:
-    _device_count = system.num_devices
+_device_count = system.get_num_devices()
 
 _cupy_available = False
 try:
@@ -212,3 +208,16 @@ def test_default_allocator_user_stream_lifetime(package_name: str):
     # If not, the following may end up with a dangling pointer.
 
     alloc.free()
+
+
+def test_import_with_OO_flag(tmp_path):
+    # Launch the subprocess from the neutral directory to ensure the in-tree
+    # ``nvmath/`` source package does not shadow the installed one.
+    proc = subprocess.run(
+        [sys.executable, "-OO", "-c", "import nvmath"],
+        check=False,
+        capture_output=True,
+        text=True,
+        cwd=tmp_path,
+    )
+    assert proc.returncode == 0, proc.stderr

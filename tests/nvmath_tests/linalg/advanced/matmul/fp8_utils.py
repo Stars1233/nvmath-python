@@ -247,14 +247,14 @@ def generate_inputs(m, n, k, atype, btype, ctype, *, c_transposed=False, min=0, 
     Generates matmul inputs of given shapes and types.
     """
 
-    a = sample_matrix("torch", atype, (m, k), use_cuda=use_cuda, min=min, max=max)
-    b = sample_matrix("torch", btype, (n, k), use_cuda=use_cuda, min=min, max=max).T
+    a = sample_matrix("torch", atype, (m, k), use_cuda=use_cuda, min_val=min, max_val=max)
+    b = sample_matrix("torch", btype, (n, k), use_cuda=use_cuda, min_val=min, max_val=max).T
 
     if ctype is not None:
         if not c_transposed:
-            c = sample_matrix("torch", ctype, (m, n), use_cuda=use_cuda, min=min, max=max)
+            c = sample_matrix("torch", ctype, (m, n), use_cuda=use_cuda, min_val=min, max_val=max)
         else:
-            c = sample_matrix("torch", ctype, (n, m), use_cuda=use_cuda, min=min, max=max).T
+            c = sample_matrix("torch", ctype, (n, m), use_cuda=use_cuda, min_val=min, max_val=max).T
         beta = np.random.uniform(-2, 2)
     else:
         c = None

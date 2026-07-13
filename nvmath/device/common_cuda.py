@@ -29,7 +29,7 @@ class Code(namedtuple("Code", ("code_type", "isa_version", "data"))):
     Attributes:
         code_type (CodeType): The underlying code type.
         isa_version (ISAVersion): The instruction set architecture version for the code.
-        data: The buffer pointer.
+        data (bytes): The code buffer.
     """
 
     __slots__ = ()
@@ -42,7 +42,7 @@ class CodeType(namedtuple("CodeType", ("kind", "cc"))):
 
     Attributes:
         kind (str): A string denoting the nature of the code, e.g, ``'lto'``.
-        cc (ComputeCapability): The current GPU compute capability.
+        cc (ComputeCapability): The target compute capability of the code.
     """
 
     __slots__ = ()
@@ -67,7 +67,7 @@ class ComputeCapability(NamedTuple):
 
     @property
     def integer(self) -> int:
-        """Integer representation of the ISAVersion"""
+        """Integer representation of the ComputeCapability"""
         return self.major * 100 + self.minor * 10
 
     def __str__(self):

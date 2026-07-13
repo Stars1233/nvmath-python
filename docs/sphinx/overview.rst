@@ -186,10 +186,10 @@ functionality:
   specifically suited to dense matrices.
 
 It should be noted that the notion of generic and specialized APIs is orthogonal to the
-notion of stateful versus stateless APIs. Currently, nvmath-python offers the specialized
-interface for dense matrix multiplication, in :class:`stateful
-<nvmath.linalg.advanced.Matmul>` and :func:`stateless <nvmath.linalg.advanced.matmul>`
-forms.
+notion of stateful versus stateless APIs. For example, dense matrix multiplication is
+available through both the generic interface (:class:`stateful <nvmath.linalg.Matmul>` and
+:func:`stateless <nvmath.linalg.matmul>`) and the specialized interface (:class:`stateful
+<nvmath.linalg.advanced.Matmul>` and :func:`stateless <nvmath.linalg.advanced.matmul>`).
 
 .. _high-level api logging:
 
@@ -309,7 +309,7 @@ or PyTorch's mempool depending on the operands.
     Numba's EMM interface (:class:`numba.cuda.BaseCUDAMemoryManager`), but duck typing with
     an existing EMM instance (not type!) at runtime should be possible.
 
-.. _EMM: https://numba.readthedocs.io/en/stable/cuda/external-memory.html
+.. _EMM: https://nvidia.github.io/numba-cuda/user/external-memory.html
 
 .. _host api callback section:
 
@@ -346,6 +346,18 @@ effectively increases the arithmetic intensity of the operation.
    # Perform the forward FFT, applying the filter as an epilog...
    r = nvmath.fft.fft(a, axes=[-1], epilog={"ltoir": epilog})
 
+
+Distributed Host APIs
+=====================
+
+The distributed host APIs perform math operations in parallel across multiple GPUs
+and multiple nodes (MGMN) by leveraging NVIDIA high-performance MGMN libraries. These
+APIs closely mirror the non-distributed host APIs described above, with the key
+difference that they run simultaneously on multiple processes (with one process
+per GPU), and the operands must be distributed across processes prior to calling
+the APIs. Visit the :doc:`distributed-apis/index` section of the documentation to
+learn more.
+
 .. _device api section:
 
 Device APIs
@@ -358,13 +370,16 @@ operations in their Python CUDA kernels, resulting in a *fully fused kernel*. Fu
 essential for performance in latency-dominated cases to reduce the number of kernel
 launches, and in memory-bound operations to avoid the extra roundtrip to global memory.
 
-We currently offer support for calling FFT, matrix multiplication, and random number
-generation APIs in kernels written using `Numba`_, with plans to offer more core operations
-and support other compilers in the future. The design of the device APIs closely mimics that
-of the C++ APIs from the corresponding NVIDIA Math Libraries (MathDx libraries
-:cufftdx_doc:`cuFFTDx <index.html>` and
-:cublasdx_doc:`cuBLASDx <index.html>` for
-FFT and matrix multiplication, and
+We currently offer support for calling FFT, matrix multiplication, linear solver, and
+random number generation APIs in kernels written using `Numba`_, with plans to offer more
+core operations and extend the compiler support in the future. The supported compilers
+are ``numba-cuda`` and, partially, the MLIR-based ``numba-cuda-mlir`` (see
+:ref:`device-api-supported-compilers`). The design of the device APIs
+closely mimics that of the C++ APIs from the corresponding NVIDIA Math Libraries (MathDx
+libraries :cufftdx_doc:`cuFFTDx <index.html>`,
+:cublasdx_doc:`cuBLASDx <index.html>`, and
+:cusolverdx_doc:`cuSOLVERDx <index.html>` for
+FFT, matrix multiplication, and linear solvers, and
 `cuRAND device APIs <https://docs.nvidia.com/cuda/curand/group__DEVICE.html#group__DEVICE>`_
 for random number generation).
 
@@ -377,25 +392,30 @@ nvmath-python is no different from any Python package, in that we would not succ
 depending on, collaborating with, and evolving alongside the Python community. Given these
 considerations, we strive to meet the following commitments:
 
-1. For the :doc:`low-level Python bindings <bindings/index>`,
-
-   * if the library to be bound is part of CUDA Toolkit, we support the library from the
-     most recent two CUDA major versions (currently CUDA 12/13)
-   * otherwise, we support the library within its major version
-
-   Note that all bindings are currently *experimental*.
-
-2. For the high-level Pythonic APIs, we maintain backward compatibility to the greatest
-   extent feasible. When a breaking change is necessary, we issue a runtime warning to alert
-   users of the upcoming changes in the next major release. This practice ensures that
+#. For the low-level Python bindings, we support each library across a defined range of
+   versions and treat the Python-level interface as experimental; see the
+   :ref:`bindings compatibility policy <bindings-compatibility-policy>` for details.
+#. For the high-level Pythonic APIs, we maintain backward compatibility to the greatest
+   extent feasible. When a breaking change is necessary,
+   we issue a deprecation warning to alert users of the upcoming changes
+   in the next major release. This practice ensures that
    breaking changes are clearly communicated and reserved for major version updates,
    allowing users to prepare and adapt without surprises.
-3. We comply with `NEP-29`_ and support a community-defined set of core dependencies
-   (CPython, NumPy, etc).
 
-.. note::
-    The policy on backwards compatibility will apply starting with release ``1.0.0``.
+   * Any attribute, parameter, method, class, function or module with an ``experimental``
+     tag is excepted from this policy.
+
+     * This aids in rapid development and deployment of novel features where the best API
+       choice that covers the spectrum of use cases (and indeed even the application
+       spectrum) is not yet clear. We appreciate your feedback to help us provide these
+       features in a form that best suits your use case.
+     * We will use the smallest scope possible for an ``experimental`` tag. For example,
+       we will tag a function parameter as experimental instead of the function, or a
+       specific method instead of the whole class.
+
+#. We comply with `NEP-29`_ and support a community-defined set of core dependencies
+   (CPython, NumPy, etc).
 
 .. _NEP-29: https://numpy.org/neps/nep-0029-deprecation_policy.html
 
-.. _Numba: https://numba.readthedocs.io/en/stable/cuda/index.html
+.. _Numba: https://nvidia.github.io/numba-cuda/

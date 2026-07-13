@@ -8,14 +8,19 @@ Overview
 ========
 
 The Linear Algebra module :mod:`nvmath.linalg` in nvmath-python leverages various NVIDIA
-math libraries to support dense [#]_ linear algebra computations. As of version 0.7.0, we
-offer both a generic matrix multiplication API based on the cuBLAS and NVPL libraries and a
-specialized matrix multiplication API (:mod:`nvmath.linalg.advanced`) based on the cuBLASLt
-library. See :ref:`Generic and Specialized APIs <generic specialized>` for motivation.
+math libraries to support dense [#]_ linear algebra computations. As of version 1.0.0, we
+offer matrix multiplication APIs as well as a dense direct linear solver API.
 
+For matrix multiplication, we offer both a generic API based on the cuBLAS and NVPL
+libraries and a specialized API (:mod:`nvmath.linalg.advanced`) based on the cuBLASLt
+library. See :ref:`Generic and Specialized APIs <generic specialized>` for motivation.
 At a high-level, if your use case is predominantly GEMM and requires particular flexibility
 in matrix data layouts, input and/or compute types, and also in choosing the algorithmic
 implementation, look at the specialized APIs. Otherwise, look at the generic APIs.
+
+For solving dense square linear systems of the form ``a @ x = b`` via LU factorization,
+we offer a generic dense direct solver (:func:`~nvmath.linalg.direct_solver` and the
+stateful :class:`~nvmath.linalg.DirectSolver`).
 
 .. _linalg-api-reference:
 
@@ -27,9 +32,29 @@ API Reference
 Generic Linear Algebra APIs (:mod:`nvmath.linalg`)
 --------------------------------------------------
 
-The generic linear algebra module includes matrix multiplication APIs which accept
-structured matrices as input, but do not allow for control over computational precision or
-algorithm selection and planning.
+The generic linear algebra module bundles host APIs that share a minimal, broadly
+applicable surface. Beyond that, each operation has its own operand model and
+configuration; the subsections below list each operation's surface independently.
+
+
+Shared Utilities
+^^^^^^^^^^^^^^^^
+
+.. autosummary::
+   :toctree: generated/
+   :template: dataclass
+
+   ExecutionCPU
+   ExecutionCUDA
+
+
+Matrix multiplication
+^^^^^^^^^^^^^^^^^^^^^
+
+Accepts structured matrices via :ref:`matrix qualifiers <matrix-tensor-qualifiers>`
+(general, triangular, symmetric, Hermitian, diagonal) in addition to dense full
+matrices. Runs on either CPU or CUDA execution.
+
 
 .. autosummary::
    :toctree: generated/
@@ -52,9 +77,30 @@ algorithm selection and planning.
    :toctree: generated/
    :template: dataclass
 
-   ExecutionCPU
-   ExecutionCUDA
    MatmulOptions
+
+
+Direct linear solver
+^^^^^^^^^^^^^^^^^^^^
+
+Solves the dense system ``a @ x = b`` for a *general* square ``a`` and dense ``b``
+(including implicitly and explicitly batched inputs), via LU factorization on the GPU.
+Execution is CUDA-only: host-side operands are copied to the selected device for
+the factorization and solve using the triangular factors.
+Native CPU execution is not available today but may be added in a future release.
+
+.. autosummary::
+   :toctree: generated/
+
+   direct_solver
+   DirectSolver
+   InvalidDirectSolverState
+
+.. autosummary::
+   :toctree: generated/
+   :template: dataclass
+
+   DirectSolverOptions
 
 .. module:: nvmath.linalg.advanced
 
@@ -110,7 +156,6 @@ Matmul helpers (:mod:`nvmath.linalg.advanced.helpers.matmul`)
    quantize_to_fp4
    unpack_fp4
    get_block_scale_offset
-   get_mxfp8_scale_offset
    to_block_scale
    expand_block_scale
 

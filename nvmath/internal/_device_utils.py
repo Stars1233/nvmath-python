@@ -2,13 +2,9 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-try:
-    from cuda.core import Device, system
-except ImportError:
-    from cuda.core.experimental import Device, system
-
-
 import threading
+
+from cuda.core import Device, system
 
 thread_local = threading.local()
 
@@ -33,12 +29,7 @@ def get_device(device_id: int) -> Device:
     try:
         devices = thread_local.devices
     except AttributeError:
-        try:
-            num_devices = system.get_num_devices()
-        except AttributeError:
-            # cuda.core < 0.5.0
-            num_devices = system.num_devices
-        thread_local.devices = devices = [None] * num_devices
+        thread_local.devices = devices = [None] * system.get_num_devices()
 
     device = devices[device_id]
     if device is None:

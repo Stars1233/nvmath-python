@@ -167,6 +167,8 @@ class BSRTensorHolder(SparseTensorHolder):
 
         No copy is performed if the BSRTensor is already on the requested device.
         """
+        if self.tensor_package == "nvmath":
+            return super().to(device_id=device_id, stream_holder=stream_holder)
 
         target_crow_indices = self.crow_indices.to(device_id=device_id, stream_holder=stream_holder)
         target_col_indices = self.col_indices.to(device_id=device_id, stream_holder=stream_holder)

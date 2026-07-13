@@ -33,7 +33,7 @@ device_id = rank % torch.cuda.device_count()
 # cuBLASMp requires NCCL communication backend.
 nvmath.distributed.initialize(device_id, comm, backends=["nccl"])
 
-# Prepare sample input data. Note that A and B are FP8 numbers of different types.
+# Prepare sample input data. Note that 'a' and 'b' are FP8 numbers of different types.
 m, n, k = 128, 64, 96
 
 row_wise_distribution = Slab.X
@@ -46,17 +46,17 @@ with torch.cuda.device(device_id):
     b = torch.rand(*row_wise_distribution.shape(rank, (n, k)), device="cuda").type(torch.float8_e4m3fn)
 
 # Get a transposed view to obtain column-major memory layout. Note that this
-# also changes the distribution of a and b (see example01 for more information).
-a = a.T  # a is now (k, m) with col_wise_distribution
-b = b.T  # b is now (k, n) with col_wise_distribution
+# also changes the distribution of 'a' and 'b' (see example01 for more information).
+a = a.T  # 'a' is now (k, m) with col_wise_distribution
+b = b.T  # 'b' is now (k, n) with col_wise_distribution
 
-# Distributions for A, B, and result matrix D
+# Distributions for 'a', 'b', and result matrix 'd'
 distributions = [col_wise_distribution, col_wise_distribution, row_wise_distribution]
 
 qualifiers = np.zeros((3,), dtype=matrix_qualifiers_dtype)
-qualifiers[0]["is_transpose"] = True  # a is transposed
+qualifiers[0]["is_transpose"] = True  # 'a' is transposed
 
-# Perform the multiplication, requesting FP32 output. Note that a scale for the result (D)
+# Perform the multiplication, requesting FP32 output. Note that a scale for the result ('d')
 # is not specified because it is not FP8.
 result_fp32 = nvmath.distributed.linalg.advanced.matmul(
     a,
@@ -77,8 +77,8 @@ result_fp16 = nvmath.distributed.linalg.advanced.matmul(
     options={"result_type": nvmath.CudaDataType.CUDA_R_16F},
 )
 
-# Now, request FP8 (e4m3fn) output. We set the scale for D to 1 for simplicity - with small
-# values in A and B we won't exceed the range of the type anyway.
+# Now, request FP8 (e4m3fn) output. We set the scale for 'd' to 1 for simplicity,
+# with small values in 'a' and 'b' we won't exceed the range of the type anyway.
 result_fp8_e4m3fn = nvmath.distributed.linalg.advanced.matmul(
     a,
     b,

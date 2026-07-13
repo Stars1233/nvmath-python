@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 #
-# This code was automatically generated with version 25.5, generator version 0.3.1.dev1303+g031f1197f. Do not modify it directly.
+# This code was automatically generated across versions from 25.5 to 26.5, generator version 0.3.1.dev1723+geb5f29ab4. Do not modify it directly.
 
 from libc.stdint cimport intptr_t
 
@@ -83,3 +83,49 @@ cpdef void sgemm_batch_strided(int order, int trans_a, int trans_b, nvpl_int32_t
 cpdef void dgemm_batch_strided(int order, int trans_a, int trans_b, nvpl_int32_t m, nvpl_int32_t n, nvpl_int32_t k, double alpha, intptr_t a, nvpl_int32_t lda, nvpl_int32_t stridea, intptr_t b, nvpl_int32_t ldb, nvpl_int32_t strideb, double beta, intptr_t c, nvpl_int32_t ldc, nvpl_int32_t stridec, nvpl_int32_t batch_size) except*
 cpdef void cgemm_batch_strided(int order, int trans_a, int trans_b, nvpl_int32_t m, nvpl_int32_t n, nvpl_int32_t k, intptr_t alpha, intptr_t a, nvpl_int32_t lda, nvpl_int32_t stridea, intptr_t b, nvpl_int32_t ldb, nvpl_int32_t strideb, intptr_t beta, intptr_t c, nvpl_int32_t ldc, nvpl_int32_t stridec, nvpl_int32_t batch_size) except*
 cpdef void zgemm_batch_strided(int order, int trans_a, int trans_b, nvpl_int32_t m, nvpl_int32_t n, nvpl_int32_t k, intptr_t alpha, intptr_t a, nvpl_int32_t lda, nvpl_int32_t stridea, intptr_t b, nvpl_int32_t ldb, nvpl_int32_t strideb, intptr_t beta, intptr_t c, nvpl_int32_t ldc, nvpl_int32_t stridec, nvpl_int32_t batch_size) except*
+cpdef void sgemmt(int order, int uplo, int trans_a, int trans_b, nvpl_int32_t n, nvpl_int32_t k, float alpha, intptr_t a, nvpl_int32_t lda, intptr_t b, nvpl_int32_t ldb, float beta, intptr_t c, nvpl_int32_t ldc) except*
+cpdef void dgemmt(int order, int uplo, int trans_a, int trans_b, nvpl_int32_t n, nvpl_int32_t k, double alpha, intptr_t a, nvpl_int32_t lda, intptr_t b, nvpl_int32_t ldb, double beta, intptr_t c, nvpl_int32_t ldc) except*
+cpdef void cgemmt(int order, int uplo, int trans_a, int trans_b, nvpl_int32_t n, nvpl_int32_t k, intptr_t alpha, intptr_t a, nvpl_int32_t lda, intptr_t b, nvpl_int32_t ldb, intptr_t beta, intptr_t c, nvpl_int32_t ldc) except*
+cpdef void zgemmt(int order, int uplo, int trans_a, int trans_b, nvpl_int32_t n, nvpl_int32_t k, intptr_t alpha, intptr_t a, nvpl_int32_t lda, intptr_t b, nvpl_int32_t ldb, intptr_t beta, intptr_t c, nvpl_int32_t ldc) except*
+cpdef void sgemm_64(int order, int trans_a, int trans_b, int64_t m, int64_t n, int64_t k, float alpha, intptr_t a, int64_t lda, intptr_t b, int64_t ldb, float beta, intptr_t c, int64_t ldc) except*
+cpdef void ssymm_64(int order, int side, int uplo, int64_t m, int64_t n, float alpha, intptr_t a, int64_t lda, intptr_t b, int64_t ldb, float beta, intptr_t c, int64_t ldc) except*
+cpdef void ssyrk_64(int order, int uplo, int trans, int64_t n, int64_t k, float alpha, intptr_t a, int64_t lda, float beta, intptr_t c, int64_t ldc) except*
+cpdef void ssyr2k_64(int order, int uplo, int trans, int64_t n, int64_t k, float alpha, intptr_t a, int64_t lda, intptr_t b, int64_t ldb, float beta, intptr_t c, int64_t ldc) except*
+cpdef void strmm_64(int order, int side, int uplo, int trans_a, int diag, int64_t m, int64_t n, float alpha, intptr_t a, int64_t lda, intptr_t b, int64_t ldb) except*
+cpdef void strsm_64(int order, int side, int uplo, int trans_a, int diag, int64_t m, int64_t n, float alpha, intptr_t a, int64_t lda, intptr_t b, int64_t ldb) except*
+cpdef void dgemm_64(int order, int trans_a, int trans_b, int64_t m, int64_t n, int64_t k, double alpha, intptr_t a, int64_t lda, intptr_t b, int64_t ldb, double beta, intptr_t c, int64_t ldc) except*
+cpdef void dsymm_64(int order, int side, int uplo, int64_t m, int64_t n, double alpha, intptr_t a, int64_t lda, intptr_t b, int64_t ldb, double beta, intptr_t c, int64_t ldc) except*
+cpdef void dsyrk_64(int order, int uplo, int trans, int64_t n, int64_t k, double alpha, intptr_t a, int64_t lda, double beta, intptr_t c, int64_t ldc) except*
+cpdef void dsyr2k_64(int order, int uplo, int trans, int64_t n, int64_t k, double alpha, intptr_t a, int64_t lda, intptr_t b, int64_t ldb, double beta, intptr_t c, int64_t ldc) except*
+cpdef void dtrmm_64(int order, int side, int uplo, int trans_a, int diag, int64_t m, int64_t n, double alpha, intptr_t a, int64_t lda, intptr_t b, int64_t ldb) except*
+cpdef void dtrsm_64(int order, int side, int uplo, int trans_a, int diag, int64_t m, int64_t n, double alpha, intptr_t a, int64_t lda, intptr_t b, int64_t ldb) except*
+cpdef void cgemm_64(int order, int trans_a, int trans_b, int64_t m, int64_t n, int64_t k, intptr_t alpha, intptr_t a, int64_t lda, intptr_t b, int64_t ldb, intptr_t beta, intptr_t c, int64_t ldc) except*
+cpdef void csymm_64(int order, int side, int uplo, int64_t m, int64_t n, intptr_t alpha, intptr_t a, int64_t lda, intptr_t b, int64_t ldb, intptr_t beta, intptr_t c, int64_t ldc) except*
+cpdef void csyrk_64(int order, int uplo, int trans, int64_t n, int64_t k, intptr_t alpha, intptr_t a, int64_t lda, intptr_t beta, intptr_t c, int64_t ldc) except*
+cpdef void csyr2k_64(int order, int uplo, int trans, int64_t n, int64_t k, intptr_t alpha, intptr_t a, int64_t lda, intptr_t b, int64_t ldb, intptr_t beta, intptr_t c, int64_t ldc) except*
+cpdef void ctrmm_64(int order, int side, int uplo, int trans_a, int diag, int64_t m, int64_t n, intptr_t alpha, intptr_t a, int64_t lda, intptr_t b, int64_t ldb) except*
+cpdef void ctrsm_64(int order, int side, int uplo, int trans_a, int diag, int64_t m, int64_t n, intptr_t alpha, intptr_t a, int64_t lda, intptr_t b, int64_t ldb) except*
+cpdef void zgemm_64(int order, int trans_a, int trans_b, int64_t m, int64_t n, int64_t k, intptr_t alpha, intptr_t a, int64_t lda, intptr_t b, int64_t ldb, intptr_t beta, intptr_t c, int64_t ldc) except*
+cpdef void zsymm_64(int order, int side, int uplo, int64_t m, int64_t n, intptr_t alpha, intptr_t a, int64_t lda, intptr_t b, int64_t ldb, intptr_t beta, intptr_t c, int64_t ldc) except*
+cpdef void zsyrk_64(int order, int uplo, int trans, int64_t n, int64_t k, intptr_t alpha, intptr_t a, int64_t lda, intptr_t beta, intptr_t c, int64_t ldc) except*
+cpdef void zsyr2k_64(int order, int uplo, int trans, int64_t n, int64_t k, intptr_t alpha, intptr_t a, int64_t lda, intptr_t b, int64_t ldb, intptr_t beta, intptr_t c, int64_t ldc) except*
+cpdef void ztrmm_64(int order, int side, int uplo, int trans_a, int diag, int64_t m, int64_t n, intptr_t alpha, intptr_t a, int64_t lda, intptr_t b, int64_t ldb) except*
+cpdef void ztrsm_64(int order, int side, int uplo, int trans_a, int diag, int64_t m, int64_t n, intptr_t alpha, intptr_t a, int64_t lda, intptr_t b, int64_t ldb) except*
+cpdef void chemm_64(int order, int side, int uplo, int64_t m, int64_t n, intptr_t alpha, intptr_t a, int64_t lda, intptr_t b, int64_t ldb, intptr_t beta, intptr_t c, int64_t ldc) except*
+cpdef void cherk_64(int order, int uplo, int trans, int64_t n, int64_t k, float alpha, intptr_t a, int64_t lda, float beta, intptr_t c, int64_t ldc) except*
+cpdef void cher2k_64(int order, int uplo, int trans, int64_t n, int64_t k, intptr_t alpha, intptr_t a, int64_t lda, intptr_t b, int64_t ldb, float beta, intptr_t c, int64_t ldc) except*
+cpdef void zhemm_64(int order, int side, int uplo, int64_t m, int64_t n, intptr_t alpha, intptr_t a, int64_t lda, intptr_t b, int64_t ldb, intptr_t beta, intptr_t c, int64_t ldc) except*
+cpdef void zherk_64(int order, int uplo, int trans, int64_t n, int64_t k, double alpha, intptr_t a, int64_t lda, double beta, intptr_t c, int64_t ldc) except*
+cpdef void zher2k_64(int order, int uplo, int trans, int64_t n, int64_t k, intptr_t alpha, intptr_t a, int64_t lda, intptr_t b, int64_t ldb, double beta, intptr_t c, int64_t ldc) except*
+cpdef void sgemmt_64(int order, int uplo, int trans_a, int trans_b, int64_t n, int64_t k, float alpha, intptr_t a, int64_t lda, intptr_t b, int64_t ldb, float beta, intptr_t c, int64_t ldc) except*
+cpdef void dgemmt_64(int order, int uplo, int trans_a, int trans_b, int64_t n, int64_t k, double alpha, intptr_t a, int64_t lda, intptr_t b, int64_t ldb, double beta, intptr_t c, int64_t ldc) except*
+cpdef void cgemmt_64(int order, int uplo, int trans_a, int trans_b, int64_t n, int64_t k, intptr_t alpha, intptr_t a, int64_t lda, intptr_t b, int64_t ldb, intptr_t beta, intptr_t c, int64_t ldc) except*
+cpdef void zgemmt_64(int order, int uplo, int trans_a, int trans_b, int64_t n, int64_t k, intptr_t alpha, intptr_t a, int64_t lda, intptr_t b, int64_t ldb, intptr_t beta, intptr_t c, int64_t ldc) except*
+cpdef void sgemm_batch_64(int order, intptr_t trans_a_array, intptr_t trans_b_array, intptr_t m_array, intptr_t n_array, intptr_t k_array, intptr_t alpha_array, intptr_t a_array, intptr_t lda_array, intptr_t b_array, intptr_t ldb_array, intptr_t beta_array, intptr_t c_array, intptr_t ldc_array, int64_t group_count, intptr_t group_size) except*
+cpdef void dgemm_batch_64(int order, intptr_t trans_a_array, intptr_t trans_b_array, intptr_t m_array, intptr_t n_array, intptr_t k_array, intptr_t alpha_array, intptr_t a_array, intptr_t lda_array, intptr_t b_array, intptr_t ldb_array, intptr_t beta_array, intptr_t c_array, intptr_t ldc_array, int64_t group_count, intptr_t group_size) except*
+cpdef void cgemm_batch_64(int order, intptr_t trans_a_array, intptr_t trans_b_array, intptr_t m_array, intptr_t n_array, intptr_t k_array, intptr_t alpha_array, intptr_t a_array, intptr_t lda_array, intptr_t b_array, intptr_t ldb_array, intptr_t beta_array, intptr_t c_array, intptr_t ldc_array, int64_t group_count, intptr_t group_size) except*
+cpdef void zgemm_batch_64(int order, intptr_t trans_a_array, intptr_t trans_b_array, intptr_t m_array, intptr_t n_array, intptr_t k_array, intptr_t alpha_array, intptr_t a_array, intptr_t lda_array, intptr_t b_array, intptr_t ldb_array, intptr_t beta_array, intptr_t c_array, intptr_t ldc_array, int64_t group_count, intptr_t group_size) except*
+cpdef void sgemm_batch_strided_64(int order, int trans_a, int trans_b, int64_t m, int64_t n, int64_t k, float alpha, intptr_t a, int64_t lda, int64_t stridea, intptr_t b, int64_t ldb, int64_t strideb, float beta, intptr_t c, int64_t ldc, int64_t stridec, int64_t batch_size) except*
+cpdef void dgemm_batch_strided_64(int order, int trans_a, int trans_b, int64_t m, int64_t n, int64_t k, double alpha, intptr_t a, int64_t lda, int64_t stridea, intptr_t b, int64_t ldb, int64_t strideb, double beta, intptr_t c, int64_t ldc, int64_t stridec, int64_t batch_size) except*
+cpdef void cgemm_batch_strided_64(int order, int trans_a, int trans_b, int64_t m, int64_t n, int64_t k, intptr_t alpha, intptr_t a, int64_t lda, int64_t stridea, intptr_t b, int64_t ldb, int64_t strideb, intptr_t beta, intptr_t c, int64_t ldc, int64_t stridec, int64_t batch_size) except*
+cpdef void zgemm_batch_strided_64(int order, int trans_a, int trans_b, int64_t m, int64_t n, int64_t k, intptr_t alpha, intptr_t a, int64_t lda, int64_t stridea, intptr_t b, int64_t ldb, int64_t strideb, intptr_t beta, intptr_t c, int64_t ldc, int64_t stridec, int64_t batch_size) except*

@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 #
-# This code was automatically generated across versions from 12.0.1 to 13.2.0, generator version 0.3.1.dev1380+g2c74a7741. Do not modify it directly.
+# This code was automatically generated across versions from 12.0.1 to 13.2.0, generator version 0.3.1.dev1471+g7122059e9. Do not modify it directly.
 
 from libc.stdint cimport intptr_t, uintptr_t
 
@@ -86,6 +86,26 @@ cdef void* __cusparseSetMatDiagType = NULL
 cdef void* __cusparseGetMatDiagType = NULL
 cdef void* __cusparseSetMatIndexBase = NULL
 cdef void* __cusparseGetMatIndexBase = NULL
+cdef void* __cusparseCreateCsric02Info = NULL
+cdef void* __cusparseDestroyCsric02Info = NULL
+cdef void* __cusparseCreateBsric02Info = NULL
+cdef void* __cusparseDestroyBsric02Info = NULL
+cdef void* __cusparseCreateCsrilu02Info = NULL
+cdef void* __cusparseDestroyCsrilu02Info = NULL
+cdef void* __cusparseCreateBsrilu02Info = NULL
+cdef void* __cusparseDestroyBsrilu02Info = NULL
+cdef void* __cusparseCreateBsrsv2Info = NULL
+cdef void* __cusparseDestroyBsrsv2Info = NULL
+cdef void* __cusparseCreateBsrsm2Info = NULL
+cdef void* __cusparseDestroyBsrsm2Info = NULL
+cdef void* __cusparseCreateCsru2csrInfo = NULL
+cdef void* __cusparseDestroyCsru2csrInfo = NULL
+cdef void* __cusparseCreateColorInfo = NULL
+cdef void* __cusparseDestroyColorInfo = NULL
+cdef void* __cusparseSetColorAlgs = NULL
+cdef void* __cusparseGetColorAlgs = NULL
+cdef void* __cusparseCreatePruneInfo = NULL
+cdef void* __cusparseDestroyPruneInfo = NULL
 cdef void* __cusparseSgemvi = NULL
 cdef void* __cusparseSgemvi_bufferSize = NULL
 cdef void* __cusparseDgemvi = NULL
@@ -98,10 +118,124 @@ cdef void* __cusparseSbsrmv = NULL
 cdef void* __cusparseDbsrmv = NULL
 cdef void* __cusparseCbsrmv = NULL
 cdef void* __cusparseZbsrmv = NULL
+cdef void* __cusparseSbsrxmv = NULL
+cdef void* __cusparseDbsrxmv = NULL
+cdef void* __cusparseCbsrxmv = NULL
+cdef void* __cusparseZbsrxmv = NULL
+cdef void* __cusparseXbsrsv2_zeroPivot = NULL
+cdef void* __cusparseSbsrsv2_bufferSize = NULL
+cdef void* __cusparseDbsrsv2_bufferSize = NULL
+cdef void* __cusparseCbsrsv2_bufferSize = NULL
+cdef void* __cusparseZbsrsv2_bufferSize = NULL
+cdef void* __cusparseSbsrsv2_bufferSizeExt = NULL
+cdef void* __cusparseDbsrsv2_bufferSizeExt = NULL
+cdef void* __cusparseCbsrsv2_bufferSizeExt = NULL
+cdef void* __cusparseZbsrsv2_bufferSizeExt = NULL
+cdef void* __cusparseSbsrsv2_analysis = NULL
+cdef void* __cusparseDbsrsv2_analysis = NULL
+cdef void* __cusparseCbsrsv2_analysis = NULL
+cdef void* __cusparseZbsrsv2_analysis = NULL
+cdef void* __cusparseSbsrsv2_solve = NULL
+cdef void* __cusparseDbsrsv2_solve = NULL
+cdef void* __cusparseCbsrsv2_solve = NULL
+cdef void* __cusparseZbsrsv2_solve = NULL
 cdef void* __cusparseSbsrmm = NULL
 cdef void* __cusparseDbsrmm = NULL
 cdef void* __cusparseCbsrmm = NULL
 cdef void* __cusparseZbsrmm = NULL
+cdef void* __cusparseXbsrsm2_zeroPivot = NULL
+cdef void* __cusparseSbsrsm2_bufferSize = NULL
+cdef void* __cusparseDbsrsm2_bufferSize = NULL
+cdef void* __cusparseCbsrsm2_bufferSize = NULL
+cdef void* __cusparseZbsrsm2_bufferSize = NULL
+cdef void* __cusparseSbsrsm2_bufferSizeExt = NULL
+cdef void* __cusparseDbsrsm2_bufferSizeExt = NULL
+cdef void* __cusparseCbsrsm2_bufferSizeExt = NULL
+cdef void* __cusparseZbsrsm2_bufferSizeExt = NULL
+cdef void* __cusparseSbsrsm2_analysis = NULL
+cdef void* __cusparseDbsrsm2_analysis = NULL
+cdef void* __cusparseCbsrsm2_analysis = NULL
+cdef void* __cusparseZbsrsm2_analysis = NULL
+cdef void* __cusparseSbsrsm2_solve = NULL
+cdef void* __cusparseDbsrsm2_solve = NULL
+cdef void* __cusparseCbsrsm2_solve = NULL
+cdef void* __cusparseZbsrsm2_solve = NULL
+cdef void* __cusparseScsrilu02_numericBoost = NULL
+cdef void* __cusparseDcsrilu02_numericBoost = NULL
+cdef void* __cusparseCcsrilu02_numericBoost = NULL
+cdef void* __cusparseZcsrilu02_numericBoost = NULL
+cdef void* __cusparseXcsrilu02_zeroPivot = NULL
+cdef void* __cusparseScsrilu02_bufferSize = NULL
+cdef void* __cusparseDcsrilu02_bufferSize = NULL
+cdef void* __cusparseCcsrilu02_bufferSize = NULL
+cdef void* __cusparseZcsrilu02_bufferSize = NULL
+cdef void* __cusparseScsrilu02_bufferSizeExt = NULL
+cdef void* __cusparseDcsrilu02_bufferSizeExt = NULL
+cdef void* __cusparseCcsrilu02_bufferSizeExt = NULL
+cdef void* __cusparseZcsrilu02_bufferSizeExt = NULL
+cdef void* __cusparseScsrilu02_analysis = NULL
+cdef void* __cusparseDcsrilu02_analysis = NULL
+cdef void* __cusparseCcsrilu02_analysis = NULL
+cdef void* __cusparseZcsrilu02_analysis = NULL
+cdef void* __cusparseScsrilu02 = NULL
+cdef void* __cusparseDcsrilu02 = NULL
+cdef void* __cusparseCcsrilu02 = NULL
+cdef void* __cusparseZcsrilu02 = NULL
+cdef void* __cusparseSbsrilu02_numericBoost = NULL
+cdef void* __cusparseDbsrilu02_numericBoost = NULL
+cdef void* __cusparseCbsrilu02_numericBoost = NULL
+cdef void* __cusparseZbsrilu02_numericBoost = NULL
+cdef void* __cusparseXbsrilu02_zeroPivot = NULL
+cdef void* __cusparseSbsrilu02_bufferSize = NULL
+cdef void* __cusparseDbsrilu02_bufferSize = NULL
+cdef void* __cusparseCbsrilu02_bufferSize = NULL
+cdef void* __cusparseZbsrilu02_bufferSize = NULL
+cdef void* __cusparseSbsrilu02_bufferSizeExt = NULL
+cdef void* __cusparseDbsrilu02_bufferSizeExt = NULL
+cdef void* __cusparseCbsrilu02_bufferSizeExt = NULL
+cdef void* __cusparseZbsrilu02_bufferSizeExt = NULL
+cdef void* __cusparseSbsrilu02_analysis = NULL
+cdef void* __cusparseDbsrilu02_analysis = NULL
+cdef void* __cusparseCbsrilu02_analysis = NULL
+cdef void* __cusparseZbsrilu02_analysis = NULL
+cdef void* __cusparseSbsrilu02 = NULL
+cdef void* __cusparseDbsrilu02 = NULL
+cdef void* __cusparseCbsrilu02 = NULL
+cdef void* __cusparseZbsrilu02 = NULL
+cdef void* __cusparseXcsric02_zeroPivot = NULL
+cdef void* __cusparseScsric02_bufferSize = NULL
+cdef void* __cusparseDcsric02_bufferSize = NULL
+cdef void* __cusparseCcsric02_bufferSize = NULL
+cdef void* __cusparseZcsric02_bufferSize = NULL
+cdef void* __cusparseScsric02_bufferSizeExt = NULL
+cdef void* __cusparseDcsric02_bufferSizeExt = NULL
+cdef void* __cusparseCcsric02_bufferSizeExt = NULL
+cdef void* __cusparseZcsric02_bufferSizeExt = NULL
+cdef void* __cusparseScsric02_analysis = NULL
+cdef void* __cusparseDcsric02_analysis = NULL
+cdef void* __cusparseCcsric02_analysis = NULL
+cdef void* __cusparseZcsric02_analysis = NULL
+cdef void* __cusparseScsric02 = NULL
+cdef void* __cusparseDcsric02 = NULL
+cdef void* __cusparseCcsric02 = NULL
+cdef void* __cusparseZcsric02 = NULL
+cdef void* __cusparseXbsric02_zeroPivot = NULL
+cdef void* __cusparseSbsric02_bufferSize = NULL
+cdef void* __cusparseDbsric02_bufferSize = NULL
+cdef void* __cusparseCbsric02_bufferSize = NULL
+cdef void* __cusparseZbsric02_bufferSize = NULL
+cdef void* __cusparseSbsric02_bufferSizeExt = NULL
+cdef void* __cusparseDbsric02_bufferSizeExt = NULL
+cdef void* __cusparseCbsric02_bufferSizeExt = NULL
+cdef void* __cusparseZbsric02_bufferSizeExt = NULL
+cdef void* __cusparseSbsric02_analysis = NULL
+cdef void* __cusparseDbsric02_analysis = NULL
+cdef void* __cusparseCbsric02_analysis = NULL
+cdef void* __cusparseZbsric02_analysis = NULL
+cdef void* __cusparseSbsric02 = NULL
+cdef void* __cusparseDbsric02 = NULL
+cdef void* __cusparseCbsric02 = NULL
+cdef void* __cusparseZbsric02 = NULL
 cdef void* __cusparseSgtsv2_bufferSizeExt = NULL
 cdef void* __cusparseDgtsv2_bufferSizeExt = NULL
 cdef void* __cusparseCgtsv2_bufferSizeExt = NULL
@@ -151,12 +285,29 @@ cdef void* __cusparseScsrgeam2 = NULL
 cdef void* __cusparseDcsrgeam2 = NULL
 cdef void* __cusparseCcsrgeam2 = NULL
 cdef void* __cusparseZcsrgeam2 = NULL
+cdef void* __cusparseScsrcolor = NULL
+cdef void* __cusparseDcsrcolor = NULL
+cdef void* __cusparseCcsrcolor = NULL
+cdef void* __cusparseZcsrcolor = NULL
 cdef void* __cusparseSnnz = NULL
 cdef void* __cusparseDnnz = NULL
 cdef void* __cusparseCnnz = NULL
 cdef void* __cusparseZnnz = NULL
+cdef void* __cusparseSnnz_compress = NULL
+cdef void* __cusparseDnnz_compress = NULL
+cdef void* __cusparseCnnz_compress = NULL
+cdef void* __cusparseZnnz_compress = NULL
+cdef void* __cusparseScsr2csr_compress = NULL
+cdef void* __cusparseDcsr2csr_compress = NULL
+cdef void* __cusparseCcsr2csr_compress = NULL
+cdef void* __cusparseZcsr2csr_compress = NULL
 cdef void* __cusparseXcoo2csr = NULL
 cdef void* __cusparseXcsr2coo = NULL
+cdef void* __cusparseXcsr2bsrNnz = NULL
+cdef void* __cusparseScsr2bsr = NULL
+cdef void* __cusparseDcsr2bsr = NULL
+cdef void* __cusparseCcsr2bsr = NULL
+cdef void* __cusparseZcsr2bsr = NULL
 cdef void* __cusparseSbsr2csr = NULL
 cdef void* __cusparseDbsr2csr = NULL
 cdef void* __cusparseCbsr2csr = NULL
@@ -173,6 +324,11 @@ cdef void* __cusparseSgebsr2gebsc = NULL
 cdef void* __cusparseDgebsr2gebsc = NULL
 cdef void* __cusparseCgebsr2gebsc = NULL
 cdef void* __cusparseZgebsr2gebsc = NULL
+cdef void* __cusparseXgebsr2csr = NULL
+cdef void* __cusparseSgebsr2csr = NULL
+cdef void* __cusparseDgebsr2csr = NULL
+cdef void* __cusparseCgebsr2csr = NULL
+cdef void* __cusparseZgebsr2csr = NULL
 cdef void* __cusparseScsr2gebsr_bufferSize = NULL
 cdef void* __cusparseDcsr2gebsr_bufferSize = NULL
 cdef void* __cusparseCcsr2gebsr_bufferSize = NULL
@@ -199,6 +355,7 @@ cdef void* __cusparseSgebsr2gebsr = NULL
 cdef void* __cusparseDgebsr2gebsr = NULL
 cdef void* __cusparseCgebsr2gebsr = NULL
 cdef void* __cusparseZgebsr2gebsr = NULL
+cdef void* __cusparseCreateIdentityPermutation = NULL
 cdef void* __cusparseXcoosort_bufferSizeExt = NULL
 cdef void* __cusparseXcoosortByRow = NULL
 cdef void* __cusparseXcoosortByColumn = NULL
@@ -206,6 +363,42 @@ cdef void* __cusparseXcsrsort_bufferSizeExt = NULL
 cdef void* __cusparseXcsrsort = NULL
 cdef void* __cusparseXcscsort_bufferSizeExt = NULL
 cdef void* __cusparseXcscsort = NULL
+cdef void* __cusparseScsru2csr_bufferSizeExt = NULL
+cdef void* __cusparseDcsru2csr_bufferSizeExt = NULL
+cdef void* __cusparseCcsru2csr_bufferSizeExt = NULL
+cdef void* __cusparseZcsru2csr_bufferSizeExt = NULL
+cdef void* __cusparseScsru2csr = NULL
+cdef void* __cusparseDcsru2csr = NULL
+cdef void* __cusparseCcsru2csr = NULL
+cdef void* __cusparseZcsru2csr = NULL
+cdef void* __cusparseScsr2csru = NULL
+cdef void* __cusparseDcsr2csru = NULL
+cdef void* __cusparseCcsr2csru = NULL
+cdef void* __cusparseZcsr2csru = NULL
+cdef void* __cusparseSpruneDense2csr_bufferSizeExt = NULL
+cdef void* __cusparseDpruneDense2csr_bufferSizeExt = NULL
+cdef void* __cusparseSpruneDense2csrNnz = NULL
+cdef void* __cusparseDpruneDense2csrNnz = NULL
+cdef void* __cusparseSpruneDense2csr = NULL
+cdef void* __cusparseDpruneDense2csr = NULL
+cdef void* __cusparseSpruneCsr2csr_bufferSizeExt = NULL
+cdef void* __cusparseDpruneCsr2csr_bufferSizeExt = NULL
+cdef void* __cusparseSpruneCsr2csrNnz = NULL
+cdef void* __cusparseDpruneCsr2csrNnz = NULL
+cdef void* __cusparseSpruneCsr2csr = NULL
+cdef void* __cusparseDpruneCsr2csr = NULL
+cdef void* __cusparseSpruneDense2csrByPercentage_bufferSizeExt = NULL
+cdef void* __cusparseDpruneDense2csrByPercentage_bufferSizeExt = NULL
+cdef void* __cusparseSpruneDense2csrNnzByPercentage = NULL
+cdef void* __cusparseDpruneDense2csrNnzByPercentage = NULL
+cdef void* __cusparseSpruneDense2csrByPercentage = NULL
+cdef void* __cusparseDpruneDense2csrByPercentage = NULL
+cdef void* __cusparseSpruneCsr2csrByPercentage_bufferSizeExt = NULL
+cdef void* __cusparseDpruneCsr2csrByPercentage_bufferSizeExt = NULL
+cdef void* __cusparseSpruneCsr2csrNnzByPercentage = NULL
+cdef void* __cusparseDpruneCsr2csrNnzByPercentage = NULL
+cdef void* __cusparseSpruneCsr2csrByPercentage = NULL
+cdef void* __cusparseDpruneCsr2csrByPercentage = NULL
 cdef void* __cusparseCsr2cscEx2 = NULL
 cdef void* __cusparseCsr2cscEx2_bufferSize = NULL
 cdef void* __cusparseCreateSpVec = NULL
@@ -269,6 +462,7 @@ cdef void* __cusparseDnMatGetStridedBatch = NULL
 cdef void* __cusparseAxpby = NULL
 cdef void* __cusparseGather = NULL
 cdef void* __cusparseScatter = NULL
+cdef void* __cusparseRot = NULL
 cdef void* __cusparseSpVV_bufferSize = NULL
 cdef void* __cusparseSpVV = NULL
 cdef void* __cusparseSparseToDense_bufferSize = NULL
@@ -527,6 +721,146 @@ cdef int _check_or_init_cusparse() except -1 nogil:
                 handle = load_library(driver_ver)
             __cusparseGetMatIndexBase = dlsym(handle, 'cusparseGetMatIndexBase')
 
+        global __cusparseCreateCsric02Info
+        __cusparseCreateCsric02Info = dlsym(RTLD_DEFAULT, 'cusparseCreateCsric02Info')
+        if __cusparseCreateCsric02Info == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseCreateCsric02Info = dlsym(handle, 'cusparseCreateCsric02Info')
+
+        global __cusparseDestroyCsric02Info
+        __cusparseDestroyCsric02Info = dlsym(RTLD_DEFAULT, 'cusparseDestroyCsric02Info')
+        if __cusparseDestroyCsric02Info == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseDestroyCsric02Info = dlsym(handle, 'cusparseDestroyCsric02Info')
+
+        global __cusparseCreateBsric02Info
+        __cusparseCreateBsric02Info = dlsym(RTLD_DEFAULT, 'cusparseCreateBsric02Info')
+        if __cusparseCreateBsric02Info == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseCreateBsric02Info = dlsym(handle, 'cusparseCreateBsric02Info')
+
+        global __cusparseDestroyBsric02Info
+        __cusparseDestroyBsric02Info = dlsym(RTLD_DEFAULT, 'cusparseDestroyBsric02Info')
+        if __cusparseDestroyBsric02Info == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseDestroyBsric02Info = dlsym(handle, 'cusparseDestroyBsric02Info')
+
+        global __cusparseCreateCsrilu02Info
+        __cusparseCreateCsrilu02Info = dlsym(RTLD_DEFAULT, 'cusparseCreateCsrilu02Info')
+        if __cusparseCreateCsrilu02Info == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseCreateCsrilu02Info = dlsym(handle, 'cusparseCreateCsrilu02Info')
+
+        global __cusparseDestroyCsrilu02Info
+        __cusparseDestroyCsrilu02Info = dlsym(RTLD_DEFAULT, 'cusparseDestroyCsrilu02Info')
+        if __cusparseDestroyCsrilu02Info == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseDestroyCsrilu02Info = dlsym(handle, 'cusparseDestroyCsrilu02Info')
+
+        global __cusparseCreateBsrilu02Info
+        __cusparseCreateBsrilu02Info = dlsym(RTLD_DEFAULT, 'cusparseCreateBsrilu02Info')
+        if __cusparseCreateBsrilu02Info == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseCreateBsrilu02Info = dlsym(handle, 'cusparseCreateBsrilu02Info')
+
+        global __cusparseDestroyBsrilu02Info
+        __cusparseDestroyBsrilu02Info = dlsym(RTLD_DEFAULT, 'cusparseDestroyBsrilu02Info')
+        if __cusparseDestroyBsrilu02Info == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseDestroyBsrilu02Info = dlsym(handle, 'cusparseDestroyBsrilu02Info')
+
+        global __cusparseCreateBsrsv2Info
+        __cusparseCreateBsrsv2Info = dlsym(RTLD_DEFAULT, 'cusparseCreateBsrsv2Info')
+        if __cusparseCreateBsrsv2Info == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseCreateBsrsv2Info = dlsym(handle, 'cusparseCreateBsrsv2Info')
+
+        global __cusparseDestroyBsrsv2Info
+        __cusparseDestroyBsrsv2Info = dlsym(RTLD_DEFAULT, 'cusparseDestroyBsrsv2Info')
+        if __cusparseDestroyBsrsv2Info == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseDestroyBsrsv2Info = dlsym(handle, 'cusparseDestroyBsrsv2Info')
+
+        global __cusparseCreateBsrsm2Info
+        __cusparseCreateBsrsm2Info = dlsym(RTLD_DEFAULT, 'cusparseCreateBsrsm2Info')
+        if __cusparseCreateBsrsm2Info == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseCreateBsrsm2Info = dlsym(handle, 'cusparseCreateBsrsm2Info')
+
+        global __cusparseDestroyBsrsm2Info
+        __cusparseDestroyBsrsm2Info = dlsym(RTLD_DEFAULT, 'cusparseDestroyBsrsm2Info')
+        if __cusparseDestroyBsrsm2Info == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseDestroyBsrsm2Info = dlsym(handle, 'cusparseDestroyBsrsm2Info')
+
+        global __cusparseCreateCsru2csrInfo
+        __cusparseCreateCsru2csrInfo = dlsym(RTLD_DEFAULT, 'cusparseCreateCsru2csrInfo')
+        if __cusparseCreateCsru2csrInfo == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseCreateCsru2csrInfo = dlsym(handle, 'cusparseCreateCsru2csrInfo')
+
+        global __cusparseDestroyCsru2csrInfo
+        __cusparseDestroyCsru2csrInfo = dlsym(RTLD_DEFAULT, 'cusparseDestroyCsru2csrInfo')
+        if __cusparseDestroyCsru2csrInfo == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseDestroyCsru2csrInfo = dlsym(handle, 'cusparseDestroyCsru2csrInfo')
+
+        global __cusparseCreateColorInfo
+        __cusparseCreateColorInfo = dlsym(RTLD_DEFAULT, 'cusparseCreateColorInfo')
+        if __cusparseCreateColorInfo == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseCreateColorInfo = dlsym(handle, 'cusparseCreateColorInfo')
+
+        global __cusparseDestroyColorInfo
+        __cusparseDestroyColorInfo = dlsym(RTLD_DEFAULT, 'cusparseDestroyColorInfo')
+        if __cusparseDestroyColorInfo == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseDestroyColorInfo = dlsym(handle, 'cusparseDestroyColorInfo')
+
+        global __cusparseSetColorAlgs
+        __cusparseSetColorAlgs = dlsym(RTLD_DEFAULT, 'cusparseSetColorAlgs')
+        if __cusparseSetColorAlgs == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseSetColorAlgs = dlsym(handle, 'cusparseSetColorAlgs')
+
+        global __cusparseGetColorAlgs
+        __cusparseGetColorAlgs = dlsym(RTLD_DEFAULT, 'cusparseGetColorAlgs')
+        if __cusparseGetColorAlgs == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseGetColorAlgs = dlsym(handle, 'cusparseGetColorAlgs')
+
+        global __cusparseCreatePruneInfo
+        __cusparseCreatePruneInfo = dlsym(RTLD_DEFAULT, 'cusparseCreatePruneInfo')
+        if __cusparseCreatePruneInfo == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseCreatePruneInfo = dlsym(handle, 'cusparseCreatePruneInfo')
+
+        global __cusparseDestroyPruneInfo
+        __cusparseDestroyPruneInfo = dlsym(RTLD_DEFAULT, 'cusparseDestroyPruneInfo')
+        if __cusparseDestroyPruneInfo == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseDestroyPruneInfo = dlsym(handle, 'cusparseDestroyPruneInfo')
+
         global __cusparseSgemvi
         __cusparseSgemvi = dlsym(RTLD_DEFAULT, 'cusparseSgemvi')
         if __cusparseSgemvi == NULL:
@@ -611,6 +945,153 @@ cdef int _check_or_init_cusparse() except -1 nogil:
                 handle = load_library(driver_ver)
             __cusparseZbsrmv = dlsym(handle, 'cusparseZbsrmv')
 
+        global __cusparseSbsrxmv
+        __cusparseSbsrxmv = dlsym(RTLD_DEFAULT, 'cusparseSbsrxmv')
+        if __cusparseSbsrxmv == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseSbsrxmv = dlsym(handle, 'cusparseSbsrxmv')
+
+        global __cusparseDbsrxmv
+        __cusparseDbsrxmv = dlsym(RTLD_DEFAULT, 'cusparseDbsrxmv')
+        if __cusparseDbsrxmv == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseDbsrxmv = dlsym(handle, 'cusparseDbsrxmv')
+
+        global __cusparseCbsrxmv
+        __cusparseCbsrxmv = dlsym(RTLD_DEFAULT, 'cusparseCbsrxmv')
+        if __cusparseCbsrxmv == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseCbsrxmv = dlsym(handle, 'cusparseCbsrxmv')
+
+        global __cusparseZbsrxmv
+        __cusparseZbsrxmv = dlsym(RTLD_DEFAULT, 'cusparseZbsrxmv')
+        if __cusparseZbsrxmv == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseZbsrxmv = dlsym(handle, 'cusparseZbsrxmv')
+
+        global __cusparseXbsrsv2_zeroPivot
+        __cusparseXbsrsv2_zeroPivot = dlsym(RTLD_DEFAULT, 'cusparseXbsrsv2_zeroPivot')
+        if __cusparseXbsrsv2_zeroPivot == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseXbsrsv2_zeroPivot = dlsym(handle, 'cusparseXbsrsv2_zeroPivot')
+
+        global __cusparseSbsrsv2_bufferSize
+        __cusparseSbsrsv2_bufferSize = dlsym(RTLD_DEFAULT, 'cusparseSbsrsv2_bufferSize')
+        if __cusparseSbsrsv2_bufferSize == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseSbsrsv2_bufferSize = dlsym(handle, 'cusparseSbsrsv2_bufferSize')
+
+        global __cusparseDbsrsv2_bufferSize
+        __cusparseDbsrsv2_bufferSize = dlsym(RTLD_DEFAULT, 'cusparseDbsrsv2_bufferSize')
+        if __cusparseDbsrsv2_bufferSize == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseDbsrsv2_bufferSize = dlsym(handle, 'cusparseDbsrsv2_bufferSize')
+
+        global __cusparseCbsrsv2_bufferSize
+        __cusparseCbsrsv2_bufferSize = dlsym(RTLD_DEFAULT, 'cusparseCbsrsv2_bufferSize')
+        if __cusparseCbsrsv2_bufferSize == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseCbsrsv2_bufferSize = dlsym(handle, 'cusparseCbsrsv2_bufferSize')
+
+        global __cusparseZbsrsv2_bufferSize
+        __cusparseZbsrsv2_bufferSize = dlsym(RTLD_DEFAULT, 'cusparseZbsrsv2_bufferSize')
+        if __cusparseZbsrsv2_bufferSize == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseZbsrsv2_bufferSize = dlsym(handle, 'cusparseZbsrsv2_bufferSize')
+
+        global __cusparseSbsrsv2_bufferSizeExt
+        __cusparseSbsrsv2_bufferSizeExt = dlsym(RTLD_DEFAULT, 'cusparseSbsrsv2_bufferSizeExt')
+        if __cusparseSbsrsv2_bufferSizeExt == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseSbsrsv2_bufferSizeExt = dlsym(handle, 'cusparseSbsrsv2_bufferSizeExt')
+
+        global __cusparseDbsrsv2_bufferSizeExt
+        __cusparseDbsrsv2_bufferSizeExt = dlsym(RTLD_DEFAULT, 'cusparseDbsrsv2_bufferSizeExt')
+        if __cusparseDbsrsv2_bufferSizeExt == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseDbsrsv2_bufferSizeExt = dlsym(handle, 'cusparseDbsrsv2_bufferSizeExt')
+
+        global __cusparseCbsrsv2_bufferSizeExt
+        __cusparseCbsrsv2_bufferSizeExt = dlsym(RTLD_DEFAULT, 'cusparseCbsrsv2_bufferSizeExt')
+        if __cusparseCbsrsv2_bufferSizeExt == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseCbsrsv2_bufferSizeExt = dlsym(handle, 'cusparseCbsrsv2_bufferSizeExt')
+
+        global __cusparseZbsrsv2_bufferSizeExt
+        __cusparseZbsrsv2_bufferSizeExt = dlsym(RTLD_DEFAULT, 'cusparseZbsrsv2_bufferSizeExt')
+        if __cusparseZbsrsv2_bufferSizeExt == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseZbsrsv2_bufferSizeExt = dlsym(handle, 'cusparseZbsrsv2_bufferSizeExt')
+
+        global __cusparseSbsrsv2_analysis
+        __cusparseSbsrsv2_analysis = dlsym(RTLD_DEFAULT, 'cusparseSbsrsv2_analysis')
+        if __cusparseSbsrsv2_analysis == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseSbsrsv2_analysis = dlsym(handle, 'cusparseSbsrsv2_analysis')
+
+        global __cusparseDbsrsv2_analysis
+        __cusparseDbsrsv2_analysis = dlsym(RTLD_DEFAULT, 'cusparseDbsrsv2_analysis')
+        if __cusparseDbsrsv2_analysis == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseDbsrsv2_analysis = dlsym(handle, 'cusparseDbsrsv2_analysis')
+
+        global __cusparseCbsrsv2_analysis
+        __cusparseCbsrsv2_analysis = dlsym(RTLD_DEFAULT, 'cusparseCbsrsv2_analysis')
+        if __cusparseCbsrsv2_analysis == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseCbsrsv2_analysis = dlsym(handle, 'cusparseCbsrsv2_analysis')
+
+        global __cusparseZbsrsv2_analysis
+        __cusparseZbsrsv2_analysis = dlsym(RTLD_DEFAULT, 'cusparseZbsrsv2_analysis')
+        if __cusparseZbsrsv2_analysis == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseZbsrsv2_analysis = dlsym(handle, 'cusparseZbsrsv2_analysis')
+
+        global __cusparseSbsrsv2_solve
+        __cusparseSbsrsv2_solve = dlsym(RTLD_DEFAULT, 'cusparseSbsrsv2_solve')
+        if __cusparseSbsrsv2_solve == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseSbsrsv2_solve = dlsym(handle, 'cusparseSbsrsv2_solve')
+
+        global __cusparseDbsrsv2_solve
+        __cusparseDbsrsv2_solve = dlsym(RTLD_DEFAULT, 'cusparseDbsrsv2_solve')
+        if __cusparseDbsrsv2_solve == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseDbsrsv2_solve = dlsym(handle, 'cusparseDbsrsv2_solve')
+
+        global __cusparseCbsrsv2_solve
+        __cusparseCbsrsv2_solve = dlsym(RTLD_DEFAULT, 'cusparseCbsrsv2_solve')
+        if __cusparseCbsrsv2_solve == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseCbsrsv2_solve = dlsym(handle, 'cusparseCbsrsv2_solve')
+
+        global __cusparseZbsrsv2_solve
+        __cusparseZbsrsv2_solve = dlsym(RTLD_DEFAULT, 'cusparseZbsrsv2_solve')
+        if __cusparseZbsrsv2_solve == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseZbsrsv2_solve = dlsym(handle, 'cusparseZbsrsv2_solve')
+
         global __cusparseSbsrmm
         __cusparseSbsrmm = dlsym(RTLD_DEFAULT, 'cusparseSbsrmm')
         if __cusparseSbsrmm == NULL:
@@ -638,6 +1119,657 @@ cdef int _check_or_init_cusparse() except -1 nogil:
             if handle == NULL:
                 handle = load_library(driver_ver)
             __cusparseZbsrmm = dlsym(handle, 'cusparseZbsrmm')
+
+        global __cusparseXbsrsm2_zeroPivot
+        __cusparseXbsrsm2_zeroPivot = dlsym(RTLD_DEFAULT, 'cusparseXbsrsm2_zeroPivot')
+        if __cusparseXbsrsm2_zeroPivot == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseXbsrsm2_zeroPivot = dlsym(handle, 'cusparseXbsrsm2_zeroPivot')
+
+        global __cusparseSbsrsm2_bufferSize
+        __cusparseSbsrsm2_bufferSize = dlsym(RTLD_DEFAULT, 'cusparseSbsrsm2_bufferSize')
+        if __cusparseSbsrsm2_bufferSize == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseSbsrsm2_bufferSize = dlsym(handle, 'cusparseSbsrsm2_bufferSize')
+
+        global __cusparseDbsrsm2_bufferSize
+        __cusparseDbsrsm2_bufferSize = dlsym(RTLD_DEFAULT, 'cusparseDbsrsm2_bufferSize')
+        if __cusparseDbsrsm2_bufferSize == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseDbsrsm2_bufferSize = dlsym(handle, 'cusparseDbsrsm2_bufferSize')
+
+        global __cusparseCbsrsm2_bufferSize
+        __cusparseCbsrsm2_bufferSize = dlsym(RTLD_DEFAULT, 'cusparseCbsrsm2_bufferSize')
+        if __cusparseCbsrsm2_bufferSize == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseCbsrsm2_bufferSize = dlsym(handle, 'cusparseCbsrsm2_bufferSize')
+
+        global __cusparseZbsrsm2_bufferSize
+        __cusparseZbsrsm2_bufferSize = dlsym(RTLD_DEFAULT, 'cusparseZbsrsm2_bufferSize')
+        if __cusparseZbsrsm2_bufferSize == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseZbsrsm2_bufferSize = dlsym(handle, 'cusparseZbsrsm2_bufferSize')
+
+        global __cusparseSbsrsm2_bufferSizeExt
+        __cusparseSbsrsm2_bufferSizeExt = dlsym(RTLD_DEFAULT, 'cusparseSbsrsm2_bufferSizeExt')
+        if __cusparseSbsrsm2_bufferSizeExt == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseSbsrsm2_bufferSizeExt = dlsym(handle, 'cusparseSbsrsm2_bufferSizeExt')
+
+        global __cusparseDbsrsm2_bufferSizeExt
+        __cusparseDbsrsm2_bufferSizeExt = dlsym(RTLD_DEFAULT, 'cusparseDbsrsm2_bufferSizeExt')
+        if __cusparseDbsrsm2_bufferSizeExt == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseDbsrsm2_bufferSizeExt = dlsym(handle, 'cusparseDbsrsm2_bufferSizeExt')
+
+        global __cusparseCbsrsm2_bufferSizeExt
+        __cusparseCbsrsm2_bufferSizeExt = dlsym(RTLD_DEFAULT, 'cusparseCbsrsm2_bufferSizeExt')
+        if __cusparseCbsrsm2_bufferSizeExt == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseCbsrsm2_bufferSizeExt = dlsym(handle, 'cusparseCbsrsm2_bufferSizeExt')
+
+        global __cusparseZbsrsm2_bufferSizeExt
+        __cusparseZbsrsm2_bufferSizeExt = dlsym(RTLD_DEFAULT, 'cusparseZbsrsm2_bufferSizeExt')
+        if __cusparseZbsrsm2_bufferSizeExt == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseZbsrsm2_bufferSizeExt = dlsym(handle, 'cusparseZbsrsm2_bufferSizeExt')
+
+        global __cusparseSbsrsm2_analysis
+        __cusparseSbsrsm2_analysis = dlsym(RTLD_DEFAULT, 'cusparseSbsrsm2_analysis')
+        if __cusparseSbsrsm2_analysis == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseSbsrsm2_analysis = dlsym(handle, 'cusparseSbsrsm2_analysis')
+
+        global __cusparseDbsrsm2_analysis
+        __cusparseDbsrsm2_analysis = dlsym(RTLD_DEFAULT, 'cusparseDbsrsm2_analysis')
+        if __cusparseDbsrsm2_analysis == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseDbsrsm2_analysis = dlsym(handle, 'cusparseDbsrsm2_analysis')
+
+        global __cusparseCbsrsm2_analysis
+        __cusparseCbsrsm2_analysis = dlsym(RTLD_DEFAULT, 'cusparseCbsrsm2_analysis')
+        if __cusparseCbsrsm2_analysis == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseCbsrsm2_analysis = dlsym(handle, 'cusparseCbsrsm2_analysis')
+
+        global __cusparseZbsrsm2_analysis
+        __cusparseZbsrsm2_analysis = dlsym(RTLD_DEFAULT, 'cusparseZbsrsm2_analysis')
+        if __cusparseZbsrsm2_analysis == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseZbsrsm2_analysis = dlsym(handle, 'cusparseZbsrsm2_analysis')
+
+        global __cusparseSbsrsm2_solve
+        __cusparseSbsrsm2_solve = dlsym(RTLD_DEFAULT, 'cusparseSbsrsm2_solve')
+        if __cusparseSbsrsm2_solve == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseSbsrsm2_solve = dlsym(handle, 'cusparseSbsrsm2_solve')
+
+        global __cusparseDbsrsm2_solve
+        __cusparseDbsrsm2_solve = dlsym(RTLD_DEFAULT, 'cusparseDbsrsm2_solve')
+        if __cusparseDbsrsm2_solve == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseDbsrsm2_solve = dlsym(handle, 'cusparseDbsrsm2_solve')
+
+        global __cusparseCbsrsm2_solve
+        __cusparseCbsrsm2_solve = dlsym(RTLD_DEFAULT, 'cusparseCbsrsm2_solve')
+        if __cusparseCbsrsm2_solve == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseCbsrsm2_solve = dlsym(handle, 'cusparseCbsrsm2_solve')
+
+        global __cusparseZbsrsm2_solve
+        __cusparseZbsrsm2_solve = dlsym(RTLD_DEFAULT, 'cusparseZbsrsm2_solve')
+        if __cusparseZbsrsm2_solve == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseZbsrsm2_solve = dlsym(handle, 'cusparseZbsrsm2_solve')
+
+        global __cusparseScsrilu02_numericBoost
+        __cusparseScsrilu02_numericBoost = dlsym(RTLD_DEFAULT, 'cusparseScsrilu02_numericBoost')
+        if __cusparseScsrilu02_numericBoost == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseScsrilu02_numericBoost = dlsym(handle, 'cusparseScsrilu02_numericBoost')
+
+        global __cusparseDcsrilu02_numericBoost
+        __cusparseDcsrilu02_numericBoost = dlsym(RTLD_DEFAULT, 'cusparseDcsrilu02_numericBoost')
+        if __cusparseDcsrilu02_numericBoost == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseDcsrilu02_numericBoost = dlsym(handle, 'cusparseDcsrilu02_numericBoost')
+
+        global __cusparseCcsrilu02_numericBoost
+        __cusparseCcsrilu02_numericBoost = dlsym(RTLD_DEFAULT, 'cusparseCcsrilu02_numericBoost')
+        if __cusparseCcsrilu02_numericBoost == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseCcsrilu02_numericBoost = dlsym(handle, 'cusparseCcsrilu02_numericBoost')
+
+        global __cusparseZcsrilu02_numericBoost
+        __cusparseZcsrilu02_numericBoost = dlsym(RTLD_DEFAULT, 'cusparseZcsrilu02_numericBoost')
+        if __cusparseZcsrilu02_numericBoost == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseZcsrilu02_numericBoost = dlsym(handle, 'cusparseZcsrilu02_numericBoost')
+
+        global __cusparseXcsrilu02_zeroPivot
+        __cusparseXcsrilu02_zeroPivot = dlsym(RTLD_DEFAULT, 'cusparseXcsrilu02_zeroPivot')
+        if __cusparseXcsrilu02_zeroPivot == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseXcsrilu02_zeroPivot = dlsym(handle, 'cusparseXcsrilu02_zeroPivot')
+
+        global __cusparseScsrilu02_bufferSize
+        __cusparseScsrilu02_bufferSize = dlsym(RTLD_DEFAULT, 'cusparseScsrilu02_bufferSize')
+        if __cusparseScsrilu02_bufferSize == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseScsrilu02_bufferSize = dlsym(handle, 'cusparseScsrilu02_bufferSize')
+
+        global __cusparseDcsrilu02_bufferSize
+        __cusparseDcsrilu02_bufferSize = dlsym(RTLD_DEFAULT, 'cusparseDcsrilu02_bufferSize')
+        if __cusparseDcsrilu02_bufferSize == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseDcsrilu02_bufferSize = dlsym(handle, 'cusparseDcsrilu02_bufferSize')
+
+        global __cusparseCcsrilu02_bufferSize
+        __cusparseCcsrilu02_bufferSize = dlsym(RTLD_DEFAULT, 'cusparseCcsrilu02_bufferSize')
+        if __cusparseCcsrilu02_bufferSize == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseCcsrilu02_bufferSize = dlsym(handle, 'cusparseCcsrilu02_bufferSize')
+
+        global __cusparseZcsrilu02_bufferSize
+        __cusparseZcsrilu02_bufferSize = dlsym(RTLD_DEFAULT, 'cusparseZcsrilu02_bufferSize')
+        if __cusparseZcsrilu02_bufferSize == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseZcsrilu02_bufferSize = dlsym(handle, 'cusparseZcsrilu02_bufferSize')
+
+        global __cusparseScsrilu02_bufferSizeExt
+        __cusparseScsrilu02_bufferSizeExt = dlsym(RTLD_DEFAULT, 'cusparseScsrilu02_bufferSizeExt')
+        if __cusparseScsrilu02_bufferSizeExt == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseScsrilu02_bufferSizeExt = dlsym(handle, 'cusparseScsrilu02_bufferSizeExt')
+
+        global __cusparseDcsrilu02_bufferSizeExt
+        __cusparseDcsrilu02_bufferSizeExt = dlsym(RTLD_DEFAULT, 'cusparseDcsrilu02_bufferSizeExt')
+        if __cusparseDcsrilu02_bufferSizeExt == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseDcsrilu02_bufferSizeExt = dlsym(handle, 'cusparseDcsrilu02_bufferSizeExt')
+
+        global __cusparseCcsrilu02_bufferSizeExt
+        __cusparseCcsrilu02_bufferSizeExt = dlsym(RTLD_DEFAULT, 'cusparseCcsrilu02_bufferSizeExt')
+        if __cusparseCcsrilu02_bufferSizeExt == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseCcsrilu02_bufferSizeExt = dlsym(handle, 'cusparseCcsrilu02_bufferSizeExt')
+
+        global __cusparseZcsrilu02_bufferSizeExt
+        __cusparseZcsrilu02_bufferSizeExt = dlsym(RTLD_DEFAULT, 'cusparseZcsrilu02_bufferSizeExt')
+        if __cusparseZcsrilu02_bufferSizeExt == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseZcsrilu02_bufferSizeExt = dlsym(handle, 'cusparseZcsrilu02_bufferSizeExt')
+
+        global __cusparseScsrilu02_analysis
+        __cusparseScsrilu02_analysis = dlsym(RTLD_DEFAULT, 'cusparseScsrilu02_analysis')
+        if __cusparseScsrilu02_analysis == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseScsrilu02_analysis = dlsym(handle, 'cusparseScsrilu02_analysis')
+
+        global __cusparseDcsrilu02_analysis
+        __cusparseDcsrilu02_analysis = dlsym(RTLD_DEFAULT, 'cusparseDcsrilu02_analysis')
+        if __cusparseDcsrilu02_analysis == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseDcsrilu02_analysis = dlsym(handle, 'cusparseDcsrilu02_analysis')
+
+        global __cusparseCcsrilu02_analysis
+        __cusparseCcsrilu02_analysis = dlsym(RTLD_DEFAULT, 'cusparseCcsrilu02_analysis')
+        if __cusparseCcsrilu02_analysis == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseCcsrilu02_analysis = dlsym(handle, 'cusparseCcsrilu02_analysis')
+
+        global __cusparseZcsrilu02_analysis
+        __cusparseZcsrilu02_analysis = dlsym(RTLD_DEFAULT, 'cusparseZcsrilu02_analysis')
+        if __cusparseZcsrilu02_analysis == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseZcsrilu02_analysis = dlsym(handle, 'cusparseZcsrilu02_analysis')
+
+        global __cusparseScsrilu02
+        __cusparseScsrilu02 = dlsym(RTLD_DEFAULT, 'cusparseScsrilu02')
+        if __cusparseScsrilu02 == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseScsrilu02 = dlsym(handle, 'cusparseScsrilu02')
+
+        global __cusparseDcsrilu02
+        __cusparseDcsrilu02 = dlsym(RTLD_DEFAULT, 'cusparseDcsrilu02')
+        if __cusparseDcsrilu02 == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseDcsrilu02 = dlsym(handle, 'cusparseDcsrilu02')
+
+        global __cusparseCcsrilu02
+        __cusparseCcsrilu02 = dlsym(RTLD_DEFAULT, 'cusparseCcsrilu02')
+        if __cusparseCcsrilu02 == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseCcsrilu02 = dlsym(handle, 'cusparseCcsrilu02')
+
+        global __cusparseZcsrilu02
+        __cusparseZcsrilu02 = dlsym(RTLD_DEFAULT, 'cusparseZcsrilu02')
+        if __cusparseZcsrilu02 == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseZcsrilu02 = dlsym(handle, 'cusparseZcsrilu02')
+
+        global __cusparseSbsrilu02_numericBoost
+        __cusparseSbsrilu02_numericBoost = dlsym(RTLD_DEFAULT, 'cusparseSbsrilu02_numericBoost')
+        if __cusparseSbsrilu02_numericBoost == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseSbsrilu02_numericBoost = dlsym(handle, 'cusparseSbsrilu02_numericBoost')
+
+        global __cusparseDbsrilu02_numericBoost
+        __cusparseDbsrilu02_numericBoost = dlsym(RTLD_DEFAULT, 'cusparseDbsrilu02_numericBoost')
+        if __cusparseDbsrilu02_numericBoost == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseDbsrilu02_numericBoost = dlsym(handle, 'cusparseDbsrilu02_numericBoost')
+
+        global __cusparseCbsrilu02_numericBoost
+        __cusparseCbsrilu02_numericBoost = dlsym(RTLD_DEFAULT, 'cusparseCbsrilu02_numericBoost')
+        if __cusparseCbsrilu02_numericBoost == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseCbsrilu02_numericBoost = dlsym(handle, 'cusparseCbsrilu02_numericBoost')
+
+        global __cusparseZbsrilu02_numericBoost
+        __cusparseZbsrilu02_numericBoost = dlsym(RTLD_DEFAULT, 'cusparseZbsrilu02_numericBoost')
+        if __cusparseZbsrilu02_numericBoost == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseZbsrilu02_numericBoost = dlsym(handle, 'cusparseZbsrilu02_numericBoost')
+
+        global __cusparseXbsrilu02_zeroPivot
+        __cusparseXbsrilu02_zeroPivot = dlsym(RTLD_DEFAULT, 'cusparseXbsrilu02_zeroPivot')
+        if __cusparseXbsrilu02_zeroPivot == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseXbsrilu02_zeroPivot = dlsym(handle, 'cusparseXbsrilu02_zeroPivot')
+
+        global __cusparseSbsrilu02_bufferSize
+        __cusparseSbsrilu02_bufferSize = dlsym(RTLD_DEFAULT, 'cusparseSbsrilu02_bufferSize')
+        if __cusparseSbsrilu02_bufferSize == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseSbsrilu02_bufferSize = dlsym(handle, 'cusparseSbsrilu02_bufferSize')
+
+        global __cusparseDbsrilu02_bufferSize
+        __cusparseDbsrilu02_bufferSize = dlsym(RTLD_DEFAULT, 'cusparseDbsrilu02_bufferSize')
+        if __cusparseDbsrilu02_bufferSize == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseDbsrilu02_bufferSize = dlsym(handle, 'cusparseDbsrilu02_bufferSize')
+
+        global __cusparseCbsrilu02_bufferSize
+        __cusparseCbsrilu02_bufferSize = dlsym(RTLD_DEFAULT, 'cusparseCbsrilu02_bufferSize')
+        if __cusparseCbsrilu02_bufferSize == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseCbsrilu02_bufferSize = dlsym(handle, 'cusparseCbsrilu02_bufferSize')
+
+        global __cusparseZbsrilu02_bufferSize
+        __cusparseZbsrilu02_bufferSize = dlsym(RTLD_DEFAULT, 'cusparseZbsrilu02_bufferSize')
+        if __cusparseZbsrilu02_bufferSize == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseZbsrilu02_bufferSize = dlsym(handle, 'cusparseZbsrilu02_bufferSize')
+
+        global __cusparseSbsrilu02_bufferSizeExt
+        __cusparseSbsrilu02_bufferSizeExt = dlsym(RTLD_DEFAULT, 'cusparseSbsrilu02_bufferSizeExt')
+        if __cusparseSbsrilu02_bufferSizeExt == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseSbsrilu02_bufferSizeExt = dlsym(handle, 'cusparseSbsrilu02_bufferSizeExt')
+
+        global __cusparseDbsrilu02_bufferSizeExt
+        __cusparseDbsrilu02_bufferSizeExt = dlsym(RTLD_DEFAULT, 'cusparseDbsrilu02_bufferSizeExt')
+        if __cusparseDbsrilu02_bufferSizeExt == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseDbsrilu02_bufferSizeExt = dlsym(handle, 'cusparseDbsrilu02_bufferSizeExt')
+
+        global __cusparseCbsrilu02_bufferSizeExt
+        __cusparseCbsrilu02_bufferSizeExt = dlsym(RTLD_DEFAULT, 'cusparseCbsrilu02_bufferSizeExt')
+        if __cusparseCbsrilu02_bufferSizeExt == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseCbsrilu02_bufferSizeExt = dlsym(handle, 'cusparseCbsrilu02_bufferSizeExt')
+
+        global __cusparseZbsrilu02_bufferSizeExt
+        __cusparseZbsrilu02_bufferSizeExt = dlsym(RTLD_DEFAULT, 'cusparseZbsrilu02_bufferSizeExt')
+        if __cusparseZbsrilu02_bufferSizeExt == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseZbsrilu02_bufferSizeExt = dlsym(handle, 'cusparseZbsrilu02_bufferSizeExt')
+
+        global __cusparseSbsrilu02_analysis
+        __cusparseSbsrilu02_analysis = dlsym(RTLD_DEFAULT, 'cusparseSbsrilu02_analysis')
+        if __cusparseSbsrilu02_analysis == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseSbsrilu02_analysis = dlsym(handle, 'cusparseSbsrilu02_analysis')
+
+        global __cusparseDbsrilu02_analysis
+        __cusparseDbsrilu02_analysis = dlsym(RTLD_DEFAULT, 'cusparseDbsrilu02_analysis')
+        if __cusparseDbsrilu02_analysis == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseDbsrilu02_analysis = dlsym(handle, 'cusparseDbsrilu02_analysis')
+
+        global __cusparseCbsrilu02_analysis
+        __cusparseCbsrilu02_analysis = dlsym(RTLD_DEFAULT, 'cusparseCbsrilu02_analysis')
+        if __cusparseCbsrilu02_analysis == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseCbsrilu02_analysis = dlsym(handle, 'cusparseCbsrilu02_analysis')
+
+        global __cusparseZbsrilu02_analysis
+        __cusparseZbsrilu02_analysis = dlsym(RTLD_DEFAULT, 'cusparseZbsrilu02_analysis')
+        if __cusparseZbsrilu02_analysis == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseZbsrilu02_analysis = dlsym(handle, 'cusparseZbsrilu02_analysis')
+
+        global __cusparseSbsrilu02
+        __cusparseSbsrilu02 = dlsym(RTLD_DEFAULT, 'cusparseSbsrilu02')
+        if __cusparseSbsrilu02 == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseSbsrilu02 = dlsym(handle, 'cusparseSbsrilu02')
+
+        global __cusparseDbsrilu02
+        __cusparseDbsrilu02 = dlsym(RTLD_DEFAULT, 'cusparseDbsrilu02')
+        if __cusparseDbsrilu02 == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseDbsrilu02 = dlsym(handle, 'cusparseDbsrilu02')
+
+        global __cusparseCbsrilu02
+        __cusparseCbsrilu02 = dlsym(RTLD_DEFAULT, 'cusparseCbsrilu02')
+        if __cusparseCbsrilu02 == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseCbsrilu02 = dlsym(handle, 'cusparseCbsrilu02')
+
+        global __cusparseZbsrilu02
+        __cusparseZbsrilu02 = dlsym(RTLD_DEFAULT, 'cusparseZbsrilu02')
+        if __cusparseZbsrilu02 == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseZbsrilu02 = dlsym(handle, 'cusparseZbsrilu02')
+
+        global __cusparseXcsric02_zeroPivot
+        __cusparseXcsric02_zeroPivot = dlsym(RTLD_DEFAULT, 'cusparseXcsric02_zeroPivot')
+        if __cusparseXcsric02_zeroPivot == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseXcsric02_zeroPivot = dlsym(handle, 'cusparseXcsric02_zeroPivot')
+
+        global __cusparseScsric02_bufferSize
+        __cusparseScsric02_bufferSize = dlsym(RTLD_DEFAULT, 'cusparseScsric02_bufferSize')
+        if __cusparseScsric02_bufferSize == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseScsric02_bufferSize = dlsym(handle, 'cusparseScsric02_bufferSize')
+
+        global __cusparseDcsric02_bufferSize
+        __cusparseDcsric02_bufferSize = dlsym(RTLD_DEFAULT, 'cusparseDcsric02_bufferSize')
+        if __cusparseDcsric02_bufferSize == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseDcsric02_bufferSize = dlsym(handle, 'cusparseDcsric02_bufferSize')
+
+        global __cusparseCcsric02_bufferSize
+        __cusparseCcsric02_bufferSize = dlsym(RTLD_DEFAULT, 'cusparseCcsric02_bufferSize')
+        if __cusparseCcsric02_bufferSize == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseCcsric02_bufferSize = dlsym(handle, 'cusparseCcsric02_bufferSize')
+
+        global __cusparseZcsric02_bufferSize
+        __cusparseZcsric02_bufferSize = dlsym(RTLD_DEFAULT, 'cusparseZcsric02_bufferSize')
+        if __cusparseZcsric02_bufferSize == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseZcsric02_bufferSize = dlsym(handle, 'cusparseZcsric02_bufferSize')
+
+        global __cusparseScsric02_bufferSizeExt
+        __cusparseScsric02_bufferSizeExt = dlsym(RTLD_DEFAULT, 'cusparseScsric02_bufferSizeExt')
+        if __cusparseScsric02_bufferSizeExt == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseScsric02_bufferSizeExt = dlsym(handle, 'cusparseScsric02_bufferSizeExt')
+
+        global __cusparseDcsric02_bufferSizeExt
+        __cusparseDcsric02_bufferSizeExt = dlsym(RTLD_DEFAULT, 'cusparseDcsric02_bufferSizeExt')
+        if __cusparseDcsric02_bufferSizeExt == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseDcsric02_bufferSizeExt = dlsym(handle, 'cusparseDcsric02_bufferSizeExt')
+
+        global __cusparseCcsric02_bufferSizeExt
+        __cusparseCcsric02_bufferSizeExt = dlsym(RTLD_DEFAULT, 'cusparseCcsric02_bufferSizeExt')
+        if __cusparseCcsric02_bufferSizeExt == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseCcsric02_bufferSizeExt = dlsym(handle, 'cusparseCcsric02_bufferSizeExt')
+
+        global __cusparseZcsric02_bufferSizeExt
+        __cusparseZcsric02_bufferSizeExt = dlsym(RTLD_DEFAULT, 'cusparseZcsric02_bufferSizeExt')
+        if __cusparseZcsric02_bufferSizeExt == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseZcsric02_bufferSizeExt = dlsym(handle, 'cusparseZcsric02_bufferSizeExt')
+
+        global __cusparseScsric02_analysis
+        __cusparseScsric02_analysis = dlsym(RTLD_DEFAULT, 'cusparseScsric02_analysis')
+        if __cusparseScsric02_analysis == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseScsric02_analysis = dlsym(handle, 'cusparseScsric02_analysis')
+
+        global __cusparseDcsric02_analysis
+        __cusparseDcsric02_analysis = dlsym(RTLD_DEFAULT, 'cusparseDcsric02_analysis')
+        if __cusparseDcsric02_analysis == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseDcsric02_analysis = dlsym(handle, 'cusparseDcsric02_analysis')
+
+        global __cusparseCcsric02_analysis
+        __cusparseCcsric02_analysis = dlsym(RTLD_DEFAULT, 'cusparseCcsric02_analysis')
+        if __cusparseCcsric02_analysis == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseCcsric02_analysis = dlsym(handle, 'cusparseCcsric02_analysis')
+
+        global __cusparseZcsric02_analysis
+        __cusparseZcsric02_analysis = dlsym(RTLD_DEFAULT, 'cusparseZcsric02_analysis')
+        if __cusparseZcsric02_analysis == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseZcsric02_analysis = dlsym(handle, 'cusparseZcsric02_analysis')
+
+        global __cusparseScsric02
+        __cusparseScsric02 = dlsym(RTLD_DEFAULT, 'cusparseScsric02')
+        if __cusparseScsric02 == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseScsric02 = dlsym(handle, 'cusparseScsric02')
+
+        global __cusparseDcsric02
+        __cusparseDcsric02 = dlsym(RTLD_DEFAULT, 'cusparseDcsric02')
+        if __cusparseDcsric02 == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseDcsric02 = dlsym(handle, 'cusparseDcsric02')
+
+        global __cusparseCcsric02
+        __cusparseCcsric02 = dlsym(RTLD_DEFAULT, 'cusparseCcsric02')
+        if __cusparseCcsric02 == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseCcsric02 = dlsym(handle, 'cusparseCcsric02')
+
+        global __cusparseZcsric02
+        __cusparseZcsric02 = dlsym(RTLD_DEFAULT, 'cusparseZcsric02')
+        if __cusparseZcsric02 == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseZcsric02 = dlsym(handle, 'cusparseZcsric02')
+
+        global __cusparseXbsric02_zeroPivot
+        __cusparseXbsric02_zeroPivot = dlsym(RTLD_DEFAULT, 'cusparseXbsric02_zeroPivot')
+        if __cusparseXbsric02_zeroPivot == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseXbsric02_zeroPivot = dlsym(handle, 'cusparseXbsric02_zeroPivot')
+
+        global __cusparseSbsric02_bufferSize
+        __cusparseSbsric02_bufferSize = dlsym(RTLD_DEFAULT, 'cusparseSbsric02_bufferSize')
+        if __cusparseSbsric02_bufferSize == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseSbsric02_bufferSize = dlsym(handle, 'cusparseSbsric02_bufferSize')
+
+        global __cusparseDbsric02_bufferSize
+        __cusparseDbsric02_bufferSize = dlsym(RTLD_DEFAULT, 'cusparseDbsric02_bufferSize')
+        if __cusparseDbsric02_bufferSize == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseDbsric02_bufferSize = dlsym(handle, 'cusparseDbsric02_bufferSize')
+
+        global __cusparseCbsric02_bufferSize
+        __cusparseCbsric02_bufferSize = dlsym(RTLD_DEFAULT, 'cusparseCbsric02_bufferSize')
+        if __cusparseCbsric02_bufferSize == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseCbsric02_bufferSize = dlsym(handle, 'cusparseCbsric02_bufferSize')
+
+        global __cusparseZbsric02_bufferSize
+        __cusparseZbsric02_bufferSize = dlsym(RTLD_DEFAULT, 'cusparseZbsric02_bufferSize')
+        if __cusparseZbsric02_bufferSize == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseZbsric02_bufferSize = dlsym(handle, 'cusparseZbsric02_bufferSize')
+
+        global __cusparseSbsric02_bufferSizeExt
+        __cusparseSbsric02_bufferSizeExt = dlsym(RTLD_DEFAULT, 'cusparseSbsric02_bufferSizeExt')
+        if __cusparseSbsric02_bufferSizeExt == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseSbsric02_bufferSizeExt = dlsym(handle, 'cusparseSbsric02_bufferSizeExt')
+
+        global __cusparseDbsric02_bufferSizeExt
+        __cusparseDbsric02_bufferSizeExt = dlsym(RTLD_DEFAULT, 'cusparseDbsric02_bufferSizeExt')
+        if __cusparseDbsric02_bufferSizeExt == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseDbsric02_bufferSizeExt = dlsym(handle, 'cusparseDbsric02_bufferSizeExt')
+
+        global __cusparseCbsric02_bufferSizeExt
+        __cusparseCbsric02_bufferSizeExt = dlsym(RTLD_DEFAULT, 'cusparseCbsric02_bufferSizeExt')
+        if __cusparseCbsric02_bufferSizeExt == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseCbsric02_bufferSizeExt = dlsym(handle, 'cusparseCbsric02_bufferSizeExt')
+
+        global __cusparseZbsric02_bufferSizeExt
+        __cusparseZbsric02_bufferSizeExt = dlsym(RTLD_DEFAULT, 'cusparseZbsric02_bufferSizeExt')
+        if __cusparseZbsric02_bufferSizeExt == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseZbsric02_bufferSizeExt = dlsym(handle, 'cusparseZbsric02_bufferSizeExt')
+
+        global __cusparseSbsric02_analysis
+        __cusparseSbsric02_analysis = dlsym(RTLD_DEFAULT, 'cusparseSbsric02_analysis')
+        if __cusparseSbsric02_analysis == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseSbsric02_analysis = dlsym(handle, 'cusparseSbsric02_analysis')
+
+        global __cusparseDbsric02_analysis
+        __cusparseDbsric02_analysis = dlsym(RTLD_DEFAULT, 'cusparseDbsric02_analysis')
+        if __cusparseDbsric02_analysis == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseDbsric02_analysis = dlsym(handle, 'cusparseDbsric02_analysis')
+
+        global __cusparseCbsric02_analysis
+        __cusparseCbsric02_analysis = dlsym(RTLD_DEFAULT, 'cusparseCbsric02_analysis')
+        if __cusparseCbsric02_analysis == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseCbsric02_analysis = dlsym(handle, 'cusparseCbsric02_analysis')
+
+        global __cusparseZbsric02_analysis
+        __cusparseZbsric02_analysis = dlsym(RTLD_DEFAULT, 'cusparseZbsric02_analysis')
+        if __cusparseZbsric02_analysis == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseZbsric02_analysis = dlsym(handle, 'cusparseZbsric02_analysis')
+
+        global __cusparseSbsric02
+        __cusparseSbsric02 = dlsym(RTLD_DEFAULT, 'cusparseSbsric02')
+        if __cusparseSbsric02 == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseSbsric02 = dlsym(handle, 'cusparseSbsric02')
+
+        global __cusparseDbsric02
+        __cusparseDbsric02 = dlsym(RTLD_DEFAULT, 'cusparseDbsric02')
+        if __cusparseDbsric02 == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseDbsric02 = dlsym(handle, 'cusparseDbsric02')
+
+        global __cusparseCbsric02
+        __cusparseCbsric02 = dlsym(RTLD_DEFAULT, 'cusparseCbsric02')
+        if __cusparseCbsric02 == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseCbsric02 = dlsym(handle, 'cusparseCbsric02')
+
+        global __cusparseZbsric02
+        __cusparseZbsric02 = dlsym(RTLD_DEFAULT, 'cusparseZbsric02')
+        if __cusparseZbsric02 == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseZbsric02 = dlsym(handle, 'cusparseZbsric02')
 
         global __cusparseSgtsv2_bufferSizeExt
         __cusparseSgtsv2_bufferSizeExt = dlsym(RTLD_DEFAULT, 'cusparseSgtsv2_bufferSizeExt')
@@ -982,6 +2114,34 @@ cdef int _check_or_init_cusparse() except -1 nogil:
                 handle = load_library(driver_ver)
             __cusparseZcsrgeam2 = dlsym(handle, 'cusparseZcsrgeam2')
 
+        global __cusparseScsrcolor
+        __cusparseScsrcolor = dlsym(RTLD_DEFAULT, 'cusparseScsrcolor')
+        if __cusparseScsrcolor == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseScsrcolor = dlsym(handle, 'cusparseScsrcolor')
+
+        global __cusparseDcsrcolor
+        __cusparseDcsrcolor = dlsym(RTLD_DEFAULT, 'cusparseDcsrcolor')
+        if __cusparseDcsrcolor == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseDcsrcolor = dlsym(handle, 'cusparseDcsrcolor')
+
+        global __cusparseCcsrcolor
+        __cusparseCcsrcolor = dlsym(RTLD_DEFAULT, 'cusparseCcsrcolor')
+        if __cusparseCcsrcolor == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseCcsrcolor = dlsym(handle, 'cusparseCcsrcolor')
+
+        global __cusparseZcsrcolor
+        __cusparseZcsrcolor = dlsym(RTLD_DEFAULT, 'cusparseZcsrcolor')
+        if __cusparseZcsrcolor == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseZcsrcolor = dlsym(handle, 'cusparseZcsrcolor')
+
         global __cusparseSnnz
         __cusparseSnnz = dlsym(RTLD_DEFAULT, 'cusparseSnnz')
         if __cusparseSnnz == NULL:
@@ -1010,6 +2170,62 @@ cdef int _check_or_init_cusparse() except -1 nogil:
                 handle = load_library(driver_ver)
             __cusparseZnnz = dlsym(handle, 'cusparseZnnz')
 
+        global __cusparseSnnz_compress
+        __cusparseSnnz_compress = dlsym(RTLD_DEFAULT, 'cusparseSnnz_compress')
+        if __cusparseSnnz_compress == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseSnnz_compress = dlsym(handle, 'cusparseSnnz_compress')
+
+        global __cusparseDnnz_compress
+        __cusparseDnnz_compress = dlsym(RTLD_DEFAULT, 'cusparseDnnz_compress')
+        if __cusparseDnnz_compress == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseDnnz_compress = dlsym(handle, 'cusparseDnnz_compress')
+
+        global __cusparseCnnz_compress
+        __cusparseCnnz_compress = dlsym(RTLD_DEFAULT, 'cusparseCnnz_compress')
+        if __cusparseCnnz_compress == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseCnnz_compress = dlsym(handle, 'cusparseCnnz_compress')
+
+        global __cusparseZnnz_compress
+        __cusparseZnnz_compress = dlsym(RTLD_DEFAULT, 'cusparseZnnz_compress')
+        if __cusparseZnnz_compress == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseZnnz_compress = dlsym(handle, 'cusparseZnnz_compress')
+
+        global __cusparseScsr2csr_compress
+        __cusparseScsr2csr_compress = dlsym(RTLD_DEFAULT, 'cusparseScsr2csr_compress')
+        if __cusparseScsr2csr_compress == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseScsr2csr_compress = dlsym(handle, 'cusparseScsr2csr_compress')
+
+        global __cusparseDcsr2csr_compress
+        __cusparseDcsr2csr_compress = dlsym(RTLD_DEFAULT, 'cusparseDcsr2csr_compress')
+        if __cusparseDcsr2csr_compress == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseDcsr2csr_compress = dlsym(handle, 'cusparseDcsr2csr_compress')
+
+        global __cusparseCcsr2csr_compress
+        __cusparseCcsr2csr_compress = dlsym(RTLD_DEFAULT, 'cusparseCcsr2csr_compress')
+        if __cusparseCcsr2csr_compress == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseCcsr2csr_compress = dlsym(handle, 'cusparseCcsr2csr_compress')
+
+        global __cusparseZcsr2csr_compress
+        __cusparseZcsr2csr_compress = dlsym(RTLD_DEFAULT, 'cusparseZcsr2csr_compress')
+        if __cusparseZcsr2csr_compress == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseZcsr2csr_compress = dlsym(handle, 'cusparseZcsr2csr_compress')
+
         global __cusparseXcoo2csr
         __cusparseXcoo2csr = dlsym(RTLD_DEFAULT, 'cusparseXcoo2csr')
         if __cusparseXcoo2csr == NULL:
@@ -1023,6 +2239,41 @@ cdef int _check_or_init_cusparse() except -1 nogil:
             if handle == NULL:
                 handle = load_library(driver_ver)
             __cusparseXcsr2coo = dlsym(handle, 'cusparseXcsr2coo')
+
+        global __cusparseXcsr2bsrNnz
+        __cusparseXcsr2bsrNnz = dlsym(RTLD_DEFAULT, 'cusparseXcsr2bsrNnz')
+        if __cusparseXcsr2bsrNnz == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseXcsr2bsrNnz = dlsym(handle, 'cusparseXcsr2bsrNnz')
+
+        global __cusparseScsr2bsr
+        __cusparseScsr2bsr = dlsym(RTLD_DEFAULT, 'cusparseScsr2bsr')
+        if __cusparseScsr2bsr == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseScsr2bsr = dlsym(handle, 'cusparseScsr2bsr')
+
+        global __cusparseDcsr2bsr
+        __cusparseDcsr2bsr = dlsym(RTLD_DEFAULT, 'cusparseDcsr2bsr')
+        if __cusparseDcsr2bsr == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseDcsr2bsr = dlsym(handle, 'cusparseDcsr2bsr')
+
+        global __cusparseCcsr2bsr
+        __cusparseCcsr2bsr = dlsym(RTLD_DEFAULT, 'cusparseCcsr2bsr')
+        if __cusparseCcsr2bsr == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseCcsr2bsr = dlsym(handle, 'cusparseCcsr2bsr')
+
+        global __cusparseZcsr2bsr
+        __cusparseZcsr2bsr = dlsym(RTLD_DEFAULT, 'cusparseZcsr2bsr')
+        if __cusparseZcsr2bsr == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseZcsr2bsr = dlsym(handle, 'cusparseZcsr2bsr')
 
         global __cusparseSbsr2csr
         __cusparseSbsr2csr = dlsym(RTLD_DEFAULT, 'cusparseSbsr2csr')
@@ -1135,6 +2386,41 @@ cdef int _check_or_init_cusparse() except -1 nogil:
             if handle == NULL:
                 handle = load_library(driver_ver)
             __cusparseZgebsr2gebsc = dlsym(handle, 'cusparseZgebsr2gebsc')
+
+        global __cusparseXgebsr2csr
+        __cusparseXgebsr2csr = dlsym(RTLD_DEFAULT, 'cusparseXgebsr2csr')
+        if __cusparseXgebsr2csr == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseXgebsr2csr = dlsym(handle, 'cusparseXgebsr2csr')
+
+        global __cusparseSgebsr2csr
+        __cusparseSgebsr2csr = dlsym(RTLD_DEFAULT, 'cusparseSgebsr2csr')
+        if __cusparseSgebsr2csr == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseSgebsr2csr = dlsym(handle, 'cusparseSgebsr2csr')
+
+        global __cusparseDgebsr2csr
+        __cusparseDgebsr2csr = dlsym(RTLD_DEFAULT, 'cusparseDgebsr2csr')
+        if __cusparseDgebsr2csr == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseDgebsr2csr = dlsym(handle, 'cusparseDgebsr2csr')
+
+        global __cusparseCgebsr2csr
+        __cusparseCgebsr2csr = dlsym(RTLD_DEFAULT, 'cusparseCgebsr2csr')
+        if __cusparseCgebsr2csr == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseCgebsr2csr = dlsym(handle, 'cusparseCgebsr2csr')
+
+        global __cusparseZgebsr2csr
+        __cusparseZgebsr2csr = dlsym(RTLD_DEFAULT, 'cusparseZgebsr2csr')
+        if __cusparseZgebsr2csr == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseZgebsr2csr = dlsym(handle, 'cusparseZgebsr2csr')
 
         global __cusparseScsr2gebsr_bufferSize
         __cusparseScsr2gebsr_bufferSize = dlsym(RTLD_DEFAULT, 'cusparseScsr2gebsr_bufferSize')
@@ -1318,6 +2604,13 @@ cdef int _check_or_init_cusparse() except -1 nogil:
                 handle = load_library(driver_ver)
             __cusparseZgebsr2gebsr = dlsym(handle, 'cusparseZgebsr2gebsr')
 
+        global __cusparseCreateIdentityPermutation
+        __cusparseCreateIdentityPermutation = dlsym(RTLD_DEFAULT, 'cusparseCreateIdentityPermutation')
+        if __cusparseCreateIdentityPermutation == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseCreateIdentityPermutation = dlsym(handle, 'cusparseCreateIdentityPermutation')
+
         global __cusparseXcoosort_bufferSizeExt
         __cusparseXcoosort_bufferSizeExt = dlsym(RTLD_DEFAULT, 'cusparseXcoosort_bufferSizeExt')
         if __cusparseXcoosort_bufferSizeExt == NULL:
@@ -1366,6 +2659,258 @@ cdef int _check_or_init_cusparse() except -1 nogil:
             if handle == NULL:
                 handle = load_library(driver_ver)
             __cusparseXcscsort = dlsym(handle, 'cusparseXcscsort')
+
+        global __cusparseScsru2csr_bufferSizeExt
+        __cusparseScsru2csr_bufferSizeExt = dlsym(RTLD_DEFAULT, 'cusparseScsru2csr_bufferSizeExt')
+        if __cusparseScsru2csr_bufferSizeExt == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseScsru2csr_bufferSizeExt = dlsym(handle, 'cusparseScsru2csr_bufferSizeExt')
+
+        global __cusparseDcsru2csr_bufferSizeExt
+        __cusparseDcsru2csr_bufferSizeExt = dlsym(RTLD_DEFAULT, 'cusparseDcsru2csr_bufferSizeExt')
+        if __cusparseDcsru2csr_bufferSizeExt == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseDcsru2csr_bufferSizeExt = dlsym(handle, 'cusparseDcsru2csr_bufferSizeExt')
+
+        global __cusparseCcsru2csr_bufferSizeExt
+        __cusparseCcsru2csr_bufferSizeExt = dlsym(RTLD_DEFAULT, 'cusparseCcsru2csr_bufferSizeExt')
+        if __cusparseCcsru2csr_bufferSizeExt == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseCcsru2csr_bufferSizeExt = dlsym(handle, 'cusparseCcsru2csr_bufferSizeExt')
+
+        global __cusparseZcsru2csr_bufferSizeExt
+        __cusparseZcsru2csr_bufferSizeExt = dlsym(RTLD_DEFAULT, 'cusparseZcsru2csr_bufferSizeExt')
+        if __cusparseZcsru2csr_bufferSizeExt == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseZcsru2csr_bufferSizeExt = dlsym(handle, 'cusparseZcsru2csr_bufferSizeExt')
+
+        global __cusparseScsru2csr
+        __cusparseScsru2csr = dlsym(RTLD_DEFAULT, 'cusparseScsru2csr')
+        if __cusparseScsru2csr == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseScsru2csr = dlsym(handle, 'cusparseScsru2csr')
+
+        global __cusparseDcsru2csr
+        __cusparseDcsru2csr = dlsym(RTLD_DEFAULT, 'cusparseDcsru2csr')
+        if __cusparseDcsru2csr == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseDcsru2csr = dlsym(handle, 'cusparseDcsru2csr')
+
+        global __cusparseCcsru2csr
+        __cusparseCcsru2csr = dlsym(RTLD_DEFAULT, 'cusparseCcsru2csr')
+        if __cusparseCcsru2csr == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseCcsru2csr = dlsym(handle, 'cusparseCcsru2csr')
+
+        global __cusparseZcsru2csr
+        __cusparseZcsru2csr = dlsym(RTLD_DEFAULT, 'cusparseZcsru2csr')
+        if __cusparseZcsru2csr == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseZcsru2csr = dlsym(handle, 'cusparseZcsru2csr')
+
+        global __cusparseScsr2csru
+        __cusparseScsr2csru = dlsym(RTLD_DEFAULT, 'cusparseScsr2csru')
+        if __cusparseScsr2csru == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseScsr2csru = dlsym(handle, 'cusparseScsr2csru')
+
+        global __cusparseDcsr2csru
+        __cusparseDcsr2csru = dlsym(RTLD_DEFAULT, 'cusparseDcsr2csru')
+        if __cusparseDcsr2csru == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseDcsr2csru = dlsym(handle, 'cusparseDcsr2csru')
+
+        global __cusparseCcsr2csru
+        __cusparseCcsr2csru = dlsym(RTLD_DEFAULT, 'cusparseCcsr2csru')
+        if __cusparseCcsr2csru == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseCcsr2csru = dlsym(handle, 'cusparseCcsr2csru')
+
+        global __cusparseZcsr2csru
+        __cusparseZcsr2csru = dlsym(RTLD_DEFAULT, 'cusparseZcsr2csru')
+        if __cusparseZcsr2csru == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseZcsr2csru = dlsym(handle, 'cusparseZcsr2csru')
+
+        global __cusparseSpruneDense2csr_bufferSizeExt
+        __cusparseSpruneDense2csr_bufferSizeExt = dlsym(RTLD_DEFAULT, 'cusparseSpruneDense2csr_bufferSizeExt')
+        if __cusparseSpruneDense2csr_bufferSizeExt == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseSpruneDense2csr_bufferSizeExt = dlsym(handle, 'cusparseSpruneDense2csr_bufferSizeExt')
+
+        global __cusparseDpruneDense2csr_bufferSizeExt
+        __cusparseDpruneDense2csr_bufferSizeExt = dlsym(RTLD_DEFAULT, 'cusparseDpruneDense2csr_bufferSizeExt')
+        if __cusparseDpruneDense2csr_bufferSizeExt == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseDpruneDense2csr_bufferSizeExt = dlsym(handle, 'cusparseDpruneDense2csr_bufferSizeExt')
+
+        global __cusparseSpruneDense2csrNnz
+        __cusparseSpruneDense2csrNnz = dlsym(RTLD_DEFAULT, 'cusparseSpruneDense2csrNnz')
+        if __cusparseSpruneDense2csrNnz == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseSpruneDense2csrNnz = dlsym(handle, 'cusparseSpruneDense2csrNnz')
+
+        global __cusparseDpruneDense2csrNnz
+        __cusparseDpruneDense2csrNnz = dlsym(RTLD_DEFAULT, 'cusparseDpruneDense2csrNnz')
+        if __cusparseDpruneDense2csrNnz == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseDpruneDense2csrNnz = dlsym(handle, 'cusparseDpruneDense2csrNnz')
+
+        global __cusparseSpruneDense2csr
+        __cusparseSpruneDense2csr = dlsym(RTLD_DEFAULT, 'cusparseSpruneDense2csr')
+        if __cusparseSpruneDense2csr == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseSpruneDense2csr = dlsym(handle, 'cusparseSpruneDense2csr')
+
+        global __cusparseDpruneDense2csr
+        __cusparseDpruneDense2csr = dlsym(RTLD_DEFAULT, 'cusparseDpruneDense2csr')
+        if __cusparseDpruneDense2csr == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseDpruneDense2csr = dlsym(handle, 'cusparseDpruneDense2csr')
+
+        global __cusparseSpruneCsr2csr_bufferSizeExt
+        __cusparseSpruneCsr2csr_bufferSizeExt = dlsym(RTLD_DEFAULT, 'cusparseSpruneCsr2csr_bufferSizeExt')
+        if __cusparseSpruneCsr2csr_bufferSizeExt == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseSpruneCsr2csr_bufferSizeExt = dlsym(handle, 'cusparseSpruneCsr2csr_bufferSizeExt')
+
+        global __cusparseDpruneCsr2csr_bufferSizeExt
+        __cusparseDpruneCsr2csr_bufferSizeExt = dlsym(RTLD_DEFAULT, 'cusparseDpruneCsr2csr_bufferSizeExt')
+        if __cusparseDpruneCsr2csr_bufferSizeExt == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseDpruneCsr2csr_bufferSizeExt = dlsym(handle, 'cusparseDpruneCsr2csr_bufferSizeExt')
+
+        global __cusparseSpruneCsr2csrNnz
+        __cusparseSpruneCsr2csrNnz = dlsym(RTLD_DEFAULT, 'cusparseSpruneCsr2csrNnz')
+        if __cusparseSpruneCsr2csrNnz == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseSpruneCsr2csrNnz = dlsym(handle, 'cusparseSpruneCsr2csrNnz')
+
+        global __cusparseDpruneCsr2csrNnz
+        __cusparseDpruneCsr2csrNnz = dlsym(RTLD_DEFAULT, 'cusparseDpruneCsr2csrNnz')
+        if __cusparseDpruneCsr2csrNnz == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseDpruneCsr2csrNnz = dlsym(handle, 'cusparseDpruneCsr2csrNnz')
+
+        global __cusparseSpruneCsr2csr
+        __cusparseSpruneCsr2csr = dlsym(RTLD_DEFAULT, 'cusparseSpruneCsr2csr')
+        if __cusparseSpruneCsr2csr == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseSpruneCsr2csr = dlsym(handle, 'cusparseSpruneCsr2csr')
+
+        global __cusparseDpruneCsr2csr
+        __cusparseDpruneCsr2csr = dlsym(RTLD_DEFAULT, 'cusparseDpruneCsr2csr')
+        if __cusparseDpruneCsr2csr == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseDpruneCsr2csr = dlsym(handle, 'cusparseDpruneCsr2csr')
+
+        global __cusparseSpruneDense2csrByPercentage_bufferSizeExt
+        __cusparseSpruneDense2csrByPercentage_bufferSizeExt = dlsym(RTLD_DEFAULT, 'cusparseSpruneDense2csrByPercentage_bufferSizeExt')
+        if __cusparseSpruneDense2csrByPercentage_bufferSizeExt == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseSpruneDense2csrByPercentage_bufferSizeExt = dlsym(handle, 'cusparseSpruneDense2csrByPercentage_bufferSizeExt')
+
+        global __cusparseDpruneDense2csrByPercentage_bufferSizeExt
+        __cusparseDpruneDense2csrByPercentage_bufferSizeExt = dlsym(RTLD_DEFAULT, 'cusparseDpruneDense2csrByPercentage_bufferSizeExt')
+        if __cusparseDpruneDense2csrByPercentage_bufferSizeExt == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseDpruneDense2csrByPercentage_bufferSizeExt = dlsym(handle, 'cusparseDpruneDense2csrByPercentage_bufferSizeExt')
+
+        global __cusparseSpruneDense2csrNnzByPercentage
+        __cusparseSpruneDense2csrNnzByPercentage = dlsym(RTLD_DEFAULT, 'cusparseSpruneDense2csrNnzByPercentage')
+        if __cusparseSpruneDense2csrNnzByPercentage == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseSpruneDense2csrNnzByPercentage = dlsym(handle, 'cusparseSpruneDense2csrNnzByPercentage')
+
+        global __cusparseDpruneDense2csrNnzByPercentage
+        __cusparseDpruneDense2csrNnzByPercentage = dlsym(RTLD_DEFAULT, 'cusparseDpruneDense2csrNnzByPercentage')
+        if __cusparseDpruneDense2csrNnzByPercentage == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseDpruneDense2csrNnzByPercentage = dlsym(handle, 'cusparseDpruneDense2csrNnzByPercentage')
+
+        global __cusparseSpruneDense2csrByPercentage
+        __cusparseSpruneDense2csrByPercentage = dlsym(RTLD_DEFAULT, 'cusparseSpruneDense2csrByPercentage')
+        if __cusparseSpruneDense2csrByPercentage == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseSpruneDense2csrByPercentage = dlsym(handle, 'cusparseSpruneDense2csrByPercentage')
+
+        global __cusparseDpruneDense2csrByPercentage
+        __cusparseDpruneDense2csrByPercentage = dlsym(RTLD_DEFAULT, 'cusparseDpruneDense2csrByPercentage')
+        if __cusparseDpruneDense2csrByPercentage == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseDpruneDense2csrByPercentage = dlsym(handle, 'cusparseDpruneDense2csrByPercentage')
+
+        global __cusparseSpruneCsr2csrByPercentage_bufferSizeExt
+        __cusparseSpruneCsr2csrByPercentage_bufferSizeExt = dlsym(RTLD_DEFAULT, 'cusparseSpruneCsr2csrByPercentage_bufferSizeExt')
+        if __cusparseSpruneCsr2csrByPercentage_bufferSizeExt == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseSpruneCsr2csrByPercentage_bufferSizeExt = dlsym(handle, 'cusparseSpruneCsr2csrByPercentage_bufferSizeExt')
+
+        global __cusparseDpruneCsr2csrByPercentage_bufferSizeExt
+        __cusparseDpruneCsr2csrByPercentage_bufferSizeExt = dlsym(RTLD_DEFAULT, 'cusparseDpruneCsr2csrByPercentage_bufferSizeExt')
+        if __cusparseDpruneCsr2csrByPercentage_bufferSizeExt == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseDpruneCsr2csrByPercentage_bufferSizeExt = dlsym(handle, 'cusparseDpruneCsr2csrByPercentage_bufferSizeExt')
+
+        global __cusparseSpruneCsr2csrNnzByPercentage
+        __cusparseSpruneCsr2csrNnzByPercentage = dlsym(RTLD_DEFAULT, 'cusparseSpruneCsr2csrNnzByPercentage')
+        if __cusparseSpruneCsr2csrNnzByPercentage == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseSpruneCsr2csrNnzByPercentage = dlsym(handle, 'cusparseSpruneCsr2csrNnzByPercentage')
+
+        global __cusparseDpruneCsr2csrNnzByPercentage
+        __cusparseDpruneCsr2csrNnzByPercentage = dlsym(RTLD_DEFAULT, 'cusparseDpruneCsr2csrNnzByPercentage')
+        if __cusparseDpruneCsr2csrNnzByPercentage == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseDpruneCsr2csrNnzByPercentage = dlsym(handle, 'cusparseDpruneCsr2csrNnzByPercentage')
+
+        global __cusparseSpruneCsr2csrByPercentage
+        __cusparseSpruneCsr2csrByPercentage = dlsym(RTLD_DEFAULT, 'cusparseSpruneCsr2csrByPercentage')
+        if __cusparseSpruneCsr2csrByPercentage == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseSpruneCsr2csrByPercentage = dlsym(handle, 'cusparseSpruneCsr2csrByPercentage')
+
+        global __cusparseDpruneCsr2csrByPercentage
+        __cusparseDpruneCsr2csrByPercentage = dlsym(RTLD_DEFAULT, 'cusparseDpruneCsr2csrByPercentage')
+        if __cusparseDpruneCsr2csrByPercentage == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseDpruneCsr2csrByPercentage = dlsym(handle, 'cusparseDpruneCsr2csrByPercentage')
 
         global __cusparseCsr2cscEx2
         __cusparseCsr2cscEx2 = dlsym(RTLD_DEFAULT, 'cusparseCsr2cscEx2')
@@ -1807,6 +3352,13 @@ cdef int _check_or_init_cusparse() except -1 nogil:
             if handle == NULL:
                 handle = load_library(driver_ver)
             __cusparseScatter = dlsym(handle, 'cusparseScatter')
+
+        global __cusparseRot
+        __cusparseRot = dlsym(RTLD_DEFAULT, 'cusparseRot')
+        if __cusparseRot == NULL:
+            if handle == NULL:
+                handle = load_library(driver_ver)
+            __cusparseRot = dlsym(handle, 'cusparseRot')
 
         global __cusparseSpVV_bufferSize
         __cusparseSpVV_bufferSize = dlsym(RTLD_DEFAULT, 'cusparseSpVV_bufferSize')
@@ -2279,6 +3831,66 @@ cpdef dict _inspect_function_pointers():
     global __cusparseGetMatIndexBase
     data["__cusparseGetMatIndexBase"] = <intptr_t>__cusparseGetMatIndexBase
 
+    global __cusparseCreateCsric02Info
+    data["__cusparseCreateCsric02Info"] = <intptr_t>__cusparseCreateCsric02Info
+
+    global __cusparseDestroyCsric02Info
+    data["__cusparseDestroyCsric02Info"] = <intptr_t>__cusparseDestroyCsric02Info
+
+    global __cusparseCreateBsric02Info
+    data["__cusparseCreateBsric02Info"] = <intptr_t>__cusparseCreateBsric02Info
+
+    global __cusparseDestroyBsric02Info
+    data["__cusparseDestroyBsric02Info"] = <intptr_t>__cusparseDestroyBsric02Info
+
+    global __cusparseCreateCsrilu02Info
+    data["__cusparseCreateCsrilu02Info"] = <intptr_t>__cusparseCreateCsrilu02Info
+
+    global __cusparseDestroyCsrilu02Info
+    data["__cusparseDestroyCsrilu02Info"] = <intptr_t>__cusparseDestroyCsrilu02Info
+
+    global __cusparseCreateBsrilu02Info
+    data["__cusparseCreateBsrilu02Info"] = <intptr_t>__cusparseCreateBsrilu02Info
+
+    global __cusparseDestroyBsrilu02Info
+    data["__cusparseDestroyBsrilu02Info"] = <intptr_t>__cusparseDestroyBsrilu02Info
+
+    global __cusparseCreateBsrsv2Info
+    data["__cusparseCreateBsrsv2Info"] = <intptr_t>__cusparseCreateBsrsv2Info
+
+    global __cusparseDestroyBsrsv2Info
+    data["__cusparseDestroyBsrsv2Info"] = <intptr_t>__cusparseDestroyBsrsv2Info
+
+    global __cusparseCreateBsrsm2Info
+    data["__cusparseCreateBsrsm2Info"] = <intptr_t>__cusparseCreateBsrsm2Info
+
+    global __cusparseDestroyBsrsm2Info
+    data["__cusparseDestroyBsrsm2Info"] = <intptr_t>__cusparseDestroyBsrsm2Info
+
+    global __cusparseCreateCsru2csrInfo
+    data["__cusparseCreateCsru2csrInfo"] = <intptr_t>__cusparseCreateCsru2csrInfo
+
+    global __cusparseDestroyCsru2csrInfo
+    data["__cusparseDestroyCsru2csrInfo"] = <intptr_t>__cusparseDestroyCsru2csrInfo
+
+    global __cusparseCreateColorInfo
+    data["__cusparseCreateColorInfo"] = <intptr_t>__cusparseCreateColorInfo
+
+    global __cusparseDestroyColorInfo
+    data["__cusparseDestroyColorInfo"] = <intptr_t>__cusparseDestroyColorInfo
+
+    global __cusparseSetColorAlgs
+    data["__cusparseSetColorAlgs"] = <intptr_t>__cusparseSetColorAlgs
+
+    global __cusparseGetColorAlgs
+    data["__cusparseGetColorAlgs"] = <intptr_t>__cusparseGetColorAlgs
+
+    global __cusparseCreatePruneInfo
+    data["__cusparseCreatePruneInfo"] = <intptr_t>__cusparseCreatePruneInfo
+
+    global __cusparseDestroyPruneInfo
+    data["__cusparseDestroyPruneInfo"] = <intptr_t>__cusparseDestroyPruneInfo
+
     global __cusparseSgemvi
     data["__cusparseSgemvi"] = <intptr_t>__cusparseSgemvi
 
@@ -2315,6 +3927,69 @@ cpdef dict _inspect_function_pointers():
     global __cusparseZbsrmv
     data["__cusparseZbsrmv"] = <intptr_t>__cusparseZbsrmv
 
+    global __cusparseSbsrxmv
+    data["__cusparseSbsrxmv"] = <intptr_t>__cusparseSbsrxmv
+
+    global __cusparseDbsrxmv
+    data["__cusparseDbsrxmv"] = <intptr_t>__cusparseDbsrxmv
+
+    global __cusparseCbsrxmv
+    data["__cusparseCbsrxmv"] = <intptr_t>__cusparseCbsrxmv
+
+    global __cusparseZbsrxmv
+    data["__cusparseZbsrxmv"] = <intptr_t>__cusparseZbsrxmv
+
+    global __cusparseXbsrsv2_zeroPivot
+    data["__cusparseXbsrsv2_zeroPivot"] = <intptr_t>__cusparseXbsrsv2_zeroPivot
+
+    global __cusparseSbsrsv2_bufferSize
+    data["__cusparseSbsrsv2_bufferSize"] = <intptr_t>__cusparseSbsrsv2_bufferSize
+
+    global __cusparseDbsrsv2_bufferSize
+    data["__cusparseDbsrsv2_bufferSize"] = <intptr_t>__cusparseDbsrsv2_bufferSize
+
+    global __cusparseCbsrsv2_bufferSize
+    data["__cusparseCbsrsv2_bufferSize"] = <intptr_t>__cusparseCbsrsv2_bufferSize
+
+    global __cusparseZbsrsv2_bufferSize
+    data["__cusparseZbsrsv2_bufferSize"] = <intptr_t>__cusparseZbsrsv2_bufferSize
+
+    global __cusparseSbsrsv2_bufferSizeExt
+    data["__cusparseSbsrsv2_bufferSizeExt"] = <intptr_t>__cusparseSbsrsv2_bufferSizeExt
+
+    global __cusparseDbsrsv2_bufferSizeExt
+    data["__cusparseDbsrsv2_bufferSizeExt"] = <intptr_t>__cusparseDbsrsv2_bufferSizeExt
+
+    global __cusparseCbsrsv2_bufferSizeExt
+    data["__cusparseCbsrsv2_bufferSizeExt"] = <intptr_t>__cusparseCbsrsv2_bufferSizeExt
+
+    global __cusparseZbsrsv2_bufferSizeExt
+    data["__cusparseZbsrsv2_bufferSizeExt"] = <intptr_t>__cusparseZbsrsv2_bufferSizeExt
+
+    global __cusparseSbsrsv2_analysis
+    data["__cusparseSbsrsv2_analysis"] = <intptr_t>__cusparseSbsrsv2_analysis
+
+    global __cusparseDbsrsv2_analysis
+    data["__cusparseDbsrsv2_analysis"] = <intptr_t>__cusparseDbsrsv2_analysis
+
+    global __cusparseCbsrsv2_analysis
+    data["__cusparseCbsrsv2_analysis"] = <intptr_t>__cusparseCbsrsv2_analysis
+
+    global __cusparseZbsrsv2_analysis
+    data["__cusparseZbsrsv2_analysis"] = <intptr_t>__cusparseZbsrsv2_analysis
+
+    global __cusparseSbsrsv2_solve
+    data["__cusparseSbsrsv2_solve"] = <intptr_t>__cusparseSbsrsv2_solve
+
+    global __cusparseDbsrsv2_solve
+    data["__cusparseDbsrsv2_solve"] = <intptr_t>__cusparseDbsrsv2_solve
+
+    global __cusparseCbsrsv2_solve
+    data["__cusparseCbsrsv2_solve"] = <intptr_t>__cusparseCbsrsv2_solve
+
+    global __cusparseZbsrsv2_solve
+    data["__cusparseZbsrsv2_solve"] = <intptr_t>__cusparseZbsrsv2_solve
+
     global __cusparseSbsrmm
     data["__cusparseSbsrmm"] = <intptr_t>__cusparseSbsrmm
 
@@ -2326,6 +4001,285 @@ cpdef dict _inspect_function_pointers():
 
     global __cusparseZbsrmm
     data["__cusparseZbsrmm"] = <intptr_t>__cusparseZbsrmm
+
+    global __cusparseXbsrsm2_zeroPivot
+    data["__cusparseXbsrsm2_zeroPivot"] = <intptr_t>__cusparseXbsrsm2_zeroPivot
+
+    global __cusparseSbsrsm2_bufferSize
+    data["__cusparseSbsrsm2_bufferSize"] = <intptr_t>__cusparseSbsrsm2_bufferSize
+
+    global __cusparseDbsrsm2_bufferSize
+    data["__cusparseDbsrsm2_bufferSize"] = <intptr_t>__cusparseDbsrsm2_bufferSize
+
+    global __cusparseCbsrsm2_bufferSize
+    data["__cusparseCbsrsm2_bufferSize"] = <intptr_t>__cusparseCbsrsm2_bufferSize
+
+    global __cusparseZbsrsm2_bufferSize
+    data["__cusparseZbsrsm2_bufferSize"] = <intptr_t>__cusparseZbsrsm2_bufferSize
+
+    global __cusparseSbsrsm2_bufferSizeExt
+    data["__cusparseSbsrsm2_bufferSizeExt"] = <intptr_t>__cusparseSbsrsm2_bufferSizeExt
+
+    global __cusparseDbsrsm2_bufferSizeExt
+    data["__cusparseDbsrsm2_bufferSizeExt"] = <intptr_t>__cusparseDbsrsm2_bufferSizeExt
+
+    global __cusparseCbsrsm2_bufferSizeExt
+    data["__cusparseCbsrsm2_bufferSizeExt"] = <intptr_t>__cusparseCbsrsm2_bufferSizeExt
+
+    global __cusparseZbsrsm2_bufferSizeExt
+    data["__cusparseZbsrsm2_bufferSizeExt"] = <intptr_t>__cusparseZbsrsm2_bufferSizeExt
+
+    global __cusparseSbsrsm2_analysis
+    data["__cusparseSbsrsm2_analysis"] = <intptr_t>__cusparseSbsrsm2_analysis
+
+    global __cusparseDbsrsm2_analysis
+    data["__cusparseDbsrsm2_analysis"] = <intptr_t>__cusparseDbsrsm2_analysis
+
+    global __cusparseCbsrsm2_analysis
+    data["__cusparseCbsrsm2_analysis"] = <intptr_t>__cusparseCbsrsm2_analysis
+
+    global __cusparseZbsrsm2_analysis
+    data["__cusparseZbsrsm2_analysis"] = <intptr_t>__cusparseZbsrsm2_analysis
+
+    global __cusparseSbsrsm2_solve
+    data["__cusparseSbsrsm2_solve"] = <intptr_t>__cusparseSbsrsm2_solve
+
+    global __cusparseDbsrsm2_solve
+    data["__cusparseDbsrsm2_solve"] = <intptr_t>__cusparseDbsrsm2_solve
+
+    global __cusparseCbsrsm2_solve
+    data["__cusparseCbsrsm2_solve"] = <intptr_t>__cusparseCbsrsm2_solve
+
+    global __cusparseZbsrsm2_solve
+    data["__cusparseZbsrsm2_solve"] = <intptr_t>__cusparseZbsrsm2_solve
+
+    global __cusparseScsrilu02_numericBoost
+    data["__cusparseScsrilu02_numericBoost"] = <intptr_t>__cusparseScsrilu02_numericBoost
+
+    global __cusparseDcsrilu02_numericBoost
+    data["__cusparseDcsrilu02_numericBoost"] = <intptr_t>__cusparseDcsrilu02_numericBoost
+
+    global __cusparseCcsrilu02_numericBoost
+    data["__cusparseCcsrilu02_numericBoost"] = <intptr_t>__cusparseCcsrilu02_numericBoost
+
+    global __cusparseZcsrilu02_numericBoost
+    data["__cusparseZcsrilu02_numericBoost"] = <intptr_t>__cusparseZcsrilu02_numericBoost
+
+    global __cusparseXcsrilu02_zeroPivot
+    data["__cusparseXcsrilu02_zeroPivot"] = <intptr_t>__cusparseXcsrilu02_zeroPivot
+
+    global __cusparseScsrilu02_bufferSize
+    data["__cusparseScsrilu02_bufferSize"] = <intptr_t>__cusparseScsrilu02_bufferSize
+
+    global __cusparseDcsrilu02_bufferSize
+    data["__cusparseDcsrilu02_bufferSize"] = <intptr_t>__cusparseDcsrilu02_bufferSize
+
+    global __cusparseCcsrilu02_bufferSize
+    data["__cusparseCcsrilu02_bufferSize"] = <intptr_t>__cusparseCcsrilu02_bufferSize
+
+    global __cusparseZcsrilu02_bufferSize
+    data["__cusparseZcsrilu02_bufferSize"] = <intptr_t>__cusparseZcsrilu02_bufferSize
+
+    global __cusparseScsrilu02_bufferSizeExt
+    data["__cusparseScsrilu02_bufferSizeExt"] = <intptr_t>__cusparseScsrilu02_bufferSizeExt
+
+    global __cusparseDcsrilu02_bufferSizeExt
+    data["__cusparseDcsrilu02_bufferSizeExt"] = <intptr_t>__cusparseDcsrilu02_bufferSizeExt
+
+    global __cusparseCcsrilu02_bufferSizeExt
+    data["__cusparseCcsrilu02_bufferSizeExt"] = <intptr_t>__cusparseCcsrilu02_bufferSizeExt
+
+    global __cusparseZcsrilu02_bufferSizeExt
+    data["__cusparseZcsrilu02_bufferSizeExt"] = <intptr_t>__cusparseZcsrilu02_bufferSizeExt
+
+    global __cusparseScsrilu02_analysis
+    data["__cusparseScsrilu02_analysis"] = <intptr_t>__cusparseScsrilu02_analysis
+
+    global __cusparseDcsrilu02_analysis
+    data["__cusparseDcsrilu02_analysis"] = <intptr_t>__cusparseDcsrilu02_analysis
+
+    global __cusparseCcsrilu02_analysis
+    data["__cusparseCcsrilu02_analysis"] = <intptr_t>__cusparseCcsrilu02_analysis
+
+    global __cusparseZcsrilu02_analysis
+    data["__cusparseZcsrilu02_analysis"] = <intptr_t>__cusparseZcsrilu02_analysis
+
+    global __cusparseScsrilu02
+    data["__cusparseScsrilu02"] = <intptr_t>__cusparseScsrilu02
+
+    global __cusparseDcsrilu02
+    data["__cusparseDcsrilu02"] = <intptr_t>__cusparseDcsrilu02
+
+    global __cusparseCcsrilu02
+    data["__cusparseCcsrilu02"] = <intptr_t>__cusparseCcsrilu02
+
+    global __cusparseZcsrilu02
+    data["__cusparseZcsrilu02"] = <intptr_t>__cusparseZcsrilu02
+
+    global __cusparseSbsrilu02_numericBoost
+    data["__cusparseSbsrilu02_numericBoost"] = <intptr_t>__cusparseSbsrilu02_numericBoost
+
+    global __cusparseDbsrilu02_numericBoost
+    data["__cusparseDbsrilu02_numericBoost"] = <intptr_t>__cusparseDbsrilu02_numericBoost
+
+    global __cusparseCbsrilu02_numericBoost
+    data["__cusparseCbsrilu02_numericBoost"] = <intptr_t>__cusparseCbsrilu02_numericBoost
+
+    global __cusparseZbsrilu02_numericBoost
+    data["__cusparseZbsrilu02_numericBoost"] = <intptr_t>__cusparseZbsrilu02_numericBoost
+
+    global __cusparseXbsrilu02_zeroPivot
+    data["__cusparseXbsrilu02_zeroPivot"] = <intptr_t>__cusparseXbsrilu02_zeroPivot
+
+    global __cusparseSbsrilu02_bufferSize
+    data["__cusparseSbsrilu02_bufferSize"] = <intptr_t>__cusparseSbsrilu02_bufferSize
+
+    global __cusparseDbsrilu02_bufferSize
+    data["__cusparseDbsrilu02_bufferSize"] = <intptr_t>__cusparseDbsrilu02_bufferSize
+
+    global __cusparseCbsrilu02_bufferSize
+    data["__cusparseCbsrilu02_bufferSize"] = <intptr_t>__cusparseCbsrilu02_bufferSize
+
+    global __cusparseZbsrilu02_bufferSize
+    data["__cusparseZbsrilu02_bufferSize"] = <intptr_t>__cusparseZbsrilu02_bufferSize
+
+    global __cusparseSbsrilu02_bufferSizeExt
+    data["__cusparseSbsrilu02_bufferSizeExt"] = <intptr_t>__cusparseSbsrilu02_bufferSizeExt
+
+    global __cusparseDbsrilu02_bufferSizeExt
+    data["__cusparseDbsrilu02_bufferSizeExt"] = <intptr_t>__cusparseDbsrilu02_bufferSizeExt
+
+    global __cusparseCbsrilu02_bufferSizeExt
+    data["__cusparseCbsrilu02_bufferSizeExt"] = <intptr_t>__cusparseCbsrilu02_bufferSizeExt
+
+    global __cusparseZbsrilu02_bufferSizeExt
+    data["__cusparseZbsrilu02_bufferSizeExt"] = <intptr_t>__cusparseZbsrilu02_bufferSizeExt
+
+    global __cusparseSbsrilu02_analysis
+    data["__cusparseSbsrilu02_analysis"] = <intptr_t>__cusparseSbsrilu02_analysis
+
+    global __cusparseDbsrilu02_analysis
+    data["__cusparseDbsrilu02_analysis"] = <intptr_t>__cusparseDbsrilu02_analysis
+
+    global __cusparseCbsrilu02_analysis
+    data["__cusparseCbsrilu02_analysis"] = <intptr_t>__cusparseCbsrilu02_analysis
+
+    global __cusparseZbsrilu02_analysis
+    data["__cusparseZbsrilu02_analysis"] = <intptr_t>__cusparseZbsrilu02_analysis
+
+    global __cusparseSbsrilu02
+    data["__cusparseSbsrilu02"] = <intptr_t>__cusparseSbsrilu02
+
+    global __cusparseDbsrilu02
+    data["__cusparseDbsrilu02"] = <intptr_t>__cusparseDbsrilu02
+
+    global __cusparseCbsrilu02
+    data["__cusparseCbsrilu02"] = <intptr_t>__cusparseCbsrilu02
+
+    global __cusparseZbsrilu02
+    data["__cusparseZbsrilu02"] = <intptr_t>__cusparseZbsrilu02
+
+    global __cusparseXcsric02_zeroPivot
+    data["__cusparseXcsric02_zeroPivot"] = <intptr_t>__cusparseXcsric02_zeroPivot
+
+    global __cusparseScsric02_bufferSize
+    data["__cusparseScsric02_bufferSize"] = <intptr_t>__cusparseScsric02_bufferSize
+
+    global __cusparseDcsric02_bufferSize
+    data["__cusparseDcsric02_bufferSize"] = <intptr_t>__cusparseDcsric02_bufferSize
+
+    global __cusparseCcsric02_bufferSize
+    data["__cusparseCcsric02_bufferSize"] = <intptr_t>__cusparseCcsric02_bufferSize
+
+    global __cusparseZcsric02_bufferSize
+    data["__cusparseZcsric02_bufferSize"] = <intptr_t>__cusparseZcsric02_bufferSize
+
+    global __cusparseScsric02_bufferSizeExt
+    data["__cusparseScsric02_bufferSizeExt"] = <intptr_t>__cusparseScsric02_bufferSizeExt
+
+    global __cusparseDcsric02_bufferSizeExt
+    data["__cusparseDcsric02_bufferSizeExt"] = <intptr_t>__cusparseDcsric02_bufferSizeExt
+
+    global __cusparseCcsric02_bufferSizeExt
+    data["__cusparseCcsric02_bufferSizeExt"] = <intptr_t>__cusparseCcsric02_bufferSizeExt
+
+    global __cusparseZcsric02_bufferSizeExt
+    data["__cusparseZcsric02_bufferSizeExt"] = <intptr_t>__cusparseZcsric02_bufferSizeExt
+
+    global __cusparseScsric02_analysis
+    data["__cusparseScsric02_analysis"] = <intptr_t>__cusparseScsric02_analysis
+
+    global __cusparseDcsric02_analysis
+    data["__cusparseDcsric02_analysis"] = <intptr_t>__cusparseDcsric02_analysis
+
+    global __cusparseCcsric02_analysis
+    data["__cusparseCcsric02_analysis"] = <intptr_t>__cusparseCcsric02_analysis
+
+    global __cusparseZcsric02_analysis
+    data["__cusparseZcsric02_analysis"] = <intptr_t>__cusparseZcsric02_analysis
+
+    global __cusparseScsric02
+    data["__cusparseScsric02"] = <intptr_t>__cusparseScsric02
+
+    global __cusparseDcsric02
+    data["__cusparseDcsric02"] = <intptr_t>__cusparseDcsric02
+
+    global __cusparseCcsric02
+    data["__cusparseCcsric02"] = <intptr_t>__cusparseCcsric02
+
+    global __cusparseZcsric02
+    data["__cusparseZcsric02"] = <intptr_t>__cusparseZcsric02
+
+    global __cusparseXbsric02_zeroPivot
+    data["__cusparseXbsric02_zeroPivot"] = <intptr_t>__cusparseXbsric02_zeroPivot
+
+    global __cusparseSbsric02_bufferSize
+    data["__cusparseSbsric02_bufferSize"] = <intptr_t>__cusparseSbsric02_bufferSize
+
+    global __cusparseDbsric02_bufferSize
+    data["__cusparseDbsric02_bufferSize"] = <intptr_t>__cusparseDbsric02_bufferSize
+
+    global __cusparseCbsric02_bufferSize
+    data["__cusparseCbsric02_bufferSize"] = <intptr_t>__cusparseCbsric02_bufferSize
+
+    global __cusparseZbsric02_bufferSize
+    data["__cusparseZbsric02_bufferSize"] = <intptr_t>__cusparseZbsric02_bufferSize
+
+    global __cusparseSbsric02_bufferSizeExt
+    data["__cusparseSbsric02_bufferSizeExt"] = <intptr_t>__cusparseSbsric02_bufferSizeExt
+
+    global __cusparseDbsric02_bufferSizeExt
+    data["__cusparseDbsric02_bufferSizeExt"] = <intptr_t>__cusparseDbsric02_bufferSizeExt
+
+    global __cusparseCbsric02_bufferSizeExt
+    data["__cusparseCbsric02_bufferSizeExt"] = <intptr_t>__cusparseCbsric02_bufferSizeExt
+
+    global __cusparseZbsric02_bufferSizeExt
+    data["__cusparseZbsric02_bufferSizeExt"] = <intptr_t>__cusparseZbsric02_bufferSizeExt
+
+    global __cusparseSbsric02_analysis
+    data["__cusparseSbsric02_analysis"] = <intptr_t>__cusparseSbsric02_analysis
+
+    global __cusparseDbsric02_analysis
+    data["__cusparseDbsric02_analysis"] = <intptr_t>__cusparseDbsric02_analysis
+
+    global __cusparseCbsric02_analysis
+    data["__cusparseCbsric02_analysis"] = <intptr_t>__cusparseCbsric02_analysis
+
+    global __cusparseZbsric02_analysis
+    data["__cusparseZbsric02_analysis"] = <intptr_t>__cusparseZbsric02_analysis
+
+    global __cusparseSbsric02
+    data["__cusparseSbsric02"] = <intptr_t>__cusparseSbsric02
+
+    global __cusparseDbsric02
+    data["__cusparseDbsric02"] = <intptr_t>__cusparseDbsric02
+
+    global __cusparseCbsric02
+    data["__cusparseCbsric02"] = <intptr_t>__cusparseCbsric02
+
+    global __cusparseZbsric02
+    data["__cusparseZbsric02"] = <intptr_t>__cusparseZbsric02
 
     global __cusparseSgtsv2_bufferSizeExt
     data["__cusparseSgtsv2_bufferSizeExt"] = <intptr_t>__cusparseSgtsv2_bufferSizeExt
@@ -2474,6 +4428,18 @@ cpdef dict _inspect_function_pointers():
     global __cusparseZcsrgeam2
     data["__cusparseZcsrgeam2"] = <intptr_t>__cusparseZcsrgeam2
 
+    global __cusparseScsrcolor
+    data["__cusparseScsrcolor"] = <intptr_t>__cusparseScsrcolor
+
+    global __cusparseDcsrcolor
+    data["__cusparseDcsrcolor"] = <intptr_t>__cusparseDcsrcolor
+
+    global __cusparseCcsrcolor
+    data["__cusparseCcsrcolor"] = <intptr_t>__cusparseCcsrcolor
+
+    global __cusparseZcsrcolor
+    data["__cusparseZcsrcolor"] = <intptr_t>__cusparseZcsrcolor
+
     global __cusparseSnnz
     data["__cusparseSnnz"] = <intptr_t>__cusparseSnnz
 
@@ -2486,11 +4452,50 @@ cpdef dict _inspect_function_pointers():
     global __cusparseZnnz
     data["__cusparseZnnz"] = <intptr_t>__cusparseZnnz
 
+    global __cusparseSnnz_compress
+    data["__cusparseSnnz_compress"] = <intptr_t>__cusparseSnnz_compress
+
+    global __cusparseDnnz_compress
+    data["__cusparseDnnz_compress"] = <intptr_t>__cusparseDnnz_compress
+
+    global __cusparseCnnz_compress
+    data["__cusparseCnnz_compress"] = <intptr_t>__cusparseCnnz_compress
+
+    global __cusparseZnnz_compress
+    data["__cusparseZnnz_compress"] = <intptr_t>__cusparseZnnz_compress
+
+    global __cusparseScsr2csr_compress
+    data["__cusparseScsr2csr_compress"] = <intptr_t>__cusparseScsr2csr_compress
+
+    global __cusparseDcsr2csr_compress
+    data["__cusparseDcsr2csr_compress"] = <intptr_t>__cusparseDcsr2csr_compress
+
+    global __cusparseCcsr2csr_compress
+    data["__cusparseCcsr2csr_compress"] = <intptr_t>__cusparseCcsr2csr_compress
+
+    global __cusparseZcsr2csr_compress
+    data["__cusparseZcsr2csr_compress"] = <intptr_t>__cusparseZcsr2csr_compress
+
     global __cusparseXcoo2csr
     data["__cusparseXcoo2csr"] = <intptr_t>__cusparseXcoo2csr
 
     global __cusparseXcsr2coo
     data["__cusparseXcsr2coo"] = <intptr_t>__cusparseXcsr2coo
+
+    global __cusparseXcsr2bsrNnz
+    data["__cusparseXcsr2bsrNnz"] = <intptr_t>__cusparseXcsr2bsrNnz
+
+    global __cusparseScsr2bsr
+    data["__cusparseScsr2bsr"] = <intptr_t>__cusparseScsr2bsr
+
+    global __cusparseDcsr2bsr
+    data["__cusparseDcsr2bsr"] = <intptr_t>__cusparseDcsr2bsr
+
+    global __cusparseCcsr2bsr
+    data["__cusparseCcsr2bsr"] = <intptr_t>__cusparseCcsr2bsr
+
+    global __cusparseZcsr2bsr
+    data["__cusparseZcsr2bsr"] = <intptr_t>__cusparseZcsr2bsr
 
     global __cusparseSbsr2csr
     data["__cusparseSbsr2csr"] = <intptr_t>__cusparseSbsr2csr
@@ -2539,6 +4544,21 @@ cpdef dict _inspect_function_pointers():
 
     global __cusparseZgebsr2gebsc
     data["__cusparseZgebsr2gebsc"] = <intptr_t>__cusparseZgebsr2gebsc
+
+    global __cusparseXgebsr2csr
+    data["__cusparseXgebsr2csr"] = <intptr_t>__cusparseXgebsr2csr
+
+    global __cusparseSgebsr2csr
+    data["__cusparseSgebsr2csr"] = <intptr_t>__cusparseSgebsr2csr
+
+    global __cusparseDgebsr2csr
+    data["__cusparseDgebsr2csr"] = <intptr_t>__cusparseDgebsr2csr
+
+    global __cusparseCgebsr2csr
+    data["__cusparseCgebsr2csr"] = <intptr_t>__cusparseCgebsr2csr
+
+    global __cusparseZgebsr2csr
+    data["__cusparseZgebsr2csr"] = <intptr_t>__cusparseZgebsr2csr
 
     global __cusparseScsr2gebsr_bufferSize
     data["__cusparseScsr2gebsr_bufferSize"] = <intptr_t>__cusparseScsr2gebsr_bufferSize
@@ -2618,6 +4638,9 @@ cpdef dict _inspect_function_pointers():
     global __cusparseZgebsr2gebsr
     data["__cusparseZgebsr2gebsr"] = <intptr_t>__cusparseZgebsr2gebsr
 
+    global __cusparseCreateIdentityPermutation
+    data["__cusparseCreateIdentityPermutation"] = <intptr_t>__cusparseCreateIdentityPermutation
+
     global __cusparseXcoosort_bufferSizeExt
     data["__cusparseXcoosort_bufferSizeExt"] = <intptr_t>__cusparseXcoosort_bufferSizeExt
 
@@ -2638,6 +4661,114 @@ cpdef dict _inspect_function_pointers():
 
     global __cusparseXcscsort
     data["__cusparseXcscsort"] = <intptr_t>__cusparseXcscsort
+
+    global __cusparseScsru2csr_bufferSizeExt
+    data["__cusparseScsru2csr_bufferSizeExt"] = <intptr_t>__cusparseScsru2csr_bufferSizeExt
+
+    global __cusparseDcsru2csr_bufferSizeExt
+    data["__cusparseDcsru2csr_bufferSizeExt"] = <intptr_t>__cusparseDcsru2csr_bufferSizeExt
+
+    global __cusparseCcsru2csr_bufferSizeExt
+    data["__cusparseCcsru2csr_bufferSizeExt"] = <intptr_t>__cusparseCcsru2csr_bufferSizeExt
+
+    global __cusparseZcsru2csr_bufferSizeExt
+    data["__cusparseZcsru2csr_bufferSizeExt"] = <intptr_t>__cusparseZcsru2csr_bufferSizeExt
+
+    global __cusparseScsru2csr
+    data["__cusparseScsru2csr"] = <intptr_t>__cusparseScsru2csr
+
+    global __cusparseDcsru2csr
+    data["__cusparseDcsru2csr"] = <intptr_t>__cusparseDcsru2csr
+
+    global __cusparseCcsru2csr
+    data["__cusparseCcsru2csr"] = <intptr_t>__cusparseCcsru2csr
+
+    global __cusparseZcsru2csr
+    data["__cusparseZcsru2csr"] = <intptr_t>__cusparseZcsru2csr
+
+    global __cusparseScsr2csru
+    data["__cusparseScsr2csru"] = <intptr_t>__cusparseScsr2csru
+
+    global __cusparseDcsr2csru
+    data["__cusparseDcsr2csru"] = <intptr_t>__cusparseDcsr2csru
+
+    global __cusparseCcsr2csru
+    data["__cusparseCcsr2csru"] = <intptr_t>__cusparseCcsr2csru
+
+    global __cusparseZcsr2csru
+    data["__cusparseZcsr2csru"] = <intptr_t>__cusparseZcsr2csru
+
+    global __cusparseSpruneDense2csr_bufferSizeExt
+    data["__cusparseSpruneDense2csr_bufferSizeExt"] = <intptr_t>__cusparseSpruneDense2csr_bufferSizeExt
+
+    global __cusparseDpruneDense2csr_bufferSizeExt
+    data["__cusparseDpruneDense2csr_bufferSizeExt"] = <intptr_t>__cusparseDpruneDense2csr_bufferSizeExt
+
+    global __cusparseSpruneDense2csrNnz
+    data["__cusparseSpruneDense2csrNnz"] = <intptr_t>__cusparseSpruneDense2csrNnz
+
+    global __cusparseDpruneDense2csrNnz
+    data["__cusparseDpruneDense2csrNnz"] = <intptr_t>__cusparseDpruneDense2csrNnz
+
+    global __cusparseSpruneDense2csr
+    data["__cusparseSpruneDense2csr"] = <intptr_t>__cusparseSpruneDense2csr
+
+    global __cusparseDpruneDense2csr
+    data["__cusparseDpruneDense2csr"] = <intptr_t>__cusparseDpruneDense2csr
+
+    global __cusparseSpruneCsr2csr_bufferSizeExt
+    data["__cusparseSpruneCsr2csr_bufferSizeExt"] = <intptr_t>__cusparseSpruneCsr2csr_bufferSizeExt
+
+    global __cusparseDpruneCsr2csr_bufferSizeExt
+    data["__cusparseDpruneCsr2csr_bufferSizeExt"] = <intptr_t>__cusparseDpruneCsr2csr_bufferSizeExt
+
+    global __cusparseSpruneCsr2csrNnz
+    data["__cusparseSpruneCsr2csrNnz"] = <intptr_t>__cusparseSpruneCsr2csrNnz
+
+    global __cusparseDpruneCsr2csrNnz
+    data["__cusparseDpruneCsr2csrNnz"] = <intptr_t>__cusparseDpruneCsr2csrNnz
+
+    global __cusparseSpruneCsr2csr
+    data["__cusparseSpruneCsr2csr"] = <intptr_t>__cusparseSpruneCsr2csr
+
+    global __cusparseDpruneCsr2csr
+    data["__cusparseDpruneCsr2csr"] = <intptr_t>__cusparseDpruneCsr2csr
+
+    global __cusparseSpruneDense2csrByPercentage_bufferSizeExt
+    data["__cusparseSpruneDense2csrByPercentage_bufferSizeExt"] = <intptr_t>__cusparseSpruneDense2csrByPercentage_bufferSizeExt
+
+    global __cusparseDpruneDense2csrByPercentage_bufferSizeExt
+    data["__cusparseDpruneDense2csrByPercentage_bufferSizeExt"] = <intptr_t>__cusparseDpruneDense2csrByPercentage_bufferSizeExt
+
+    global __cusparseSpruneDense2csrNnzByPercentage
+    data["__cusparseSpruneDense2csrNnzByPercentage"] = <intptr_t>__cusparseSpruneDense2csrNnzByPercentage
+
+    global __cusparseDpruneDense2csrNnzByPercentage
+    data["__cusparseDpruneDense2csrNnzByPercentage"] = <intptr_t>__cusparseDpruneDense2csrNnzByPercentage
+
+    global __cusparseSpruneDense2csrByPercentage
+    data["__cusparseSpruneDense2csrByPercentage"] = <intptr_t>__cusparseSpruneDense2csrByPercentage
+
+    global __cusparseDpruneDense2csrByPercentage
+    data["__cusparseDpruneDense2csrByPercentage"] = <intptr_t>__cusparseDpruneDense2csrByPercentage
+
+    global __cusparseSpruneCsr2csrByPercentage_bufferSizeExt
+    data["__cusparseSpruneCsr2csrByPercentage_bufferSizeExt"] = <intptr_t>__cusparseSpruneCsr2csrByPercentage_bufferSizeExt
+
+    global __cusparseDpruneCsr2csrByPercentage_bufferSizeExt
+    data["__cusparseDpruneCsr2csrByPercentage_bufferSizeExt"] = <intptr_t>__cusparseDpruneCsr2csrByPercentage_bufferSizeExt
+
+    global __cusparseSpruneCsr2csrNnzByPercentage
+    data["__cusparseSpruneCsr2csrNnzByPercentage"] = <intptr_t>__cusparseSpruneCsr2csrNnzByPercentage
+
+    global __cusparseDpruneCsr2csrNnzByPercentage
+    data["__cusparseDpruneCsr2csrNnzByPercentage"] = <intptr_t>__cusparseDpruneCsr2csrNnzByPercentage
+
+    global __cusparseSpruneCsr2csrByPercentage
+    data["__cusparseSpruneCsr2csrByPercentage"] = <intptr_t>__cusparseSpruneCsr2csrByPercentage
+
+    global __cusparseDpruneCsr2csrByPercentage
+    data["__cusparseDpruneCsr2csrByPercentage"] = <intptr_t>__cusparseDpruneCsr2csrByPercentage
 
     global __cusparseCsr2cscEx2
     data["__cusparseCsr2cscEx2"] = <intptr_t>__cusparseCsr2cscEx2
@@ -2827,6 +4958,9 @@ cpdef dict _inspect_function_pointers():
 
     global __cusparseScatter
     data["__cusparseScatter"] = <intptr_t>__cusparseScatter
+
+    global __cusparseRot
+    data["__cusparseRot"] = <intptr_t>__cusparseRot
 
     global __cusparseSpVV_bufferSize
     data["__cusparseSpVV_bufferSize"] = <intptr_t>__cusparseSpVV_bufferSize
@@ -3265,6 +5399,206 @@ cdef cusparseIndexBase_t _cusparseGetMatIndexBase(const cusparseMatDescr_t descr
         descrA)
 
 
+cdef cusparseStatus_t _cusparseCreateCsric02Info(csric02Info_t* info) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseCreateCsric02Info
+    _check_or_init_cusparse()
+    if __cusparseCreateCsric02Info == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseCreateCsric02Info is not found")
+    return (<cusparseStatus_t (*)(csric02Info_t*) noexcept nogil>__cusparseCreateCsric02Info)(
+        info)
+
+
+cdef cusparseStatus_t _cusparseDestroyCsric02Info(csric02Info_t info) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseDestroyCsric02Info
+    _check_or_init_cusparse()
+    if __cusparseDestroyCsric02Info == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseDestroyCsric02Info is not found")
+    return (<cusparseStatus_t (*)(csric02Info_t) noexcept nogil>__cusparseDestroyCsric02Info)(
+        info)
+
+
+cdef cusparseStatus_t _cusparseCreateBsric02Info(bsric02Info_t* info) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseCreateBsric02Info
+    _check_or_init_cusparse()
+    if __cusparseCreateBsric02Info == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseCreateBsric02Info is not found")
+    return (<cusparseStatus_t (*)(bsric02Info_t*) noexcept nogil>__cusparseCreateBsric02Info)(
+        info)
+
+
+cdef cusparseStatus_t _cusparseDestroyBsric02Info(bsric02Info_t info) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseDestroyBsric02Info
+    _check_or_init_cusparse()
+    if __cusparseDestroyBsric02Info == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseDestroyBsric02Info is not found")
+    return (<cusparseStatus_t (*)(bsric02Info_t) noexcept nogil>__cusparseDestroyBsric02Info)(
+        info)
+
+
+cdef cusparseStatus_t _cusparseCreateCsrilu02Info(csrilu02Info_t* info) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseCreateCsrilu02Info
+    _check_or_init_cusparse()
+    if __cusparseCreateCsrilu02Info == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseCreateCsrilu02Info is not found")
+    return (<cusparseStatus_t (*)(csrilu02Info_t*) noexcept nogil>__cusparseCreateCsrilu02Info)(
+        info)
+
+
+cdef cusparseStatus_t _cusparseDestroyCsrilu02Info(csrilu02Info_t info) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseDestroyCsrilu02Info
+    _check_or_init_cusparse()
+    if __cusparseDestroyCsrilu02Info == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseDestroyCsrilu02Info is not found")
+    return (<cusparseStatus_t (*)(csrilu02Info_t) noexcept nogil>__cusparseDestroyCsrilu02Info)(
+        info)
+
+
+cdef cusparseStatus_t _cusparseCreateBsrilu02Info(bsrilu02Info_t* info) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseCreateBsrilu02Info
+    _check_or_init_cusparse()
+    if __cusparseCreateBsrilu02Info == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseCreateBsrilu02Info is not found")
+    return (<cusparseStatus_t (*)(bsrilu02Info_t*) noexcept nogil>__cusparseCreateBsrilu02Info)(
+        info)
+
+
+cdef cusparseStatus_t _cusparseDestroyBsrilu02Info(bsrilu02Info_t info) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseDestroyBsrilu02Info
+    _check_or_init_cusparse()
+    if __cusparseDestroyBsrilu02Info == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseDestroyBsrilu02Info is not found")
+    return (<cusparseStatus_t (*)(bsrilu02Info_t) noexcept nogil>__cusparseDestroyBsrilu02Info)(
+        info)
+
+
+cdef cusparseStatus_t _cusparseCreateBsrsv2Info(bsrsv2Info_t* info) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseCreateBsrsv2Info
+    _check_or_init_cusparse()
+    if __cusparseCreateBsrsv2Info == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseCreateBsrsv2Info is not found")
+    return (<cusparseStatus_t (*)(bsrsv2Info_t*) noexcept nogil>__cusparseCreateBsrsv2Info)(
+        info)
+
+
+cdef cusparseStatus_t _cusparseDestroyBsrsv2Info(bsrsv2Info_t info) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseDestroyBsrsv2Info
+    _check_or_init_cusparse()
+    if __cusparseDestroyBsrsv2Info == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseDestroyBsrsv2Info is not found")
+    return (<cusparseStatus_t (*)(bsrsv2Info_t) noexcept nogil>__cusparseDestroyBsrsv2Info)(
+        info)
+
+
+cdef cusparseStatus_t _cusparseCreateBsrsm2Info(bsrsm2Info_t* info) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseCreateBsrsm2Info
+    _check_or_init_cusparse()
+    if __cusparseCreateBsrsm2Info == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseCreateBsrsm2Info is not found")
+    return (<cusparseStatus_t (*)(bsrsm2Info_t*) noexcept nogil>__cusparseCreateBsrsm2Info)(
+        info)
+
+
+cdef cusparseStatus_t _cusparseDestroyBsrsm2Info(bsrsm2Info_t info) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseDestroyBsrsm2Info
+    _check_or_init_cusparse()
+    if __cusparseDestroyBsrsm2Info == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseDestroyBsrsm2Info is not found")
+    return (<cusparseStatus_t (*)(bsrsm2Info_t) noexcept nogil>__cusparseDestroyBsrsm2Info)(
+        info)
+
+
+cdef cusparseStatus_t _cusparseCreateCsru2csrInfo(csru2csrInfo_t* info) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseCreateCsru2csrInfo
+    _check_or_init_cusparse()
+    if __cusparseCreateCsru2csrInfo == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseCreateCsru2csrInfo is not found")
+    return (<cusparseStatus_t (*)(csru2csrInfo_t*) noexcept nogil>__cusparseCreateCsru2csrInfo)(
+        info)
+
+
+cdef cusparseStatus_t _cusparseDestroyCsru2csrInfo(csru2csrInfo_t info) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseDestroyCsru2csrInfo
+    _check_or_init_cusparse()
+    if __cusparseDestroyCsru2csrInfo == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseDestroyCsru2csrInfo is not found")
+    return (<cusparseStatus_t (*)(csru2csrInfo_t) noexcept nogil>__cusparseDestroyCsru2csrInfo)(
+        info)
+
+
+cdef cusparseStatus_t _cusparseCreateColorInfo(cusparseColorInfo_t* info) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseCreateColorInfo
+    _check_or_init_cusparse()
+    if __cusparseCreateColorInfo == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseCreateColorInfo is not found")
+    return (<cusparseStatus_t (*)(cusparseColorInfo_t*) noexcept nogil>__cusparseCreateColorInfo)(
+        info)
+
+
+cdef cusparseStatus_t _cusparseDestroyColorInfo(cusparseColorInfo_t info) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseDestroyColorInfo
+    _check_or_init_cusparse()
+    if __cusparseDestroyColorInfo == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseDestroyColorInfo is not found")
+    return (<cusparseStatus_t (*)(cusparseColorInfo_t) noexcept nogil>__cusparseDestroyColorInfo)(
+        info)
+
+
+cdef cusparseStatus_t _cusparseSetColorAlgs(cusparseColorInfo_t info, cusparseColorAlg_t alg) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseSetColorAlgs
+    _check_or_init_cusparse()
+    if __cusparseSetColorAlgs == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseSetColorAlgs is not found")
+    return (<cusparseStatus_t (*)(cusparseColorInfo_t, cusparseColorAlg_t) noexcept nogil>__cusparseSetColorAlgs)(
+        info, alg)
+
+
+cdef cusparseStatus_t _cusparseGetColorAlgs(cusparseColorInfo_t info, cusparseColorAlg_t* alg) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseGetColorAlgs
+    _check_or_init_cusparse()
+    if __cusparseGetColorAlgs == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseGetColorAlgs is not found")
+    return (<cusparseStatus_t (*)(cusparseColorInfo_t, cusparseColorAlg_t*) noexcept nogil>__cusparseGetColorAlgs)(
+        info, alg)
+
+
+cdef cusparseStatus_t _cusparseCreatePruneInfo(pruneInfo_t* info) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseCreatePruneInfo
+    _check_or_init_cusparse()
+    if __cusparseCreatePruneInfo == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseCreatePruneInfo is not found")
+    return (<cusparseStatus_t (*)(pruneInfo_t*) noexcept nogil>__cusparseCreatePruneInfo)(
+        info)
+
+
+cdef cusparseStatus_t _cusparseDestroyPruneInfo(pruneInfo_t info) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseDestroyPruneInfo
+    _check_or_init_cusparse()
+    if __cusparseDestroyPruneInfo == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseDestroyPruneInfo is not found")
+    return (<cusparseStatus_t (*)(pruneInfo_t) noexcept nogil>__cusparseDestroyPruneInfo)(
+        info)
+
+
 cdef cusparseStatus_t _cusparseSgemvi(cusparseHandle_t handle, cusparseOperation_t transA, int m, int n, const float* alpha, const float* A, int lda, int nnz, const float* xVal, const int* xInd, const float* beta, float* y, cusparseIndexBase_t idxBase, void* pBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
     global __cusparseSgemvi
     _check_or_init_cusparse()
@@ -3385,6 +5719,216 @@ cdef cusparseStatus_t _cusparseZbsrmv(cusparseHandle_t handle, cusparseDirection
         handle, dirA, transA, mb, nb, nnzb, alpha, descrA, bsrSortedValA, bsrSortedRowPtrA, bsrSortedColIndA, blockDim, x, beta, y)
 
 
+cdef cusparseStatus_t _cusparseSbsrxmv(cusparseHandle_t handle, cusparseDirection_t dirA, cusparseOperation_t transA, int sizeOfMask, int mb, int nb, int nnzb, const float* alpha, const cusparseMatDescr_t descrA, const float* bsrSortedValA, const int* bsrSortedMaskPtrA, const int* bsrSortedRowPtrA, const int* bsrSortedEndPtrA, const int* bsrSortedColIndA, int blockDim, const float* x, const float* beta, float* y) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseSbsrxmv
+    _check_or_init_cusparse()
+    if __cusparseSbsrxmv == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseSbsrxmv is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, cusparseOperation_t, int, int, int, int, const float*, const cusparseMatDescr_t, const float*, const int*, const int*, const int*, const int*, int, const float*, const float*, float*) noexcept nogil>__cusparseSbsrxmv)(
+        handle, dirA, transA, sizeOfMask, mb, nb, nnzb, alpha, descrA, bsrSortedValA, bsrSortedMaskPtrA, bsrSortedRowPtrA, bsrSortedEndPtrA, bsrSortedColIndA, blockDim, x, beta, y)
+
+
+cdef cusparseStatus_t _cusparseDbsrxmv(cusparseHandle_t handle, cusparseDirection_t dirA, cusparseOperation_t transA, int sizeOfMask, int mb, int nb, int nnzb, const double* alpha, const cusparseMatDescr_t descrA, const double* bsrSortedValA, const int* bsrSortedMaskPtrA, const int* bsrSortedRowPtrA, const int* bsrSortedEndPtrA, const int* bsrSortedColIndA, int blockDim, const double* x, const double* beta, double* y) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseDbsrxmv
+    _check_or_init_cusparse()
+    if __cusparseDbsrxmv == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseDbsrxmv is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, cusparseOperation_t, int, int, int, int, const double*, const cusparseMatDescr_t, const double*, const int*, const int*, const int*, const int*, int, const double*, const double*, double*) noexcept nogil>__cusparseDbsrxmv)(
+        handle, dirA, transA, sizeOfMask, mb, nb, nnzb, alpha, descrA, bsrSortedValA, bsrSortedMaskPtrA, bsrSortedRowPtrA, bsrSortedEndPtrA, bsrSortedColIndA, blockDim, x, beta, y)
+
+
+cdef cusparseStatus_t _cusparseCbsrxmv(cusparseHandle_t handle, cusparseDirection_t dirA, cusparseOperation_t transA, int sizeOfMask, int mb, int nb, int nnzb, const cuComplex* alpha, const cusparseMatDescr_t descrA, const cuComplex* bsrSortedValA, const int* bsrSortedMaskPtrA, const int* bsrSortedRowPtrA, const int* bsrSortedEndPtrA, const int* bsrSortedColIndA, int blockDim, const cuComplex* x, const cuComplex* beta, cuComplex* y) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseCbsrxmv
+    _check_or_init_cusparse()
+    if __cusparseCbsrxmv == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseCbsrxmv is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, cusparseOperation_t, int, int, int, int, const cuComplex*, const cusparseMatDescr_t, const cuComplex*, const int*, const int*, const int*, const int*, int, const cuComplex*, const cuComplex*, cuComplex*) noexcept nogil>__cusparseCbsrxmv)(
+        handle, dirA, transA, sizeOfMask, mb, nb, nnzb, alpha, descrA, bsrSortedValA, bsrSortedMaskPtrA, bsrSortedRowPtrA, bsrSortedEndPtrA, bsrSortedColIndA, blockDim, x, beta, y)
+
+
+cdef cusparseStatus_t _cusparseZbsrxmv(cusparseHandle_t handle, cusparseDirection_t dirA, cusparseOperation_t transA, int sizeOfMask, int mb, int nb, int nnzb, const cuDoubleComplex* alpha, const cusparseMatDescr_t descrA, const cuDoubleComplex* bsrSortedValA, const int* bsrSortedMaskPtrA, const int* bsrSortedRowPtrA, const int* bsrSortedEndPtrA, const int* bsrSortedColIndA, int blockDim, const cuDoubleComplex* x, const cuDoubleComplex* beta, cuDoubleComplex* y) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseZbsrxmv
+    _check_or_init_cusparse()
+    if __cusparseZbsrxmv == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseZbsrxmv is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, cusparseOperation_t, int, int, int, int, const cuDoubleComplex*, const cusparseMatDescr_t, const cuDoubleComplex*, const int*, const int*, const int*, const int*, int, const cuDoubleComplex*, const cuDoubleComplex*, cuDoubleComplex*) noexcept nogil>__cusparseZbsrxmv)(
+        handle, dirA, transA, sizeOfMask, mb, nb, nnzb, alpha, descrA, bsrSortedValA, bsrSortedMaskPtrA, bsrSortedRowPtrA, bsrSortedEndPtrA, bsrSortedColIndA, blockDim, x, beta, y)
+
+
+cdef cusparseStatus_t _cusparseXbsrsv2_zeroPivot(cusparseHandle_t handle, bsrsv2Info_t info, int* position) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseXbsrsv2_zeroPivot
+    _check_or_init_cusparse()
+    if __cusparseXbsrsv2_zeroPivot == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseXbsrsv2_zeroPivot is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, bsrsv2Info_t, int*) noexcept nogil>__cusparseXbsrsv2_zeroPivot)(
+        handle, info, position)
+
+
+cdef cusparseStatus_t _cusparseSbsrsv2_bufferSize(cusparseHandle_t handle, cusparseDirection_t dirA, cusparseOperation_t transA, int mb, int nnzb, const cusparseMatDescr_t descrA, float* bsrSortedValA, const int* bsrSortedRowPtrA, const int* bsrSortedColIndA, int blockDim, bsrsv2Info_t info, int* pBufferSizeInBytes) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseSbsrsv2_bufferSize
+    _check_or_init_cusparse()
+    if __cusparseSbsrsv2_bufferSize == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseSbsrsv2_bufferSize is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, cusparseOperation_t, int, int, const cusparseMatDescr_t, float*, const int*, const int*, int, bsrsv2Info_t, int*) noexcept nogil>__cusparseSbsrsv2_bufferSize)(
+        handle, dirA, transA, mb, nnzb, descrA, bsrSortedValA, bsrSortedRowPtrA, bsrSortedColIndA, blockDim, info, pBufferSizeInBytes)
+
+
+cdef cusparseStatus_t _cusparseDbsrsv2_bufferSize(cusparseHandle_t handle, cusparseDirection_t dirA, cusparseOperation_t transA, int mb, int nnzb, const cusparseMatDescr_t descrA, double* bsrSortedValA, const int* bsrSortedRowPtrA, const int* bsrSortedColIndA, int blockDim, bsrsv2Info_t info, int* pBufferSizeInBytes) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseDbsrsv2_bufferSize
+    _check_or_init_cusparse()
+    if __cusparseDbsrsv2_bufferSize == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseDbsrsv2_bufferSize is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, cusparseOperation_t, int, int, const cusparseMatDescr_t, double*, const int*, const int*, int, bsrsv2Info_t, int*) noexcept nogil>__cusparseDbsrsv2_bufferSize)(
+        handle, dirA, transA, mb, nnzb, descrA, bsrSortedValA, bsrSortedRowPtrA, bsrSortedColIndA, blockDim, info, pBufferSizeInBytes)
+
+
+cdef cusparseStatus_t _cusparseCbsrsv2_bufferSize(cusparseHandle_t handle, cusparseDirection_t dirA, cusparseOperation_t transA, int mb, int nnzb, const cusparseMatDescr_t descrA, cuComplex* bsrSortedValA, const int* bsrSortedRowPtrA, const int* bsrSortedColIndA, int blockDim, bsrsv2Info_t info, int* pBufferSizeInBytes) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseCbsrsv2_bufferSize
+    _check_or_init_cusparse()
+    if __cusparseCbsrsv2_bufferSize == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseCbsrsv2_bufferSize is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, cusparseOperation_t, int, int, const cusparseMatDescr_t, cuComplex*, const int*, const int*, int, bsrsv2Info_t, int*) noexcept nogil>__cusparseCbsrsv2_bufferSize)(
+        handle, dirA, transA, mb, nnzb, descrA, bsrSortedValA, bsrSortedRowPtrA, bsrSortedColIndA, blockDim, info, pBufferSizeInBytes)
+
+
+cdef cusparseStatus_t _cusparseZbsrsv2_bufferSize(cusparseHandle_t handle, cusparseDirection_t dirA, cusparseOperation_t transA, int mb, int nnzb, const cusparseMatDescr_t descrA, cuDoubleComplex* bsrSortedValA, const int* bsrSortedRowPtrA, const int* bsrSortedColIndA, int blockDim, bsrsv2Info_t info, int* pBufferSizeInBytes) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseZbsrsv2_bufferSize
+    _check_or_init_cusparse()
+    if __cusparseZbsrsv2_bufferSize == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseZbsrsv2_bufferSize is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, cusparseOperation_t, int, int, const cusparseMatDescr_t, cuDoubleComplex*, const int*, const int*, int, bsrsv2Info_t, int*) noexcept nogil>__cusparseZbsrsv2_bufferSize)(
+        handle, dirA, transA, mb, nnzb, descrA, bsrSortedValA, bsrSortedRowPtrA, bsrSortedColIndA, blockDim, info, pBufferSizeInBytes)
+
+
+cdef cusparseStatus_t _cusparseSbsrsv2_bufferSizeExt(cusparseHandle_t handle, cusparseDirection_t dirA, cusparseOperation_t transA, int mb, int nnzb, const cusparseMatDescr_t descrA, float* bsrSortedValA, const int* bsrSortedRowPtrA, const int* bsrSortedColIndA, int blockSize, bsrsv2Info_t info, size_t* pBufferSize) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseSbsrsv2_bufferSizeExt
+    _check_or_init_cusparse()
+    if __cusparseSbsrsv2_bufferSizeExt == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseSbsrsv2_bufferSizeExt is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, cusparseOperation_t, int, int, const cusparseMatDescr_t, float*, const int*, const int*, int, bsrsv2Info_t, size_t*) noexcept nogil>__cusparseSbsrsv2_bufferSizeExt)(
+        handle, dirA, transA, mb, nnzb, descrA, bsrSortedValA, bsrSortedRowPtrA, bsrSortedColIndA, blockSize, info, pBufferSize)
+
+
+cdef cusparseStatus_t _cusparseDbsrsv2_bufferSizeExt(cusparseHandle_t handle, cusparseDirection_t dirA, cusparseOperation_t transA, int mb, int nnzb, const cusparseMatDescr_t descrA, double* bsrSortedValA, const int* bsrSortedRowPtrA, const int* bsrSortedColIndA, int blockSize, bsrsv2Info_t info, size_t* pBufferSize) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseDbsrsv2_bufferSizeExt
+    _check_or_init_cusparse()
+    if __cusparseDbsrsv2_bufferSizeExt == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseDbsrsv2_bufferSizeExt is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, cusparseOperation_t, int, int, const cusparseMatDescr_t, double*, const int*, const int*, int, bsrsv2Info_t, size_t*) noexcept nogil>__cusparseDbsrsv2_bufferSizeExt)(
+        handle, dirA, transA, mb, nnzb, descrA, bsrSortedValA, bsrSortedRowPtrA, bsrSortedColIndA, blockSize, info, pBufferSize)
+
+
+cdef cusparseStatus_t _cusparseCbsrsv2_bufferSizeExt(cusparseHandle_t handle, cusparseDirection_t dirA, cusparseOperation_t transA, int mb, int nnzb, const cusparseMatDescr_t descrA, cuComplex* bsrSortedValA, const int* bsrSortedRowPtrA, const int* bsrSortedColIndA, int blockSize, bsrsv2Info_t info, size_t* pBufferSize) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseCbsrsv2_bufferSizeExt
+    _check_or_init_cusparse()
+    if __cusparseCbsrsv2_bufferSizeExt == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseCbsrsv2_bufferSizeExt is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, cusparseOperation_t, int, int, const cusparseMatDescr_t, cuComplex*, const int*, const int*, int, bsrsv2Info_t, size_t*) noexcept nogil>__cusparseCbsrsv2_bufferSizeExt)(
+        handle, dirA, transA, mb, nnzb, descrA, bsrSortedValA, bsrSortedRowPtrA, bsrSortedColIndA, blockSize, info, pBufferSize)
+
+
+cdef cusparseStatus_t _cusparseZbsrsv2_bufferSizeExt(cusparseHandle_t handle, cusparseDirection_t dirA, cusparseOperation_t transA, int mb, int nnzb, const cusparseMatDescr_t descrA, cuDoubleComplex* bsrSortedValA, const int* bsrSortedRowPtrA, const int* bsrSortedColIndA, int blockSize, bsrsv2Info_t info, size_t* pBufferSize) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseZbsrsv2_bufferSizeExt
+    _check_or_init_cusparse()
+    if __cusparseZbsrsv2_bufferSizeExt == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseZbsrsv2_bufferSizeExt is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, cusparseOperation_t, int, int, const cusparseMatDescr_t, cuDoubleComplex*, const int*, const int*, int, bsrsv2Info_t, size_t*) noexcept nogil>__cusparseZbsrsv2_bufferSizeExt)(
+        handle, dirA, transA, mb, nnzb, descrA, bsrSortedValA, bsrSortedRowPtrA, bsrSortedColIndA, blockSize, info, pBufferSize)
+
+
+cdef cusparseStatus_t _cusparseSbsrsv2_analysis(cusparseHandle_t handle, cusparseDirection_t dirA, cusparseOperation_t transA, int mb, int nnzb, const cusparseMatDescr_t descrA, const float* bsrSortedValA, const int* bsrSortedRowPtrA, const int* bsrSortedColIndA, int blockDim, bsrsv2Info_t info, cusparseSolvePolicy_t policy, void* pBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseSbsrsv2_analysis
+    _check_or_init_cusparse()
+    if __cusparseSbsrsv2_analysis == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseSbsrsv2_analysis is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, cusparseOperation_t, int, int, const cusparseMatDescr_t, const float*, const int*, const int*, int, bsrsv2Info_t, cusparseSolvePolicy_t, void*) noexcept nogil>__cusparseSbsrsv2_analysis)(
+        handle, dirA, transA, mb, nnzb, descrA, bsrSortedValA, bsrSortedRowPtrA, bsrSortedColIndA, blockDim, info, policy, pBuffer)
+
+
+cdef cusparseStatus_t _cusparseDbsrsv2_analysis(cusparseHandle_t handle, cusparseDirection_t dirA, cusparseOperation_t transA, int mb, int nnzb, const cusparseMatDescr_t descrA, const double* bsrSortedValA, const int* bsrSortedRowPtrA, const int* bsrSortedColIndA, int blockDim, bsrsv2Info_t info, cusparseSolvePolicy_t policy, void* pBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseDbsrsv2_analysis
+    _check_or_init_cusparse()
+    if __cusparseDbsrsv2_analysis == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseDbsrsv2_analysis is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, cusparseOperation_t, int, int, const cusparseMatDescr_t, const double*, const int*, const int*, int, bsrsv2Info_t, cusparseSolvePolicy_t, void*) noexcept nogil>__cusparseDbsrsv2_analysis)(
+        handle, dirA, transA, mb, nnzb, descrA, bsrSortedValA, bsrSortedRowPtrA, bsrSortedColIndA, blockDim, info, policy, pBuffer)
+
+
+cdef cusparseStatus_t _cusparseCbsrsv2_analysis(cusparseHandle_t handle, cusparseDirection_t dirA, cusparseOperation_t transA, int mb, int nnzb, const cusparseMatDescr_t descrA, const cuComplex* bsrSortedValA, const int* bsrSortedRowPtrA, const int* bsrSortedColIndA, int blockDim, bsrsv2Info_t info, cusparseSolvePolicy_t policy, void* pBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseCbsrsv2_analysis
+    _check_or_init_cusparse()
+    if __cusparseCbsrsv2_analysis == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseCbsrsv2_analysis is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, cusparseOperation_t, int, int, const cusparseMatDescr_t, const cuComplex*, const int*, const int*, int, bsrsv2Info_t, cusparseSolvePolicy_t, void*) noexcept nogil>__cusparseCbsrsv2_analysis)(
+        handle, dirA, transA, mb, nnzb, descrA, bsrSortedValA, bsrSortedRowPtrA, bsrSortedColIndA, blockDim, info, policy, pBuffer)
+
+
+cdef cusparseStatus_t _cusparseZbsrsv2_analysis(cusparseHandle_t handle, cusparseDirection_t dirA, cusparseOperation_t transA, int mb, int nnzb, const cusparseMatDescr_t descrA, const cuDoubleComplex* bsrSortedValA, const int* bsrSortedRowPtrA, const int* bsrSortedColIndA, int blockDim, bsrsv2Info_t info, cusparseSolvePolicy_t policy, void* pBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseZbsrsv2_analysis
+    _check_or_init_cusparse()
+    if __cusparseZbsrsv2_analysis == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseZbsrsv2_analysis is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, cusparseOperation_t, int, int, const cusparseMatDescr_t, const cuDoubleComplex*, const int*, const int*, int, bsrsv2Info_t, cusparseSolvePolicy_t, void*) noexcept nogil>__cusparseZbsrsv2_analysis)(
+        handle, dirA, transA, mb, nnzb, descrA, bsrSortedValA, bsrSortedRowPtrA, bsrSortedColIndA, blockDim, info, policy, pBuffer)
+
+
+cdef cusparseStatus_t _cusparseSbsrsv2_solve(cusparseHandle_t handle, cusparseDirection_t dirA, cusparseOperation_t transA, int mb, int nnzb, const float* alpha, const cusparseMatDescr_t descrA, const float* bsrSortedValA, const int* bsrSortedRowPtrA, const int* bsrSortedColIndA, int blockDim, bsrsv2Info_t info, const float* f, float* x, cusparseSolvePolicy_t policy, void* pBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseSbsrsv2_solve
+    _check_or_init_cusparse()
+    if __cusparseSbsrsv2_solve == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseSbsrsv2_solve is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, cusparseOperation_t, int, int, const float*, const cusparseMatDescr_t, const float*, const int*, const int*, int, bsrsv2Info_t, const float*, float*, cusparseSolvePolicy_t, void*) noexcept nogil>__cusparseSbsrsv2_solve)(
+        handle, dirA, transA, mb, nnzb, alpha, descrA, bsrSortedValA, bsrSortedRowPtrA, bsrSortedColIndA, blockDim, info, f, x, policy, pBuffer)
+
+
+cdef cusparseStatus_t _cusparseDbsrsv2_solve(cusparseHandle_t handle, cusparseDirection_t dirA, cusparseOperation_t transA, int mb, int nnzb, const double* alpha, const cusparseMatDescr_t descrA, const double* bsrSortedValA, const int* bsrSortedRowPtrA, const int* bsrSortedColIndA, int blockDim, bsrsv2Info_t info, const double* f, double* x, cusparseSolvePolicy_t policy, void* pBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseDbsrsv2_solve
+    _check_or_init_cusparse()
+    if __cusparseDbsrsv2_solve == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseDbsrsv2_solve is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, cusparseOperation_t, int, int, const double*, const cusparseMatDescr_t, const double*, const int*, const int*, int, bsrsv2Info_t, const double*, double*, cusparseSolvePolicy_t, void*) noexcept nogil>__cusparseDbsrsv2_solve)(
+        handle, dirA, transA, mb, nnzb, alpha, descrA, bsrSortedValA, bsrSortedRowPtrA, bsrSortedColIndA, blockDim, info, f, x, policy, pBuffer)
+
+
+cdef cusparseStatus_t _cusparseCbsrsv2_solve(cusparseHandle_t handle, cusparseDirection_t dirA, cusparseOperation_t transA, int mb, int nnzb, const cuComplex* alpha, const cusparseMatDescr_t descrA, const cuComplex* bsrSortedValA, const int* bsrSortedRowPtrA, const int* bsrSortedColIndA, int blockDim, bsrsv2Info_t info, const cuComplex* f, cuComplex* x, cusparseSolvePolicy_t policy, void* pBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseCbsrsv2_solve
+    _check_or_init_cusparse()
+    if __cusparseCbsrsv2_solve == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseCbsrsv2_solve is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, cusparseOperation_t, int, int, const cuComplex*, const cusparseMatDescr_t, const cuComplex*, const int*, const int*, int, bsrsv2Info_t, const cuComplex*, cuComplex*, cusparseSolvePolicy_t, void*) noexcept nogil>__cusparseCbsrsv2_solve)(
+        handle, dirA, transA, mb, nnzb, alpha, descrA, bsrSortedValA, bsrSortedRowPtrA, bsrSortedColIndA, blockDim, info, f, x, policy, pBuffer)
+
+
+cdef cusparseStatus_t _cusparseZbsrsv2_solve(cusparseHandle_t handle, cusparseDirection_t dirA, cusparseOperation_t transA, int mb, int nnzb, const cuDoubleComplex* alpha, const cusparseMatDescr_t descrA, const cuDoubleComplex* bsrSortedValA, const int* bsrSortedRowPtrA, const int* bsrSortedColIndA, int blockDim, bsrsv2Info_t info, const cuDoubleComplex* f, cuDoubleComplex* x, cusparseSolvePolicy_t policy, void* pBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseZbsrsv2_solve
+    _check_or_init_cusparse()
+    if __cusparseZbsrsv2_solve == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseZbsrsv2_solve is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, cusparseOperation_t, int, int, const cuDoubleComplex*, const cusparseMatDescr_t, const cuDoubleComplex*, const int*, const int*, int, bsrsv2Info_t, const cuDoubleComplex*, cuDoubleComplex*, cusparseSolvePolicy_t, void*) noexcept nogil>__cusparseZbsrsv2_solve)(
+        handle, dirA, transA, mb, nnzb, alpha, descrA, bsrSortedValA, bsrSortedRowPtrA, bsrSortedColIndA, blockDim, info, f, x, policy, pBuffer)
+
+
 cdef cusparseStatus_t _cusparseSbsrmm(cusparseHandle_t handle, cusparseDirection_t dirA, cusparseOperation_t transA, cusparseOperation_t transB, int mb, int n, int kb, int nnzb, const float* alpha, const cusparseMatDescr_t descrA, const float* bsrSortedValA, const int* bsrSortedRowPtrA, const int* bsrSortedColIndA, const int blockSize, const float* B, const int ldb, const float* beta, float* C, int ldc) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
     global __cusparseSbsrmm
     _check_or_init_cusparse()
@@ -3423,6 +5967,936 @@ cdef cusparseStatus_t _cusparseZbsrmm(cusparseHandle_t handle, cusparseDirection
             raise FunctionNotFoundError("function cusparseZbsrmm is not found")
     return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, cusparseOperation_t, cusparseOperation_t, int, int, int, int, const cuDoubleComplex*, const cusparseMatDescr_t, const cuDoubleComplex*, const int*, const int*, const int, const cuDoubleComplex*, const int, const cuDoubleComplex*, cuDoubleComplex*, int) noexcept nogil>__cusparseZbsrmm)(
         handle, dirA, transA, transB, mb, n, kb, nnzb, alpha, descrA, bsrSortedValA, bsrSortedRowPtrA, bsrSortedColIndA, blockSize, B, ldb, beta, C, ldc)
+
+
+cdef cusparseStatus_t _cusparseXbsrsm2_zeroPivot(cusparseHandle_t handle, bsrsm2Info_t info, int* position) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseXbsrsm2_zeroPivot
+    _check_or_init_cusparse()
+    if __cusparseXbsrsm2_zeroPivot == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseXbsrsm2_zeroPivot is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, bsrsm2Info_t, int*) noexcept nogil>__cusparseXbsrsm2_zeroPivot)(
+        handle, info, position)
+
+
+cdef cusparseStatus_t _cusparseSbsrsm2_bufferSize(cusparseHandle_t handle, cusparseDirection_t dirA, cusparseOperation_t transA, cusparseOperation_t transXY, int mb, int n, int nnzb, const cusparseMatDescr_t descrA, float* bsrSortedVal, const int* bsrSortedRowPtr, const int* bsrSortedColInd, int blockSize, bsrsm2Info_t info, int* pBufferSizeInBytes) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseSbsrsm2_bufferSize
+    _check_or_init_cusparse()
+    if __cusparseSbsrsm2_bufferSize == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseSbsrsm2_bufferSize is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, cusparseOperation_t, cusparseOperation_t, int, int, int, const cusparseMatDescr_t, float*, const int*, const int*, int, bsrsm2Info_t, int*) noexcept nogil>__cusparseSbsrsm2_bufferSize)(
+        handle, dirA, transA, transXY, mb, n, nnzb, descrA, bsrSortedVal, bsrSortedRowPtr, bsrSortedColInd, blockSize, info, pBufferSizeInBytes)
+
+
+cdef cusparseStatus_t _cusparseDbsrsm2_bufferSize(cusparseHandle_t handle, cusparseDirection_t dirA, cusparseOperation_t transA, cusparseOperation_t transXY, int mb, int n, int nnzb, const cusparseMatDescr_t descrA, double* bsrSortedVal, const int* bsrSortedRowPtr, const int* bsrSortedColInd, int blockSize, bsrsm2Info_t info, int* pBufferSizeInBytes) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseDbsrsm2_bufferSize
+    _check_or_init_cusparse()
+    if __cusparseDbsrsm2_bufferSize == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseDbsrsm2_bufferSize is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, cusparseOperation_t, cusparseOperation_t, int, int, int, const cusparseMatDescr_t, double*, const int*, const int*, int, bsrsm2Info_t, int*) noexcept nogil>__cusparseDbsrsm2_bufferSize)(
+        handle, dirA, transA, transXY, mb, n, nnzb, descrA, bsrSortedVal, bsrSortedRowPtr, bsrSortedColInd, blockSize, info, pBufferSizeInBytes)
+
+
+cdef cusparseStatus_t _cusparseCbsrsm2_bufferSize(cusparseHandle_t handle, cusparseDirection_t dirA, cusparseOperation_t transA, cusparseOperation_t transXY, int mb, int n, int nnzb, const cusparseMatDescr_t descrA, cuComplex* bsrSortedVal, const int* bsrSortedRowPtr, const int* bsrSortedColInd, int blockSize, bsrsm2Info_t info, int* pBufferSizeInBytes) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseCbsrsm2_bufferSize
+    _check_or_init_cusparse()
+    if __cusparseCbsrsm2_bufferSize == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseCbsrsm2_bufferSize is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, cusparseOperation_t, cusparseOperation_t, int, int, int, const cusparseMatDescr_t, cuComplex*, const int*, const int*, int, bsrsm2Info_t, int*) noexcept nogil>__cusparseCbsrsm2_bufferSize)(
+        handle, dirA, transA, transXY, mb, n, nnzb, descrA, bsrSortedVal, bsrSortedRowPtr, bsrSortedColInd, blockSize, info, pBufferSizeInBytes)
+
+
+cdef cusparseStatus_t _cusparseZbsrsm2_bufferSize(cusparseHandle_t handle, cusparseDirection_t dirA, cusparseOperation_t transA, cusparseOperation_t transXY, int mb, int n, int nnzb, const cusparseMatDescr_t descrA, cuDoubleComplex* bsrSortedVal, const int* bsrSortedRowPtr, const int* bsrSortedColInd, int blockSize, bsrsm2Info_t info, int* pBufferSizeInBytes) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseZbsrsm2_bufferSize
+    _check_or_init_cusparse()
+    if __cusparseZbsrsm2_bufferSize == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseZbsrsm2_bufferSize is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, cusparseOperation_t, cusparseOperation_t, int, int, int, const cusparseMatDescr_t, cuDoubleComplex*, const int*, const int*, int, bsrsm2Info_t, int*) noexcept nogil>__cusparseZbsrsm2_bufferSize)(
+        handle, dirA, transA, transXY, mb, n, nnzb, descrA, bsrSortedVal, bsrSortedRowPtr, bsrSortedColInd, blockSize, info, pBufferSizeInBytes)
+
+
+cdef cusparseStatus_t _cusparseSbsrsm2_bufferSizeExt(cusparseHandle_t handle, cusparseDirection_t dirA, cusparseOperation_t transA, cusparseOperation_t transB, int mb, int n, int nnzb, const cusparseMatDescr_t descrA, float* bsrSortedVal, const int* bsrSortedRowPtr, const int* bsrSortedColInd, int blockSize, bsrsm2Info_t info, size_t* pBufferSize) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseSbsrsm2_bufferSizeExt
+    _check_or_init_cusparse()
+    if __cusparseSbsrsm2_bufferSizeExt == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseSbsrsm2_bufferSizeExt is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, cusparseOperation_t, cusparseOperation_t, int, int, int, const cusparseMatDescr_t, float*, const int*, const int*, int, bsrsm2Info_t, size_t*) noexcept nogil>__cusparseSbsrsm2_bufferSizeExt)(
+        handle, dirA, transA, transB, mb, n, nnzb, descrA, bsrSortedVal, bsrSortedRowPtr, bsrSortedColInd, blockSize, info, pBufferSize)
+
+
+cdef cusparseStatus_t _cusparseDbsrsm2_bufferSizeExt(cusparseHandle_t handle, cusparseDirection_t dirA, cusparseOperation_t transA, cusparseOperation_t transB, int mb, int n, int nnzb, const cusparseMatDescr_t descrA, double* bsrSortedVal, const int* bsrSortedRowPtr, const int* bsrSortedColInd, int blockSize, bsrsm2Info_t info, size_t* pBufferSize) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseDbsrsm2_bufferSizeExt
+    _check_or_init_cusparse()
+    if __cusparseDbsrsm2_bufferSizeExt == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseDbsrsm2_bufferSizeExt is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, cusparseOperation_t, cusparseOperation_t, int, int, int, const cusparseMatDescr_t, double*, const int*, const int*, int, bsrsm2Info_t, size_t*) noexcept nogil>__cusparseDbsrsm2_bufferSizeExt)(
+        handle, dirA, transA, transB, mb, n, nnzb, descrA, bsrSortedVal, bsrSortedRowPtr, bsrSortedColInd, blockSize, info, pBufferSize)
+
+
+cdef cusparseStatus_t _cusparseCbsrsm2_bufferSizeExt(cusparseHandle_t handle, cusparseDirection_t dirA, cusparseOperation_t transA, cusparseOperation_t transB, int mb, int n, int nnzb, const cusparseMatDescr_t descrA, cuComplex* bsrSortedVal, const int* bsrSortedRowPtr, const int* bsrSortedColInd, int blockSize, bsrsm2Info_t info, size_t* pBufferSize) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseCbsrsm2_bufferSizeExt
+    _check_or_init_cusparse()
+    if __cusparseCbsrsm2_bufferSizeExt == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseCbsrsm2_bufferSizeExt is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, cusparseOperation_t, cusparseOperation_t, int, int, int, const cusparseMatDescr_t, cuComplex*, const int*, const int*, int, bsrsm2Info_t, size_t*) noexcept nogil>__cusparseCbsrsm2_bufferSizeExt)(
+        handle, dirA, transA, transB, mb, n, nnzb, descrA, bsrSortedVal, bsrSortedRowPtr, bsrSortedColInd, blockSize, info, pBufferSize)
+
+
+cdef cusparseStatus_t _cusparseZbsrsm2_bufferSizeExt(cusparseHandle_t handle, cusparseDirection_t dirA, cusparseOperation_t transA, cusparseOperation_t transB, int mb, int n, int nnzb, const cusparseMatDescr_t descrA, cuDoubleComplex* bsrSortedVal, const int* bsrSortedRowPtr, const int* bsrSortedColInd, int blockSize, bsrsm2Info_t info, size_t* pBufferSize) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseZbsrsm2_bufferSizeExt
+    _check_or_init_cusparse()
+    if __cusparseZbsrsm2_bufferSizeExt == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseZbsrsm2_bufferSizeExt is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, cusparseOperation_t, cusparseOperation_t, int, int, int, const cusparseMatDescr_t, cuDoubleComplex*, const int*, const int*, int, bsrsm2Info_t, size_t*) noexcept nogil>__cusparseZbsrsm2_bufferSizeExt)(
+        handle, dirA, transA, transB, mb, n, nnzb, descrA, bsrSortedVal, bsrSortedRowPtr, bsrSortedColInd, blockSize, info, pBufferSize)
+
+
+cdef cusparseStatus_t _cusparseSbsrsm2_analysis(cusparseHandle_t handle, cusparseDirection_t dirA, cusparseOperation_t transA, cusparseOperation_t transXY, int mb, int n, int nnzb, const cusparseMatDescr_t descrA, const float* bsrSortedVal, const int* bsrSortedRowPtr, const int* bsrSortedColInd, int blockSize, bsrsm2Info_t info, cusparseSolvePolicy_t policy, void* pBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseSbsrsm2_analysis
+    _check_or_init_cusparse()
+    if __cusparseSbsrsm2_analysis == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseSbsrsm2_analysis is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, cusparseOperation_t, cusparseOperation_t, int, int, int, const cusparseMatDescr_t, const float*, const int*, const int*, int, bsrsm2Info_t, cusparseSolvePolicy_t, void*) noexcept nogil>__cusparseSbsrsm2_analysis)(
+        handle, dirA, transA, transXY, mb, n, nnzb, descrA, bsrSortedVal, bsrSortedRowPtr, bsrSortedColInd, blockSize, info, policy, pBuffer)
+
+
+cdef cusparseStatus_t _cusparseDbsrsm2_analysis(cusparseHandle_t handle, cusparseDirection_t dirA, cusparseOperation_t transA, cusparseOperation_t transXY, int mb, int n, int nnzb, const cusparseMatDescr_t descrA, const double* bsrSortedVal, const int* bsrSortedRowPtr, const int* bsrSortedColInd, int blockSize, bsrsm2Info_t info, cusparseSolvePolicy_t policy, void* pBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseDbsrsm2_analysis
+    _check_or_init_cusparse()
+    if __cusparseDbsrsm2_analysis == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseDbsrsm2_analysis is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, cusparseOperation_t, cusparseOperation_t, int, int, int, const cusparseMatDescr_t, const double*, const int*, const int*, int, bsrsm2Info_t, cusparseSolvePolicy_t, void*) noexcept nogil>__cusparseDbsrsm2_analysis)(
+        handle, dirA, transA, transXY, mb, n, nnzb, descrA, bsrSortedVal, bsrSortedRowPtr, bsrSortedColInd, blockSize, info, policy, pBuffer)
+
+
+cdef cusparseStatus_t _cusparseCbsrsm2_analysis(cusparseHandle_t handle, cusparseDirection_t dirA, cusparseOperation_t transA, cusparseOperation_t transXY, int mb, int n, int nnzb, const cusparseMatDescr_t descrA, const cuComplex* bsrSortedVal, const int* bsrSortedRowPtr, const int* bsrSortedColInd, int blockSize, bsrsm2Info_t info, cusparseSolvePolicy_t policy, void* pBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseCbsrsm2_analysis
+    _check_or_init_cusparse()
+    if __cusparseCbsrsm2_analysis == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseCbsrsm2_analysis is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, cusparseOperation_t, cusparseOperation_t, int, int, int, const cusparseMatDescr_t, const cuComplex*, const int*, const int*, int, bsrsm2Info_t, cusparseSolvePolicy_t, void*) noexcept nogil>__cusparseCbsrsm2_analysis)(
+        handle, dirA, transA, transXY, mb, n, nnzb, descrA, bsrSortedVal, bsrSortedRowPtr, bsrSortedColInd, blockSize, info, policy, pBuffer)
+
+
+cdef cusparseStatus_t _cusparseZbsrsm2_analysis(cusparseHandle_t handle, cusparseDirection_t dirA, cusparseOperation_t transA, cusparseOperation_t transXY, int mb, int n, int nnzb, const cusparseMatDescr_t descrA, const cuDoubleComplex* bsrSortedVal, const int* bsrSortedRowPtr, const int* bsrSortedColInd, int blockSize, bsrsm2Info_t info, cusparseSolvePolicy_t policy, void* pBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseZbsrsm2_analysis
+    _check_or_init_cusparse()
+    if __cusparseZbsrsm2_analysis == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseZbsrsm2_analysis is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, cusparseOperation_t, cusparseOperation_t, int, int, int, const cusparseMatDescr_t, const cuDoubleComplex*, const int*, const int*, int, bsrsm2Info_t, cusparseSolvePolicy_t, void*) noexcept nogil>__cusparseZbsrsm2_analysis)(
+        handle, dirA, transA, transXY, mb, n, nnzb, descrA, bsrSortedVal, bsrSortedRowPtr, bsrSortedColInd, blockSize, info, policy, pBuffer)
+
+
+cdef cusparseStatus_t _cusparseSbsrsm2_solve(cusparseHandle_t handle, cusparseDirection_t dirA, cusparseOperation_t transA, cusparseOperation_t transXY, int mb, int n, int nnzb, const float* alpha, const cusparseMatDescr_t descrA, const float* bsrSortedVal, const int* bsrSortedRowPtr, const int* bsrSortedColInd, int blockSize, bsrsm2Info_t info, const float* B, int ldb, float* X, int ldx, cusparseSolvePolicy_t policy, void* pBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseSbsrsm2_solve
+    _check_or_init_cusparse()
+    if __cusparseSbsrsm2_solve == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseSbsrsm2_solve is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, cusparseOperation_t, cusparseOperation_t, int, int, int, const float*, const cusparseMatDescr_t, const float*, const int*, const int*, int, bsrsm2Info_t, const float*, int, float*, int, cusparseSolvePolicy_t, void*) noexcept nogil>__cusparseSbsrsm2_solve)(
+        handle, dirA, transA, transXY, mb, n, nnzb, alpha, descrA, bsrSortedVal, bsrSortedRowPtr, bsrSortedColInd, blockSize, info, B, ldb, X, ldx, policy, pBuffer)
+
+
+cdef cusparseStatus_t _cusparseDbsrsm2_solve(cusparseHandle_t handle, cusparseDirection_t dirA, cusparseOperation_t transA, cusparseOperation_t transXY, int mb, int n, int nnzb, const double* alpha, const cusparseMatDescr_t descrA, const double* bsrSortedVal, const int* bsrSortedRowPtr, const int* bsrSortedColInd, int blockSize, bsrsm2Info_t info, const double* B, int ldb, double* X, int ldx, cusparseSolvePolicy_t policy, void* pBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseDbsrsm2_solve
+    _check_or_init_cusparse()
+    if __cusparseDbsrsm2_solve == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseDbsrsm2_solve is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, cusparseOperation_t, cusparseOperation_t, int, int, int, const double*, const cusparseMatDescr_t, const double*, const int*, const int*, int, bsrsm2Info_t, const double*, int, double*, int, cusparseSolvePolicy_t, void*) noexcept nogil>__cusparseDbsrsm2_solve)(
+        handle, dirA, transA, transXY, mb, n, nnzb, alpha, descrA, bsrSortedVal, bsrSortedRowPtr, bsrSortedColInd, blockSize, info, B, ldb, X, ldx, policy, pBuffer)
+
+
+cdef cusparseStatus_t _cusparseCbsrsm2_solve(cusparseHandle_t handle, cusparseDirection_t dirA, cusparseOperation_t transA, cusparseOperation_t transXY, int mb, int n, int nnzb, const cuComplex* alpha, const cusparseMatDescr_t descrA, const cuComplex* bsrSortedVal, const int* bsrSortedRowPtr, const int* bsrSortedColInd, int blockSize, bsrsm2Info_t info, const cuComplex* B, int ldb, cuComplex* X, int ldx, cusparseSolvePolicy_t policy, void* pBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseCbsrsm2_solve
+    _check_or_init_cusparse()
+    if __cusparseCbsrsm2_solve == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseCbsrsm2_solve is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, cusparseOperation_t, cusparseOperation_t, int, int, int, const cuComplex*, const cusparseMatDescr_t, const cuComplex*, const int*, const int*, int, bsrsm2Info_t, const cuComplex*, int, cuComplex*, int, cusparseSolvePolicy_t, void*) noexcept nogil>__cusparseCbsrsm2_solve)(
+        handle, dirA, transA, transXY, mb, n, nnzb, alpha, descrA, bsrSortedVal, bsrSortedRowPtr, bsrSortedColInd, blockSize, info, B, ldb, X, ldx, policy, pBuffer)
+
+
+cdef cusparseStatus_t _cusparseZbsrsm2_solve(cusparseHandle_t handle, cusparseDirection_t dirA, cusparseOperation_t transA, cusparseOperation_t transXY, int mb, int n, int nnzb, const cuDoubleComplex* alpha, const cusparseMatDescr_t descrA, const cuDoubleComplex* bsrSortedVal, const int* bsrSortedRowPtr, const int* bsrSortedColInd, int blockSize, bsrsm2Info_t info, const cuDoubleComplex* B, int ldb, cuDoubleComplex* X, int ldx, cusparseSolvePolicy_t policy, void* pBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseZbsrsm2_solve
+    _check_or_init_cusparse()
+    if __cusparseZbsrsm2_solve == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseZbsrsm2_solve is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, cusparseOperation_t, cusparseOperation_t, int, int, int, const cuDoubleComplex*, const cusparseMatDescr_t, const cuDoubleComplex*, const int*, const int*, int, bsrsm2Info_t, const cuDoubleComplex*, int, cuDoubleComplex*, int, cusparseSolvePolicy_t, void*) noexcept nogil>__cusparseZbsrsm2_solve)(
+        handle, dirA, transA, transXY, mb, n, nnzb, alpha, descrA, bsrSortedVal, bsrSortedRowPtr, bsrSortedColInd, blockSize, info, B, ldb, X, ldx, policy, pBuffer)
+
+
+cdef cusparseStatus_t _cusparseScsrilu02_numericBoost(cusparseHandle_t handle, csrilu02Info_t info, int enable_boost, double* tol, float* boost_val) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseScsrilu02_numericBoost
+    _check_or_init_cusparse()
+    if __cusparseScsrilu02_numericBoost == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseScsrilu02_numericBoost is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, csrilu02Info_t, int, double*, float*) noexcept nogil>__cusparseScsrilu02_numericBoost)(
+        handle, info, enable_boost, tol, boost_val)
+
+
+cdef cusparseStatus_t _cusparseDcsrilu02_numericBoost(cusparseHandle_t handle, csrilu02Info_t info, int enable_boost, double* tol, double* boost_val) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseDcsrilu02_numericBoost
+    _check_or_init_cusparse()
+    if __cusparseDcsrilu02_numericBoost == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseDcsrilu02_numericBoost is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, csrilu02Info_t, int, double*, double*) noexcept nogil>__cusparseDcsrilu02_numericBoost)(
+        handle, info, enable_boost, tol, boost_val)
+
+
+cdef cusparseStatus_t _cusparseCcsrilu02_numericBoost(cusparseHandle_t handle, csrilu02Info_t info, int enable_boost, double* tol, cuComplex* boost_val) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseCcsrilu02_numericBoost
+    _check_or_init_cusparse()
+    if __cusparseCcsrilu02_numericBoost == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseCcsrilu02_numericBoost is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, csrilu02Info_t, int, double*, cuComplex*) noexcept nogil>__cusparseCcsrilu02_numericBoost)(
+        handle, info, enable_boost, tol, boost_val)
+
+
+cdef cusparseStatus_t _cusparseZcsrilu02_numericBoost(cusparseHandle_t handle, csrilu02Info_t info, int enable_boost, double* tol, cuDoubleComplex* boost_val) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseZcsrilu02_numericBoost
+    _check_or_init_cusparse()
+    if __cusparseZcsrilu02_numericBoost == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseZcsrilu02_numericBoost is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, csrilu02Info_t, int, double*, cuDoubleComplex*) noexcept nogil>__cusparseZcsrilu02_numericBoost)(
+        handle, info, enable_boost, tol, boost_val)
+
+
+cdef cusparseStatus_t _cusparseXcsrilu02_zeroPivot(cusparseHandle_t handle, csrilu02Info_t info, int* position) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseXcsrilu02_zeroPivot
+    _check_or_init_cusparse()
+    if __cusparseXcsrilu02_zeroPivot == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseXcsrilu02_zeroPivot is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, csrilu02Info_t, int*) noexcept nogil>__cusparseXcsrilu02_zeroPivot)(
+        handle, info, position)
+
+
+cdef cusparseStatus_t _cusparseScsrilu02_bufferSize(cusparseHandle_t handle, int m, int nnz, const cusparseMatDescr_t descrA, float* csrSortedValA, const int* csrSortedRowPtrA, const int* csrSortedColIndA, csrilu02Info_t info, int* pBufferSizeInBytes) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseScsrilu02_bufferSize
+    _check_or_init_cusparse()
+    if __cusparseScsrilu02_bufferSize == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseScsrilu02_bufferSize is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, const cusparseMatDescr_t, float*, const int*, const int*, csrilu02Info_t, int*) noexcept nogil>__cusparseScsrilu02_bufferSize)(
+        handle, m, nnz, descrA, csrSortedValA, csrSortedRowPtrA, csrSortedColIndA, info, pBufferSizeInBytes)
+
+
+cdef cusparseStatus_t _cusparseDcsrilu02_bufferSize(cusparseHandle_t handle, int m, int nnz, const cusparseMatDescr_t descrA, double* csrSortedValA, const int* csrSortedRowPtrA, const int* csrSortedColIndA, csrilu02Info_t info, int* pBufferSizeInBytes) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseDcsrilu02_bufferSize
+    _check_or_init_cusparse()
+    if __cusparseDcsrilu02_bufferSize == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseDcsrilu02_bufferSize is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, const cusparseMatDescr_t, double*, const int*, const int*, csrilu02Info_t, int*) noexcept nogil>__cusparseDcsrilu02_bufferSize)(
+        handle, m, nnz, descrA, csrSortedValA, csrSortedRowPtrA, csrSortedColIndA, info, pBufferSizeInBytes)
+
+
+cdef cusparseStatus_t _cusparseCcsrilu02_bufferSize(cusparseHandle_t handle, int m, int nnz, const cusparseMatDescr_t descrA, cuComplex* csrSortedValA, const int* csrSortedRowPtrA, const int* csrSortedColIndA, csrilu02Info_t info, int* pBufferSizeInBytes) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseCcsrilu02_bufferSize
+    _check_or_init_cusparse()
+    if __cusparseCcsrilu02_bufferSize == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseCcsrilu02_bufferSize is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, const cusparseMatDescr_t, cuComplex*, const int*, const int*, csrilu02Info_t, int*) noexcept nogil>__cusparseCcsrilu02_bufferSize)(
+        handle, m, nnz, descrA, csrSortedValA, csrSortedRowPtrA, csrSortedColIndA, info, pBufferSizeInBytes)
+
+
+cdef cusparseStatus_t _cusparseZcsrilu02_bufferSize(cusparseHandle_t handle, int m, int nnz, const cusparseMatDescr_t descrA, cuDoubleComplex* csrSortedValA, const int* csrSortedRowPtrA, const int* csrSortedColIndA, csrilu02Info_t info, int* pBufferSizeInBytes) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseZcsrilu02_bufferSize
+    _check_or_init_cusparse()
+    if __cusparseZcsrilu02_bufferSize == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseZcsrilu02_bufferSize is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, const cusparseMatDescr_t, cuDoubleComplex*, const int*, const int*, csrilu02Info_t, int*) noexcept nogil>__cusparseZcsrilu02_bufferSize)(
+        handle, m, nnz, descrA, csrSortedValA, csrSortedRowPtrA, csrSortedColIndA, info, pBufferSizeInBytes)
+
+
+cdef cusparseStatus_t _cusparseScsrilu02_bufferSizeExt(cusparseHandle_t handle, int m, int nnz, const cusparseMatDescr_t descrA, float* csrSortedVal, const int* csrSortedRowPtr, const int* csrSortedColInd, csrilu02Info_t info, size_t* pBufferSize) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseScsrilu02_bufferSizeExt
+    _check_or_init_cusparse()
+    if __cusparseScsrilu02_bufferSizeExt == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseScsrilu02_bufferSizeExt is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, const cusparseMatDescr_t, float*, const int*, const int*, csrilu02Info_t, size_t*) noexcept nogil>__cusparseScsrilu02_bufferSizeExt)(
+        handle, m, nnz, descrA, csrSortedVal, csrSortedRowPtr, csrSortedColInd, info, pBufferSize)
+
+
+cdef cusparseStatus_t _cusparseDcsrilu02_bufferSizeExt(cusparseHandle_t handle, int m, int nnz, const cusparseMatDescr_t descrA, double* csrSortedVal, const int* csrSortedRowPtr, const int* csrSortedColInd, csrilu02Info_t info, size_t* pBufferSize) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseDcsrilu02_bufferSizeExt
+    _check_or_init_cusparse()
+    if __cusparseDcsrilu02_bufferSizeExt == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseDcsrilu02_bufferSizeExt is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, const cusparseMatDescr_t, double*, const int*, const int*, csrilu02Info_t, size_t*) noexcept nogil>__cusparseDcsrilu02_bufferSizeExt)(
+        handle, m, nnz, descrA, csrSortedVal, csrSortedRowPtr, csrSortedColInd, info, pBufferSize)
+
+
+cdef cusparseStatus_t _cusparseCcsrilu02_bufferSizeExt(cusparseHandle_t handle, int m, int nnz, const cusparseMatDescr_t descrA, cuComplex* csrSortedVal, const int* csrSortedRowPtr, const int* csrSortedColInd, csrilu02Info_t info, size_t* pBufferSize) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseCcsrilu02_bufferSizeExt
+    _check_or_init_cusparse()
+    if __cusparseCcsrilu02_bufferSizeExt == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseCcsrilu02_bufferSizeExt is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, const cusparseMatDescr_t, cuComplex*, const int*, const int*, csrilu02Info_t, size_t*) noexcept nogil>__cusparseCcsrilu02_bufferSizeExt)(
+        handle, m, nnz, descrA, csrSortedVal, csrSortedRowPtr, csrSortedColInd, info, pBufferSize)
+
+
+cdef cusparseStatus_t _cusparseZcsrilu02_bufferSizeExt(cusparseHandle_t handle, int m, int nnz, const cusparseMatDescr_t descrA, cuDoubleComplex* csrSortedVal, const int* csrSortedRowPtr, const int* csrSortedColInd, csrilu02Info_t info, size_t* pBufferSize) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseZcsrilu02_bufferSizeExt
+    _check_or_init_cusparse()
+    if __cusparseZcsrilu02_bufferSizeExt == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseZcsrilu02_bufferSizeExt is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, const cusparseMatDescr_t, cuDoubleComplex*, const int*, const int*, csrilu02Info_t, size_t*) noexcept nogil>__cusparseZcsrilu02_bufferSizeExt)(
+        handle, m, nnz, descrA, csrSortedVal, csrSortedRowPtr, csrSortedColInd, info, pBufferSize)
+
+
+cdef cusparseStatus_t _cusparseScsrilu02_analysis(cusparseHandle_t handle, int m, int nnz, const cusparseMatDescr_t descrA, const float* csrSortedValA, const int* csrSortedRowPtrA, const int* csrSortedColIndA, csrilu02Info_t info, cusparseSolvePolicy_t policy, void* pBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseScsrilu02_analysis
+    _check_or_init_cusparse()
+    if __cusparseScsrilu02_analysis == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseScsrilu02_analysis is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, const cusparseMatDescr_t, const float*, const int*, const int*, csrilu02Info_t, cusparseSolvePolicy_t, void*) noexcept nogil>__cusparseScsrilu02_analysis)(
+        handle, m, nnz, descrA, csrSortedValA, csrSortedRowPtrA, csrSortedColIndA, info, policy, pBuffer)
+
+
+cdef cusparseStatus_t _cusparseDcsrilu02_analysis(cusparseHandle_t handle, int m, int nnz, const cusparseMatDescr_t descrA, const double* csrSortedValA, const int* csrSortedRowPtrA, const int* csrSortedColIndA, csrilu02Info_t info, cusparseSolvePolicy_t policy, void* pBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseDcsrilu02_analysis
+    _check_or_init_cusparse()
+    if __cusparseDcsrilu02_analysis == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseDcsrilu02_analysis is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, const cusparseMatDescr_t, const double*, const int*, const int*, csrilu02Info_t, cusparseSolvePolicy_t, void*) noexcept nogil>__cusparseDcsrilu02_analysis)(
+        handle, m, nnz, descrA, csrSortedValA, csrSortedRowPtrA, csrSortedColIndA, info, policy, pBuffer)
+
+
+cdef cusparseStatus_t _cusparseCcsrilu02_analysis(cusparseHandle_t handle, int m, int nnz, const cusparseMatDescr_t descrA, const cuComplex* csrSortedValA, const int* csrSortedRowPtrA, const int* csrSortedColIndA, csrilu02Info_t info, cusparseSolvePolicy_t policy, void* pBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseCcsrilu02_analysis
+    _check_or_init_cusparse()
+    if __cusparseCcsrilu02_analysis == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseCcsrilu02_analysis is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, const cusparseMatDescr_t, const cuComplex*, const int*, const int*, csrilu02Info_t, cusparseSolvePolicy_t, void*) noexcept nogil>__cusparseCcsrilu02_analysis)(
+        handle, m, nnz, descrA, csrSortedValA, csrSortedRowPtrA, csrSortedColIndA, info, policy, pBuffer)
+
+
+cdef cusparseStatus_t _cusparseZcsrilu02_analysis(cusparseHandle_t handle, int m, int nnz, const cusparseMatDescr_t descrA, const cuDoubleComplex* csrSortedValA, const int* csrSortedRowPtrA, const int* csrSortedColIndA, csrilu02Info_t info, cusparseSolvePolicy_t policy, void* pBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseZcsrilu02_analysis
+    _check_or_init_cusparse()
+    if __cusparseZcsrilu02_analysis == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseZcsrilu02_analysis is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, const cusparseMatDescr_t, const cuDoubleComplex*, const int*, const int*, csrilu02Info_t, cusparseSolvePolicy_t, void*) noexcept nogil>__cusparseZcsrilu02_analysis)(
+        handle, m, nnz, descrA, csrSortedValA, csrSortedRowPtrA, csrSortedColIndA, info, policy, pBuffer)
+
+
+cdef cusparseStatus_t _cusparseScsrilu02(cusparseHandle_t handle, int m, int nnz, const cusparseMatDescr_t descrA, float* csrSortedValA_valM, const int* csrSortedRowPtrA, const int* csrSortedColIndA, csrilu02Info_t info, cusparseSolvePolicy_t policy, void* pBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseScsrilu02
+    _check_or_init_cusparse()
+    if __cusparseScsrilu02 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseScsrilu02 is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, const cusparseMatDescr_t, float*, const int*, const int*, csrilu02Info_t, cusparseSolvePolicy_t, void*) noexcept nogil>__cusparseScsrilu02)(
+        handle, m, nnz, descrA, csrSortedValA_valM, csrSortedRowPtrA, csrSortedColIndA, info, policy, pBuffer)
+
+
+cdef cusparseStatus_t _cusparseDcsrilu02(cusparseHandle_t handle, int m, int nnz, const cusparseMatDescr_t descrA, double* csrSortedValA_valM, const int* csrSortedRowPtrA, const int* csrSortedColIndA, csrilu02Info_t info, cusparseSolvePolicy_t policy, void* pBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseDcsrilu02
+    _check_or_init_cusparse()
+    if __cusparseDcsrilu02 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseDcsrilu02 is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, const cusparseMatDescr_t, double*, const int*, const int*, csrilu02Info_t, cusparseSolvePolicy_t, void*) noexcept nogil>__cusparseDcsrilu02)(
+        handle, m, nnz, descrA, csrSortedValA_valM, csrSortedRowPtrA, csrSortedColIndA, info, policy, pBuffer)
+
+
+cdef cusparseStatus_t _cusparseCcsrilu02(cusparseHandle_t handle, int m, int nnz, const cusparseMatDescr_t descrA, cuComplex* csrSortedValA_valM, const int* csrSortedRowPtrA, const int* csrSortedColIndA, csrilu02Info_t info, cusparseSolvePolicy_t policy, void* pBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseCcsrilu02
+    _check_or_init_cusparse()
+    if __cusparseCcsrilu02 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseCcsrilu02 is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, const cusparseMatDescr_t, cuComplex*, const int*, const int*, csrilu02Info_t, cusparseSolvePolicy_t, void*) noexcept nogil>__cusparseCcsrilu02)(
+        handle, m, nnz, descrA, csrSortedValA_valM, csrSortedRowPtrA, csrSortedColIndA, info, policy, pBuffer)
+
+
+cdef cusparseStatus_t _cusparseZcsrilu02(cusparseHandle_t handle, int m, int nnz, const cusparseMatDescr_t descrA, cuDoubleComplex* csrSortedValA_valM, const int* csrSortedRowPtrA, const int* csrSortedColIndA, csrilu02Info_t info, cusparseSolvePolicy_t policy, void* pBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseZcsrilu02
+    _check_or_init_cusparse()
+    if __cusparseZcsrilu02 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseZcsrilu02 is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, const cusparseMatDescr_t, cuDoubleComplex*, const int*, const int*, csrilu02Info_t, cusparseSolvePolicy_t, void*) noexcept nogil>__cusparseZcsrilu02)(
+        handle, m, nnz, descrA, csrSortedValA_valM, csrSortedRowPtrA, csrSortedColIndA, info, policy, pBuffer)
+
+
+cdef cusparseStatus_t _cusparseSbsrilu02_numericBoost(cusparseHandle_t handle, bsrilu02Info_t info, int enable_boost, double* tol, float* boost_val) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseSbsrilu02_numericBoost
+    _check_or_init_cusparse()
+    if __cusparseSbsrilu02_numericBoost == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseSbsrilu02_numericBoost is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, bsrilu02Info_t, int, double*, float*) noexcept nogil>__cusparseSbsrilu02_numericBoost)(
+        handle, info, enable_boost, tol, boost_val)
+
+
+cdef cusparseStatus_t _cusparseDbsrilu02_numericBoost(cusparseHandle_t handle, bsrilu02Info_t info, int enable_boost, double* tol, double* boost_val) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseDbsrilu02_numericBoost
+    _check_or_init_cusparse()
+    if __cusparseDbsrilu02_numericBoost == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseDbsrilu02_numericBoost is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, bsrilu02Info_t, int, double*, double*) noexcept nogil>__cusparseDbsrilu02_numericBoost)(
+        handle, info, enable_boost, tol, boost_val)
+
+
+cdef cusparseStatus_t _cusparseCbsrilu02_numericBoost(cusparseHandle_t handle, bsrilu02Info_t info, int enable_boost, double* tol, cuComplex* boost_val) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseCbsrilu02_numericBoost
+    _check_or_init_cusparse()
+    if __cusparseCbsrilu02_numericBoost == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseCbsrilu02_numericBoost is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, bsrilu02Info_t, int, double*, cuComplex*) noexcept nogil>__cusparseCbsrilu02_numericBoost)(
+        handle, info, enable_boost, tol, boost_val)
+
+
+cdef cusparseStatus_t _cusparseZbsrilu02_numericBoost(cusparseHandle_t handle, bsrilu02Info_t info, int enable_boost, double* tol, cuDoubleComplex* boost_val) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseZbsrilu02_numericBoost
+    _check_or_init_cusparse()
+    if __cusparseZbsrilu02_numericBoost == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseZbsrilu02_numericBoost is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, bsrilu02Info_t, int, double*, cuDoubleComplex*) noexcept nogil>__cusparseZbsrilu02_numericBoost)(
+        handle, info, enable_boost, tol, boost_val)
+
+
+cdef cusparseStatus_t _cusparseXbsrilu02_zeroPivot(cusparseHandle_t handle, bsrilu02Info_t info, int* position) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseXbsrilu02_zeroPivot
+    _check_or_init_cusparse()
+    if __cusparseXbsrilu02_zeroPivot == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseXbsrilu02_zeroPivot is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, bsrilu02Info_t, int*) noexcept nogil>__cusparseXbsrilu02_zeroPivot)(
+        handle, info, position)
+
+
+cdef cusparseStatus_t _cusparseSbsrilu02_bufferSize(cusparseHandle_t handle, cusparseDirection_t dirA, int mb, int nnzb, const cusparseMatDescr_t descrA, float* bsrSortedVal, const int* bsrSortedRowPtr, const int* bsrSortedColInd, int blockDim, bsrilu02Info_t info, int* pBufferSizeInBytes) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseSbsrilu02_bufferSize
+    _check_or_init_cusparse()
+    if __cusparseSbsrilu02_bufferSize == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseSbsrilu02_bufferSize is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, int, int, const cusparseMatDescr_t, float*, const int*, const int*, int, bsrilu02Info_t, int*) noexcept nogil>__cusparseSbsrilu02_bufferSize)(
+        handle, dirA, mb, nnzb, descrA, bsrSortedVal, bsrSortedRowPtr, bsrSortedColInd, blockDim, info, pBufferSizeInBytes)
+
+
+cdef cusparseStatus_t _cusparseDbsrilu02_bufferSize(cusparseHandle_t handle, cusparseDirection_t dirA, int mb, int nnzb, const cusparseMatDescr_t descrA, double* bsrSortedVal, const int* bsrSortedRowPtr, const int* bsrSortedColInd, int blockDim, bsrilu02Info_t info, int* pBufferSizeInBytes) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseDbsrilu02_bufferSize
+    _check_or_init_cusparse()
+    if __cusparseDbsrilu02_bufferSize == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseDbsrilu02_bufferSize is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, int, int, const cusparseMatDescr_t, double*, const int*, const int*, int, bsrilu02Info_t, int*) noexcept nogil>__cusparseDbsrilu02_bufferSize)(
+        handle, dirA, mb, nnzb, descrA, bsrSortedVal, bsrSortedRowPtr, bsrSortedColInd, blockDim, info, pBufferSizeInBytes)
+
+
+cdef cusparseStatus_t _cusparseCbsrilu02_bufferSize(cusparseHandle_t handle, cusparseDirection_t dirA, int mb, int nnzb, const cusparseMatDescr_t descrA, cuComplex* bsrSortedVal, const int* bsrSortedRowPtr, const int* bsrSortedColInd, int blockDim, bsrilu02Info_t info, int* pBufferSizeInBytes) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseCbsrilu02_bufferSize
+    _check_or_init_cusparse()
+    if __cusparseCbsrilu02_bufferSize == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseCbsrilu02_bufferSize is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, int, int, const cusparseMatDescr_t, cuComplex*, const int*, const int*, int, bsrilu02Info_t, int*) noexcept nogil>__cusparseCbsrilu02_bufferSize)(
+        handle, dirA, mb, nnzb, descrA, bsrSortedVal, bsrSortedRowPtr, bsrSortedColInd, blockDim, info, pBufferSizeInBytes)
+
+
+cdef cusparseStatus_t _cusparseZbsrilu02_bufferSize(cusparseHandle_t handle, cusparseDirection_t dirA, int mb, int nnzb, const cusparseMatDescr_t descrA, cuDoubleComplex* bsrSortedVal, const int* bsrSortedRowPtr, const int* bsrSortedColInd, int blockDim, bsrilu02Info_t info, int* pBufferSizeInBytes) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseZbsrilu02_bufferSize
+    _check_or_init_cusparse()
+    if __cusparseZbsrilu02_bufferSize == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseZbsrilu02_bufferSize is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, int, int, const cusparseMatDescr_t, cuDoubleComplex*, const int*, const int*, int, bsrilu02Info_t, int*) noexcept nogil>__cusparseZbsrilu02_bufferSize)(
+        handle, dirA, mb, nnzb, descrA, bsrSortedVal, bsrSortedRowPtr, bsrSortedColInd, blockDim, info, pBufferSizeInBytes)
+
+
+cdef cusparseStatus_t _cusparseSbsrilu02_bufferSizeExt(cusparseHandle_t handle, cusparseDirection_t dirA, int mb, int nnzb, const cusparseMatDescr_t descrA, float* bsrSortedVal, const int* bsrSortedRowPtr, const int* bsrSortedColInd, int blockSize, bsrilu02Info_t info, size_t* pBufferSize) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseSbsrilu02_bufferSizeExt
+    _check_or_init_cusparse()
+    if __cusparseSbsrilu02_bufferSizeExt == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseSbsrilu02_bufferSizeExt is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, int, int, const cusparseMatDescr_t, float*, const int*, const int*, int, bsrilu02Info_t, size_t*) noexcept nogil>__cusparseSbsrilu02_bufferSizeExt)(
+        handle, dirA, mb, nnzb, descrA, bsrSortedVal, bsrSortedRowPtr, bsrSortedColInd, blockSize, info, pBufferSize)
+
+
+cdef cusparseStatus_t _cusparseDbsrilu02_bufferSizeExt(cusparseHandle_t handle, cusparseDirection_t dirA, int mb, int nnzb, const cusparseMatDescr_t descrA, double* bsrSortedVal, const int* bsrSortedRowPtr, const int* bsrSortedColInd, int blockSize, bsrilu02Info_t info, size_t* pBufferSize) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseDbsrilu02_bufferSizeExt
+    _check_or_init_cusparse()
+    if __cusparseDbsrilu02_bufferSizeExt == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseDbsrilu02_bufferSizeExt is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, int, int, const cusparseMatDescr_t, double*, const int*, const int*, int, bsrilu02Info_t, size_t*) noexcept nogil>__cusparseDbsrilu02_bufferSizeExt)(
+        handle, dirA, mb, nnzb, descrA, bsrSortedVal, bsrSortedRowPtr, bsrSortedColInd, blockSize, info, pBufferSize)
+
+
+cdef cusparseStatus_t _cusparseCbsrilu02_bufferSizeExt(cusparseHandle_t handle, cusparseDirection_t dirA, int mb, int nnzb, const cusparseMatDescr_t descrA, cuComplex* bsrSortedVal, const int* bsrSortedRowPtr, const int* bsrSortedColInd, int blockSize, bsrilu02Info_t info, size_t* pBufferSize) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseCbsrilu02_bufferSizeExt
+    _check_or_init_cusparse()
+    if __cusparseCbsrilu02_bufferSizeExt == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseCbsrilu02_bufferSizeExt is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, int, int, const cusparseMatDescr_t, cuComplex*, const int*, const int*, int, bsrilu02Info_t, size_t*) noexcept nogil>__cusparseCbsrilu02_bufferSizeExt)(
+        handle, dirA, mb, nnzb, descrA, bsrSortedVal, bsrSortedRowPtr, bsrSortedColInd, blockSize, info, pBufferSize)
+
+
+cdef cusparseStatus_t _cusparseZbsrilu02_bufferSizeExt(cusparseHandle_t handle, cusparseDirection_t dirA, int mb, int nnzb, const cusparseMatDescr_t descrA, cuDoubleComplex* bsrSortedVal, const int* bsrSortedRowPtr, const int* bsrSortedColInd, int blockSize, bsrilu02Info_t info, size_t* pBufferSize) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseZbsrilu02_bufferSizeExt
+    _check_or_init_cusparse()
+    if __cusparseZbsrilu02_bufferSizeExt == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseZbsrilu02_bufferSizeExt is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, int, int, const cusparseMatDescr_t, cuDoubleComplex*, const int*, const int*, int, bsrilu02Info_t, size_t*) noexcept nogil>__cusparseZbsrilu02_bufferSizeExt)(
+        handle, dirA, mb, nnzb, descrA, bsrSortedVal, bsrSortedRowPtr, bsrSortedColInd, blockSize, info, pBufferSize)
+
+
+cdef cusparseStatus_t _cusparseSbsrilu02_analysis(cusparseHandle_t handle, cusparseDirection_t dirA, int mb, int nnzb, const cusparseMatDescr_t descrA, float* bsrSortedVal, const int* bsrSortedRowPtr, const int* bsrSortedColInd, int blockDim, bsrilu02Info_t info, cusparseSolvePolicy_t policy, void* pBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseSbsrilu02_analysis
+    _check_or_init_cusparse()
+    if __cusparseSbsrilu02_analysis == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseSbsrilu02_analysis is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, int, int, const cusparseMatDescr_t, float*, const int*, const int*, int, bsrilu02Info_t, cusparseSolvePolicy_t, void*) noexcept nogil>__cusparseSbsrilu02_analysis)(
+        handle, dirA, mb, nnzb, descrA, bsrSortedVal, bsrSortedRowPtr, bsrSortedColInd, blockDim, info, policy, pBuffer)
+
+
+cdef cusparseStatus_t _cusparseDbsrilu02_analysis(cusparseHandle_t handle, cusparseDirection_t dirA, int mb, int nnzb, const cusparseMatDescr_t descrA, double* bsrSortedVal, const int* bsrSortedRowPtr, const int* bsrSortedColInd, int blockDim, bsrilu02Info_t info, cusparseSolvePolicy_t policy, void* pBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseDbsrilu02_analysis
+    _check_or_init_cusparse()
+    if __cusparseDbsrilu02_analysis == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseDbsrilu02_analysis is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, int, int, const cusparseMatDescr_t, double*, const int*, const int*, int, bsrilu02Info_t, cusparseSolvePolicy_t, void*) noexcept nogil>__cusparseDbsrilu02_analysis)(
+        handle, dirA, mb, nnzb, descrA, bsrSortedVal, bsrSortedRowPtr, bsrSortedColInd, blockDim, info, policy, pBuffer)
+
+
+cdef cusparseStatus_t _cusparseCbsrilu02_analysis(cusparseHandle_t handle, cusparseDirection_t dirA, int mb, int nnzb, const cusparseMatDescr_t descrA, cuComplex* bsrSortedVal, const int* bsrSortedRowPtr, const int* bsrSortedColInd, int blockDim, bsrilu02Info_t info, cusparseSolvePolicy_t policy, void* pBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseCbsrilu02_analysis
+    _check_or_init_cusparse()
+    if __cusparseCbsrilu02_analysis == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseCbsrilu02_analysis is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, int, int, const cusparseMatDescr_t, cuComplex*, const int*, const int*, int, bsrilu02Info_t, cusparseSolvePolicy_t, void*) noexcept nogil>__cusparseCbsrilu02_analysis)(
+        handle, dirA, mb, nnzb, descrA, bsrSortedVal, bsrSortedRowPtr, bsrSortedColInd, blockDim, info, policy, pBuffer)
+
+
+cdef cusparseStatus_t _cusparseZbsrilu02_analysis(cusparseHandle_t handle, cusparseDirection_t dirA, int mb, int nnzb, const cusparseMatDescr_t descrA, cuDoubleComplex* bsrSortedVal, const int* bsrSortedRowPtr, const int* bsrSortedColInd, int blockDim, bsrilu02Info_t info, cusparseSolvePolicy_t policy, void* pBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseZbsrilu02_analysis
+    _check_or_init_cusparse()
+    if __cusparseZbsrilu02_analysis == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseZbsrilu02_analysis is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, int, int, const cusparseMatDescr_t, cuDoubleComplex*, const int*, const int*, int, bsrilu02Info_t, cusparseSolvePolicy_t, void*) noexcept nogil>__cusparseZbsrilu02_analysis)(
+        handle, dirA, mb, nnzb, descrA, bsrSortedVal, bsrSortedRowPtr, bsrSortedColInd, blockDim, info, policy, pBuffer)
+
+
+cdef cusparseStatus_t _cusparseSbsrilu02(cusparseHandle_t handle, cusparseDirection_t dirA, int mb, int nnzb, const cusparseMatDescr_t descrA, float* bsrSortedVal, const int* bsrSortedRowPtr, const int* bsrSortedColInd, int blockDim, bsrilu02Info_t info, cusparseSolvePolicy_t policy, void* pBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseSbsrilu02
+    _check_or_init_cusparse()
+    if __cusparseSbsrilu02 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseSbsrilu02 is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, int, int, const cusparseMatDescr_t, float*, const int*, const int*, int, bsrilu02Info_t, cusparseSolvePolicy_t, void*) noexcept nogil>__cusparseSbsrilu02)(
+        handle, dirA, mb, nnzb, descrA, bsrSortedVal, bsrSortedRowPtr, bsrSortedColInd, blockDim, info, policy, pBuffer)
+
+
+cdef cusparseStatus_t _cusparseDbsrilu02(cusparseHandle_t handle, cusparseDirection_t dirA, int mb, int nnzb, const cusparseMatDescr_t descrA, double* bsrSortedVal, const int* bsrSortedRowPtr, const int* bsrSortedColInd, int blockDim, bsrilu02Info_t info, cusparseSolvePolicy_t policy, void* pBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseDbsrilu02
+    _check_or_init_cusparse()
+    if __cusparseDbsrilu02 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseDbsrilu02 is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, int, int, const cusparseMatDescr_t, double*, const int*, const int*, int, bsrilu02Info_t, cusparseSolvePolicy_t, void*) noexcept nogil>__cusparseDbsrilu02)(
+        handle, dirA, mb, nnzb, descrA, bsrSortedVal, bsrSortedRowPtr, bsrSortedColInd, blockDim, info, policy, pBuffer)
+
+
+cdef cusparseStatus_t _cusparseCbsrilu02(cusparseHandle_t handle, cusparseDirection_t dirA, int mb, int nnzb, const cusparseMatDescr_t descrA, cuComplex* bsrSortedVal, const int* bsrSortedRowPtr, const int* bsrSortedColInd, int blockDim, bsrilu02Info_t info, cusparseSolvePolicy_t policy, void* pBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseCbsrilu02
+    _check_or_init_cusparse()
+    if __cusparseCbsrilu02 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseCbsrilu02 is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, int, int, const cusparseMatDescr_t, cuComplex*, const int*, const int*, int, bsrilu02Info_t, cusparseSolvePolicy_t, void*) noexcept nogil>__cusparseCbsrilu02)(
+        handle, dirA, mb, nnzb, descrA, bsrSortedVal, bsrSortedRowPtr, bsrSortedColInd, blockDim, info, policy, pBuffer)
+
+
+cdef cusparseStatus_t _cusparseZbsrilu02(cusparseHandle_t handle, cusparseDirection_t dirA, int mb, int nnzb, const cusparseMatDescr_t descrA, cuDoubleComplex* bsrSortedVal, const int* bsrSortedRowPtr, const int* bsrSortedColInd, int blockDim, bsrilu02Info_t info, cusparseSolvePolicy_t policy, void* pBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseZbsrilu02
+    _check_or_init_cusparse()
+    if __cusparseZbsrilu02 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseZbsrilu02 is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, int, int, const cusparseMatDescr_t, cuDoubleComplex*, const int*, const int*, int, bsrilu02Info_t, cusparseSolvePolicy_t, void*) noexcept nogil>__cusparseZbsrilu02)(
+        handle, dirA, mb, nnzb, descrA, bsrSortedVal, bsrSortedRowPtr, bsrSortedColInd, blockDim, info, policy, pBuffer)
+
+
+cdef cusparseStatus_t _cusparseXcsric02_zeroPivot(cusparseHandle_t handle, csric02Info_t info, int* position) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseXcsric02_zeroPivot
+    _check_or_init_cusparse()
+    if __cusparseXcsric02_zeroPivot == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseXcsric02_zeroPivot is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, csric02Info_t, int*) noexcept nogil>__cusparseXcsric02_zeroPivot)(
+        handle, info, position)
+
+
+cdef cusparseStatus_t _cusparseScsric02_bufferSize(cusparseHandle_t handle, int m, int nnz, const cusparseMatDescr_t descrA, float* csrSortedValA, const int* csrSortedRowPtrA, const int* csrSortedColIndA, csric02Info_t info, int* pBufferSizeInBytes) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseScsric02_bufferSize
+    _check_or_init_cusparse()
+    if __cusparseScsric02_bufferSize == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseScsric02_bufferSize is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, const cusparseMatDescr_t, float*, const int*, const int*, csric02Info_t, int*) noexcept nogil>__cusparseScsric02_bufferSize)(
+        handle, m, nnz, descrA, csrSortedValA, csrSortedRowPtrA, csrSortedColIndA, info, pBufferSizeInBytes)
+
+
+cdef cusparseStatus_t _cusparseDcsric02_bufferSize(cusparseHandle_t handle, int m, int nnz, const cusparseMatDescr_t descrA, double* csrSortedValA, const int* csrSortedRowPtrA, const int* csrSortedColIndA, csric02Info_t info, int* pBufferSizeInBytes) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseDcsric02_bufferSize
+    _check_or_init_cusparse()
+    if __cusparseDcsric02_bufferSize == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseDcsric02_bufferSize is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, const cusparseMatDescr_t, double*, const int*, const int*, csric02Info_t, int*) noexcept nogil>__cusparseDcsric02_bufferSize)(
+        handle, m, nnz, descrA, csrSortedValA, csrSortedRowPtrA, csrSortedColIndA, info, pBufferSizeInBytes)
+
+
+cdef cusparseStatus_t _cusparseCcsric02_bufferSize(cusparseHandle_t handle, int m, int nnz, const cusparseMatDescr_t descrA, cuComplex* csrSortedValA, const int* csrSortedRowPtrA, const int* csrSortedColIndA, csric02Info_t info, int* pBufferSizeInBytes) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseCcsric02_bufferSize
+    _check_or_init_cusparse()
+    if __cusparseCcsric02_bufferSize == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseCcsric02_bufferSize is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, const cusparseMatDescr_t, cuComplex*, const int*, const int*, csric02Info_t, int*) noexcept nogil>__cusparseCcsric02_bufferSize)(
+        handle, m, nnz, descrA, csrSortedValA, csrSortedRowPtrA, csrSortedColIndA, info, pBufferSizeInBytes)
+
+
+cdef cusparseStatus_t _cusparseZcsric02_bufferSize(cusparseHandle_t handle, int m, int nnz, const cusparseMatDescr_t descrA, cuDoubleComplex* csrSortedValA, const int* csrSortedRowPtrA, const int* csrSortedColIndA, csric02Info_t info, int* pBufferSizeInBytes) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseZcsric02_bufferSize
+    _check_or_init_cusparse()
+    if __cusparseZcsric02_bufferSize == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseZcsric02_bufferSize is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, const cusparseMatDescr_t, cuDoubleComplex*, const int*, const int*, csric02Info_t, int*) noexcept nogil>__cusparseZcsric02_bufferSize)(
+        handle, m, nnz, descrA, csrSortedValA, csrSortedRowPtrA, csrSortedColIndA, info, pBufferSizeInBytes)
+
+
+cdef cusparseStatus_t _cusparseScsric02_bufferSizeExt(cusparseHandle_t handle, int m, int nnz, const cusparseMatDescr_t descrA, float* csrSortedVal, const int* csrSortedRowPtr, const int* csrSortedColInd, csric02Info_t info, size_t* pBufferSize) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseScsric02_bufferSizeExt
+    _check_or_init_cusparse()
+    if __cusparseScsric02_bufferSizeExt == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseScsric02_bufferSizeExt is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, const cusparseMatDescr_t, float*, const int*, const int*, csric02Info_t, size_t*) noexcept nogil>__cusparseScsric02_bufferSizeExt)(
+        handle, m, nnz, descrA, csrSortedVal, csrSortedRowPtr, csrSortedColInd, info, pBufferSize)
+
+
+cdef cusparseStatus_t _cusparseDcsric02_bufferSizeExt(cusparseHandle_t handle, int m, int nnz, const cusparseMatDescr_t descrA, double* csrSortedVal, const int* csrSortedRowPtr, const int* csrSortedColInd, csric02Info_t info, size_t* pBufferSize) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseDcsric02_bufferSizeExt
+    _check_or_init_cusparse()
+    if __cusparseDcsric02_bufferSizeExt == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseDcsric02_bufferSizeExt is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, const cusparseMatDescr_t, double*, const int*, const int*, csric02Info_t, size_t*) noexcept nogil>__cusparseDcsric02_bufferSizeExt)(
+        handle, m, nnz, descrA, csrSortedVal, csrSortedRowPtr, csrSortedColInd, info, pBufferSize)
+
+
+cdef cusparseStatus_t _cusparseCcsric02_bufferSizeExt(cusparseHandle_t handle, int m, int nnz, const cusparseMatDescr_t descrA, cuComplex* csrSortedVal, const int* csrSortedRowPtr, const int* csrSortedColInd, csric02Info_t info, size_t* pBufferSize) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseCcsric02_bufferSizeExt
+    _check_or_init_cusparse()
+    if __cusparseCcsric02_bufferSizeExt == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseCcsric02_bufferSizeExt is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, const cusparseMatDescr_t, cuComplex*, const int*, const int*, csric02Info_t, size_t*) noexcept nogil>__cusparseCcsric02_bufferSizeExt)(
+        handle, m, nnz, descrA, csrSortedVal, csrSortedRowPtr, csrSortedColInd, info, pBufferSize)
+
+
+cdef cusparseStatus_t _cusparseZcsric02_bufferSizeExt(cusparseHandle_t handle, int m, int nnz, const cusparseMatDescr_t descrA, cuDoubleComplex* csrSortedVal, const int* csrSortedRowPtr, const int* csrSortedColInd, csric02Info_t info, size_t* pBufferSize) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseZcsric02_bufferSizeExt
+    _check_or_init_cusparse()
+    if __cusparseZcsric02_bufferSizeExt == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseZcsric02_bufferSizeExt is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, const cusparseMatDescr_t, cuDoubleComplex*, const int*, const int*, csric02Info_t, size_t*) noexcept nogil>__cusparseZcsric02_bufferSizeExt)(
+        handle, m, nnz, descrA, csrSortedVal, csrSortedRowPtr, csrSortedColInd, info, pBufferSize)
+
+
+cdef cusparseStatus_t _cusparseScsric02_analysis(cusparseHandle_t handle, int m, int nnz, const cusparseMatDescr_t descrA, const float* csrSortedValA, const int* csrSortedRowPtrA, const int* csrSortedColIndA, csric02Info_t info, cusparseSolvePolicy_t policy, void* pBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseScsric02_analysis
+    _check_or_init_cusparse()
+    if __cusparseScsric02_analysis == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseScsric02_analysis is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, const cusparseMatDescr_t, const float*, const int*, const int*, csric02Info_t, cusparseSolvePolicy_t, void*) noexcept nogil>__cusparseScsric02_analysis)(
+        handle, m, nnz, descrA, csrSortedValA, csrSortedRowPtrA, csrSortedColIndA, info, policy, pBuffer)
+
+
+cdef cusparseStatus_t _cusparseDcsric02_analysis(cusparseHandle_t handle, int m, int nnz, const cusparseMatDescr_t descrA, const double* csrSortedValA, const int* csrSortedRowPtrA, const int* csrSortedColIndA, csric02Info_t info, cusparseSolvePolicy_t policy, void* pBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseDcsric02_analysis
+    _check_or_init_cusparse()
+    if __cusparseDcsric02_analysis == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseDcsric02_analysis is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, const cusparseMatDescr_t, const double*, const int*, const int*, csric02Info_t, cusparseSolvePolicy_t, void*) noexcept nogil>__cusparseDcsric02_analysis)(
+        handle, m, nnz, descrA, csrSortedValA, csrSortedRowPtrA, csrSortedColIndA, info, policy, pBuffer)
+
+
+cdef cusparseStatus_t _cusparseCcsric02_analysis(cusparseHandle_t handle, int m, int nnz, const cusparseMatDescr_t descrA, const cuComplex* csrSortedValA, const int* csrSortedRowPtrA, const int* csrSortedColIndA, csric02Info_t info, cusparseSolvePolicy_t policy, void* pBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseCcsric02_analysis
+    _check_or_init_cusparse()
+    if __cusparseCcsric02_analysis == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseCcsric02_analysis is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, const cusparseMatDescr_t, const cuComplex*, const int*, const int*, csric02Info_t, cusparseSolvePolicy_t, void*) noexcept nogil>__cusparseCcsric02_analysis)(
+        handle, m, nnz, descrA, csrSortedValA, csrSortedRowPtrA, csrSortedColIndA, info, policy, pBuffer)
+
+
+cdef cusparseStatus_t _cusparseZcsric02_analysis(cusparseHandle_t handle, int m, int nnz, const cusparseMatDescr_t descrA, const cuDoubleComplex* csrSortedValA, const int* csrSortedRowPtrA, const int* csrSortedColIndA, csric02Info_t info, cusparseSolvePolicy_t policy, void* pBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseZcsric02_analysis
+    _check_or_init_cusparse()
+    if __cusparseZcsric02_analysis == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseZcsric02_analysis is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, const cusparseMatDescr_t, const cuDoubleComplex*, const int*, const int*, csric02Info_t, cusparseSolvePolicy_t, void*) noexcept nogil>__cusparseZcsric02_analysis)(
+        handle, m, nnz, descrA, csrSortedValA, csrSortedRowPtrA, csrSortedColIndA, info, policy, pBuffer)
+
+
+cdef cusparseStatus_t _cusparseScsric02(cusparseHandle_t handle, int m, int nnz, const cusparseMatDescr_t descrA, float* csrSortedValA_valM, const int* csrSortedRowPtrA, const int* csrSortedColIndA, csric02Info_t info, cusparseSolvePolicy_t policy, void* pBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseScsric02
+    _check_or_init_cusparse()
+    if __cusparseScsric02 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseScsric02 is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, const cusparseMatDescr_t, float*, const int*, const int*, csric02Info_t, cusparseSolvePolicy_t, void*) noexcept nogil>__cusparseScsric02)(
+        handle, m, nnz, descrA, csrSortedValA_valM, csrSortedRowPtrA, csrSortedColIndA, info, policy, pBuffer)
+
+
+cdef cusparseStatus_t _cusparseDcsric02(cusparseHandle_t handle, int m, int nnz, const cusparseMatDescr_t descrA, double* csrSortedValA_valM, const int* csrSortedRowPtrA, const int* csrSortedColIndA, csric02Info_t info, cusparseSolvePolicy_t policy, void* pBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseDcsric02
+    _check_or_init_cusparse()
+    if __cusparseDcsric02 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseDcsric02 is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, const cusparseMatDescr_t, double*, const int*, const int*, csric02Info_t, cusparseSolvePolicy_t, void*) noexcept nogil>__cusparseDcsric02)(
+        handle, m, nnz, descrA, csrSortedValA_valM, csrSortedRowPtrA, csrSortedColIndA, info, policy, pBuffer)
+
+
+cdef cusparseStatus_t _cusparseCcsric02(cusparseHandle_t handle, int m, int nnz, const cusparseMatDescr_t descrA, cuComplex* csrSortedValA_valM, const int* csrSortedRowPtrA, const int* csrSortedColIndA, csric02Info_t info, cusparseSolvePolicy_t policy, void* pBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseCcsric02
+    _check_or_init_cusparse()
+    if __cusparseCcsric02 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseCcsric02 is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, const cusparseMatDescr_t, cuComplex*, const int*, const int*, csric02Info_t, cusparseSolvePolicy_t, void*) noexcept nogil>__cusparseCcsric02)(
+        handle, m, nnz, descrA, csrSortedValA_valM, csrSortedRowPtrA, csrSortedColIndA, info, policy, pBuffer)
+
+
+cdef cusparseStatus_t _cusparseZcsric02(cusparseHandle_t handle, int m, int nnz, const cusparseMatDescr_t descrA, cuDoubleComplex* csrSortedValA_valM, const int* csrSortedRowPtrA, const int* csrSortedColIndA, csric02Info_t info, cusparseSolvePolicy_t policy, void* pBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseZcsric02
+    _check_or_init_cusparse()
+    if __cusparseZcsric02 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseZcsric02 is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, const cusparseMatDescr_t, cuDoubleComplex*, const int*, const int*, csric02Info_t, cusparseSolvePolicy_t, void*) noexcept nogil>__cusparseZcsric02)(
+        handle, m, nnz, descrA, csrSortedValA_valM, csrSortedRowPtrA, csrSortedColIndA, info, policy, pBuffer)
+
+
+cdef cusparseStatus_t _cusparseXbsric02_zeroPivot(cusparseHandle_t handle, bsric02Info_t info, int* position) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseXbsric02_zeroPivot
+    _check_or_init_cusparse()
+    if __cusparseXbsric02_zeroPivot == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseXbsric02_zeroPivot is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, bsric02Info_t, int*) noexcept nogil>__cusparseXbsric02_zeroPivot)(
+        handle, info, position)
+
+
+cdef cusparseStatus_t _cusparseSbsric02_bufferSize(cusparseHandle_t handle, cusparseDirection_t dirA, int mb, int nnzb, const cusparseMatDescr_t descrA, float* bsrSortedVal, const int* bsrSortedRowPtr, const int* bsrSortedColInd, int blockDim, bsric02Info_t info, int* pBufferSizeInBytes) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseSbsric02_bufferSize
+    _check_or_init_cusparse()
+    if __cusparseSbsric02_bufferSize == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseSbsric02_bufferSize is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, int, int, const cusparseMatDescr_t, float*, const int*, const int*, int, bsric02Info_t, int*) noexcept nogil>__cusparseSbsric02_bufferSize)(
+        handle, dirA, mb, nnzb, descrA, bsrSortedVal, bsrSortedRowPtr, bsrSortedColInd, blockDim, info, pBufferSizeInBytes)
+
+
+cdef cusparseStatus_t _cusparseDbsric02_bufferSize(cusparseHandle_t handle, cusparseDirection_t dirA, int mb, int nnzb, const cusparseMatDescr_t descrA, double* bsrSortedVal, const int* bsrSortedRowPtr, const int* bsrSortedColInd, int blockDim, bsric02Info_t info, int* pBufferSizeInBytes) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseDbsric02_bufferSize
+    _check_or_init_cusparse()
+    if __cusparseDbsric02_bufferSize == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseDbsric02_bufferSize is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, int, int, const cusparseMatDescr_t, double*, const int*, const int*, int, bsric02Info_t, int*) noexcept nogil>__cusparseDbsric02_bufferSize)(
+        handle, dirA, mb, nnzb, descrA, bsrSortedVal, bsrSortedRowPtr, bsrSortedColInd, blockDim, info, pBufferSizeInBytes)
+
+
+cdef cusparseStatus_t _cusparseCbsric02_bufferSize(cusparseHandle_t handle, cusparseDirection_t dirA, int mb, int nnzb, const cusparseMatDescr_t descrA, cuComplex* bsrSortedVal, const int* bsrSortedRowPtr, const int* bsrSortedColInd, int blockDim, bsric02Info_t info, int* pBufferSizeInBytes) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseCbsric02_bufferSize
+    _check_or_init_cusparse()
+    if __cusparseCbsric02_bufferSize == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseCbsric02_bufferSize is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, int, int, const cusparseMatDescr_t, cuComplex*, const int*, const int*, int, bsric02Info_t, int*) noexcept nogil>__cusparseCbsric02_bufferSize)(
+        handle, dirA, mb, nnzb, descrA, bsrSortedVal, bsrSortedRowPtr, bsrSortedColInd, blockDim, info, pBufferSizeInBytes)
+
+
+cdef cusparseStatus_t _cusparseZbsric02_bufferSize(cusparseHandle_t handle, cusparseDirection_t dirA, int mb, int nnzb, const cusparseMatDescr_t descrA, cuDoubleComplex* bsrSortedVal, const int* bsrSortedRowPtr, const int* bsrSortedColInd, int blockDim, bsric02Info_t info, int* pBufferSizeInBytes) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseZbsric02_bufferSize
+    _check_or_init_cusparse()
+    if __cusparseZbsric02_bufferSize == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseZbsric02_bufferSize is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, int, int, const cusparseMatDescr_t, cuDoubleComplex*, const int*, const int*, int, bsric02Info_t, int*) noexcept nogil>__cusparseZbsric02_bufferSize)(
+        handle, dirA, mb, nnzb, descrA, bsrSortedVal, bsrSortedRowPtr, bsrSortedColInd, blockDim, info, pBufferSizeInBytes)
+
+
+cdef cusparseStatus_t _cusparseSbsric02_bufferSizeExt(cusparseHandle_t handle, cusparseDirection_t dirA, int mb, int nnzb, const cusparseMatDescr_t descrA, float* bsrSortedVal, const int* bsrSortedRowPtr, const int* bsrSortedColInd, int blockSize, bsric02Info_t info, size_t* pBufferSize) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseSbsric02_bufferSizeExt
+    _check_or_init_cusparse()
+    if __cusparseSbsric02_bufferSizeExt == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseSbsric02_bufferSizeExt is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, int, int, const cusparseMatDescr_t, float*, const int*, const int*, int, bsric02Info_t, size_t*) noexcept nogil>__cusparseSbsric02_bufferSizeExt)(
+        handle, dirA, mb, nnzb, descrA, bsrSortedVal, bsrSortedRowPtr, bsrSortedColInd, blockSize, info, pBufferSize)
+
+
+cdef cusparseStatus_t _cusparseDbsric02_bufferSizeExt(cusparseHandle_t handle, cusparseDirection_t dirA, int mb, int nnzb, const cusparseMatDescr_t descrA, double* bsrSortedVal, const int* bsrSortedRowPtr, const int* bsrSortedColInd, int blockSize, bsric02Info_t info, size_t* pBufferSize) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseDbsric02_bufferSizeExt
+    _check_or_init_cusparse()
+    if __cusparseDbsric02_bufferSizeExt == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseDbsric02_bufferSizeExt is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, int, int, const cusparseMatDescr_t, double*, const int*, const int*, int, bsric02Info_t, size_t*) noexcept nogil>__cusparseDbsric02_bufferSizeExt)(
+        handle, dirA, mb, nnzb, descrA, bsrSortedVal, bsrSortedRowPtr, bsrSortedColInd, blockSize, info, pBufferSize)
+
+
+cdef cusparseStatus_t _cusparseCbsric02_bufferSizeExt(cusparseHandle_t handle, cusparseDirection_t dirA, int mb, int nnzb, const cusparseMatDescr_t descrA, cuComplex* bsrSortedVal, const int* bsrSortedRowPtr, const int* bsrSortedColInd, int blockSize, bsric02Info_t info, size_t* pBufferSize) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseCbsric02_bufferSizeExt
+    _check_or_init_cusparse()
+    if __cusparseCbsric02_bufferSizeExt == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseCbsric02_bufferSizeExt is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, int, int, const cusparseMatDescr_t, cuComplex*, const int*, const int*, int, bsric02Info_t, size_t*) noexcept nogil>__cusparseCbsric02_bufferSizeExt)(
+        handle, dirA, mb, nnzb, descrA, bsrSortedVal, bsrSortedRowPtr, bsrSortedColInd, blockSize, info, pBufferSize)
+
+
+cdef cusparseStatus_t _cusparseZbsric02_bufferSizeExt(cusparseHandle_t handle, cusparseDirection_t dirA, int mb, int nnzb, const cusparseMatDescr_t descrA, cuDoubleComplex* bsrSortedVal, const int* bsrSortedRowPtr, const int* bsrSortedColInd, int blockSize, bsric02Info_t info, size_t* pBufferSize) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseZbsric02_bufferSizeExt
+    _check_or_init_cusparse()
+    if __cusparseZbsric02_bufferSizeExt == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseZbsric02_bufferSizeExt is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, int, int, const cusparseMatDescr_t, cuDoubleComplex*, const int*, const int*, int, bsric02Info_t, size_t*) noexcept nogil>__cusparseZbsric02_bufferSizeExt)(
+        handle, dirA, mb, nnzb, descrA, bsrSortedVal, bsrSortedRowPtr, bsrSortedColInd, blockSize, info, pBufferSize)
+
+
+cdef cusparseStatus_t _cusparseSbsric02_analysis(cusparseHandle_t handle, cusparseDirection_t dirA, int mb, int nnzb, const cusparseMatDescr_t descrA, const float* bsrSortedVal, const int* bsrSortedRowPtr, const int* bsrSortedColInd, int blockDim, bsric02Info_t info, cusparseSolvePolicy_t policy, void* pInputBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseSbsric02_analysis
+    _check_or_init_cusparse()
+    if __cusparseSbsric02_analysis == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseSbsric02_analysis is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, int, int, const cusparseMatDescr_t, const float*, const int*, const int*, int, bsric02Info_t, cusparseSolvePolicy_t, void*) noexcept nogil>__cusparseSbsric02_analysis)(
+        handle, dirA, mb, nnzb, descrA, bsrSortedVal, bsrSortedRowPtr, bsrSortedColInd, blockDim, info, policy, pInputBuffer)
+
+
+cdef cusparseStatus_t _cusparseDbsric02_analysis(cusparseHandle_t handle, cusparseDirection_t dirA, int mb, int nnzb, const cusparseMatDescr_t descrA, const double* bsrSortedVal, const int* bsrSortedRowPtr, const int* bsrSortedColInd, int blockDim, bsric02Info_t info, cusparseSolvePolicy_t policy, void* pInputBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseDbsric02_analysis
+    _check_or_init_cusparse()
+    if __cusparseDbsric02_analysis == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseDbsric02_analysis is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, int, int, const cusparseMatDescr_t, const double*, const int*, const int*, int, bsric02Info_t, cusparseSolvePolicy_t, void*) noexcept nogil>__cusparseDbsric02_analysis)(
+        handle, dirA, mb, nnzb, descrA, bsrSortedVal, bsrSortedRowPtr, bsrSortedColInd, blockDim, info, policy, pInputBuffer)
+
+
+cdef cusparseStatus_t _cusparseCbsric02_analysis(cusparseHandle_t handle, cusparseDirection_t dirA, int mb, int nnzb, const cusparseMatDescr_t descrA, const cuComplex* bsrSortedVal, const int* bsrSortedRowPtr, const int* bsrSortedColInd, int blockDim, bsric02Info_t info, cusparseSolvePolicy_t policy, void* pInputBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseCbsric02_analysis
+    _check_or_init_cusparse()
+    if __cusparseCbsric02_analysis == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseCbsric02_analysis is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, int, int, const cusparseMatDescr_t, const cuComplex*, const int*, const int*, int, bsric02Info_t, cusparseSolvePolicy_t, void*) noexcept nogil>__cusparseCbsric02_analysis)(
+        handle, dirA, mb, nnzb, descrA, bsrSortedVal, bsrSortedRowPtr, bsrSortedColInd, blockDim, info, policy, pInputBuffer)
+
+
+cdef cusparseStatus_t _cusparseZbsric02_analysis(cusparseHandle_t handle, cusparseDirection_t dirA, int mb, int nnzb, const cusparseMatDescr_t descrA, const cuDoubleComplex* bsrSortedVal, const int* bsrSortedRowPtr, const int* bsrSortedColInd, int blockDim, bsric02Info_t info, cusparseSolvePolicy_t policy, void* pInputBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseZbsric02_analysis
+    _check_or_init_cusparse()
+    if __cusparseZbsric02_analysis == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseZbsric02_analysis is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, int, int, const cusparseMatDescr_t, const cuDoubleComplex*, const int*, const int*, int, bsric02Info_t, cusparseSolvePolicy_t, void*) noexcept nogil>__cusparseZbsric02_analysis)(
+        handle, dirA, mb, nnzb, descrA, bsrSortedVal, bsrSortedRowPtr, bsrSortedColInd, blockDim, info, policy, pInputBuffer)
+
+
+cdef cusparseStatus_t _cusparseSbsric02(cusparseHandle_t handle, cusparseDirection_t dirA, int mb, int nnzb, const cusparseMatDescr_t descrA, float* bsrSortedVal, const int* bsrSortedRowPtr, const int* bsrSortedColInd, int blockDim, bsric02Info_t info, cusparseSolvePolicy_t policy, void* pBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseSbsric02
+    _check_or_init_cusparse()
+    if __cusparseSbsric02 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseSbsric02 is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, int, int, const cusparseMatDescr_t, float*, const int*, const int*, int, bsric02Info_t, cusparseSolvePolicy_t, void*) noexcept nogil>__cusparseSbsric02)(
+        handle, dirA, mb, nnzb, descrA, bsrSortedVal, bsrSortedRowPtr, bsrSortedColInd, blockDim, info, policy, pBuffer)
+
+
+cdef cusparseStatus_t _cusparseDbsric02(cusparseHandle_t handle, cusparseDirection_t dirA, int mb, int nnzb, const cusparseMatDescr_t descrA, double* bsrSortedVal, const int* bsrSortedRowPtr, const int* bsrSortedColInd, int blockDim, bsric02Info_t info, cusparseSolvePolicy_t policy, void* pBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseDbsric02
+    _check_or_init_cusparse()
+    if __cusparseDbsric02 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseDbsric02 is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, int, int, const cusparseMatDescr_t, double*, const int*, const int*, int, bsric02Info_t, cusparseSolvePolicy_t, void*) noexcept nogil>__cusparseDbsric02)(
+        handle, dirA, mb, nnzb, descrA, bsrSortedVal, bsrSortedRowPtr, bsrSortedColInd, blockDim, info, policy, pBuffer)
+
+
+cdef cusparseStatus_t _cusparseCbsric02(cusparseHandle_t handle, cusparseDirection_t dirA, int mb, int nnzb, const cusparseMatDescr_t descrA, cuComplex* bsrSortedVal, const int* bsrSortedRowPtr, const int* bsrSortedColInd, int blockDim, bsric02Info_t info, cusparseSolvePolicy_t policy, void* pBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseCbsric02
+    _check_or_init_cusparse()
+    if __cusparseCbsric02 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseCbsric02 is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, int, int, const cusparseMatDescr_t, cuComplex*, const int*, const int*, int, bsric02Info_t, cusparseSolvePolicy_t, void*) noexcept nogil>__cusparseCbsric02)(
+        handle, dirA, mb, nnzb, descrA, bsrSortedVal, bsrSortedRowPtr, bsrSortedColInd, blockDim, info, policy, pBuffer)
+
+
+cdef cusparseStatus_t _cusparseZbsric02(cusparseHandle_t handle, cusparseDirection_t dirA, int mb, int nnzb, const cusparseMatDescr_t descrA, cuDoubleComplex* bsrSortedVal, const int* bsrSortedRowPtr, const int* bsrSortedColInd, int blockDim, bsric02Info_t info, cusparseSolvePolicy_t policy, void* pBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseZbsric02
+    _check_or_init_cusparse()
+    if __cusparseZbsric02 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseZbsric02 is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, int, int, const cusparseMatDescr_t, cuDoubleComplex*, const int*, const int*, int, bsric02Info_t, cusparseSolvePolicy_t, void*) noexcept nogil>__cusparseZbsric02)(
+        handle, dirA, mb, nnzb, descrA, bsrSortedVal, bsrSortedRowPtr, bsrSortedColInd, blockDim, info, policy, pBuffer)
 
 
 cdef cusparseStatus_t _cusparseSgtsv2_bufferSizeExt(cusparseHandle_t handle, int m, int n, const float* dl, const float* d, const float* du, const float* B, int ldb, size_t* bufferSizeInBytes) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
@@ -3915,6 +7389,46 @@ cdef cusparseStatus_t _cusparseZcsrgeam2(cusparseHandle_t handle, int m, int n, 
         handle, m, n, alpha, descrA, nnzA, csrSortedValA, csrSortedRowPtrA, csrSortedColIndA, beta, descrB, nnzB, csrSortedValB, csrSortedRowPtrB, csrSortedColIndB, descrC, csrSortedValC, csrSortedRowPtrC, csrSortedColIndC, pBuffer)
 
 
+cdef cusparseStatus_t _cusparseScsrcolor(cusparseHandle_t handle, int m, int nnz, const cusparseMatDescr_t descrA, const float* csrSortedValA, const int* csrSortedRowPtrA, const int* csrSortedColIndA, const float* fractionToColor, int* ncolors, int* coloring, int* reordering, const cusparseColorInfo_t info) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseScsrcolor
+    _check_or_init_cusparse()
+    if __cusparseScsrcolor == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseScsrcolor is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, const cusparseMatDescr_t, const float*, const int*, const int*, const float*, int*, int*, int*, const cusparseColorInfo_t) noexcept nogil>__cusparseScsrcolor)(
+        handle, m, nnz, descrA, csrSortedValA, csrSortedRowPtrA, csrSortedColIndA, fractionToColor, ncolors, coloring, reordering, info)
+
+
+cdef cusparseStatus_t _cusparseDcsrcolor(cusparseHandle_t handle, int m, int nnz, const cusparseMatDescr_t descrA, const double* csrSortedValA, const int* csrSortedRowPtrA, const int* csrSortedColIndA, const double* fractionToColor, int* ncolors, int* coloring, int* reordering, const cusparseColorInfo_t info) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseDcsrcolor
+    _check_or_init_cusparse()
+    if __cusparseDcsrcolor == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseDcsrcolor is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, const cusparseMatDescr_t, const double*, const int*, const int*, const double*, int*, int*, int*, const cusparseColorInfo_t) noexcept nogil>__cusparseDcsrcolor)(
+        handle, m, nnz, descrA, csrSortedValA, csrSortedRowPtrA, csrSortedColIndA, fractionToColor, ncolors, coloring, reordering, info)
+
+
+cdef cusparseStatus_t _cusparseCcsrcolor(cusparseHandle_t handle, int m, int nnz, const cusparseMatDescr_t descrA, const cuComplex* csrSortedValA, const int* csrSortedRowPtrA, const int* csrSortedColIndA, const float* fractionToColor, int* ncolors, int* coloring, int* reordering, const cusparseColorInfo_t info) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseCcsrcolor
+    _check_or_init_cusparse()
+    if __cusparseCcsrcolor == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseCcsrcolor is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, const cusparseMatDescr_t, const cuComplex*, const int*, const int*, const float*, int*, int*, int*, const cusparseColorInfo_t) noexcept nogil>__cusparseCcsrcolor)(
+        handle, m, nnz, descrA, csrSortedValA, csrSortedRowPtrA, csrSortedColIndA, fractionToColor, ncolors, coloring, reordering, info)
+
+
+cdef cusparseStatus_t _cusparseZcsrcolor(cusparseHandle_t handle, int m, int nnz, const cusparseMatDescr_t descrA, const cuDoubleComplex* csrSortedValA, const int* csrSortedRowPtrA, const int* csrSortedColIndA, const double* fractionToColor, int* ncolors, int* coloring, int* reordering, const cusparseColorInfo_t info) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseZcsrcolor
+    _check_or_init_cusparse()
+    if __cusparseZcsrcolor == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseZcsrcolor is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, const cusparseMatDescr_t, const cuDoubleComplex*, const int*, const int*, const double*, int*, int*, int*, const cusparseColorInfo_t) noexcept nogil>__cusparseZcsrcolor)(
+        handle, m, nnz, descrA, csrSortedValA, csrSortedRowPtrA, csrSortedColIndA, fractionToColor, ncolors, coloring, reordering, info)
+
+
 cdef cusparseStatus_t _cusparseSnnz(cusparseHandle_t handle, cusparseDirection_t dirA, int m, int n, const cusparseMatDescr_t descrA, const float* A, int lda, int* nnzPerRowCol, int* nnzTotalDevHostPtr) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
     global __cusparseSnnz
     _check_or_init_cusparse()
@@ -3955,6 +7469,86 @@ cdef cusparseStatus_t _cusparseZnnz(cusparseHandle_t handle, cusparseDirection_t
         handle, dirA, m, n, descrA, A, lda, nnzPerRowCol, nnzTotalDevHostPtr)
 
 
+cdef cusparseStatus_t _cusparseSnnz_compress(cusparseHandle_t handle, int m, const cusparseMatDescr_t descr, const float* csrSortedValA, const int* csrSortedRowPtrA, int* nnzPerRow, int* nnzC, float tol) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseSnnz_compress
+    _check_or_init_cusparse()
+    if __cusparseSnnz_compress == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseSnnz_compress is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, const cusparseMatDescr_t, const float*, const int*, int*, int*, float) noexcept nogil>__cusparseSnnz_compress)(
+        handle, m, descr, csrSortedValA, csrSortedRowPtrA, nnzPerRow, nnzC, tol)
+
+
+cdef cusparseStatus_t _cusparseDnnz_compress(cusparseHandle_t handle, int m, const cusparseMatDescr_t descr, const double* csrSortedValA, const int* csrSortedRowPtrA, int* nnzPerRow, int* nnzC, double tol) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseDnnz_compress
+    _check_or_init_cusparse()
+    if __cusparseDnnz_compress == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseDnnz_compress is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, const cusparseMatDescr_t, const double*, const int*, int*, int*, double) noexcept nogil>__cusparseDnnz_compress)(
+        handle, m, descr, csrSortedValA, csrSortedRowPtrA, nnzPerRow, nnzC, tol)
+
+
+cdef cusparseStatus_t _cusparseCnnz_compress(cusparseHandle_t handle, int m, const cusparseMatDescr_t descr, const cuComplex* csrSortedValA, const int* csrSortedRowPtrA, int* nnzPerRow, int* nnzC, cuComplex tol) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseCnnz_compress
+    _check_or_init_cusparse()
+    if __cusparseCnnz_compress == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseCnnz_compress is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, const cusparseMatDescr_t, const cuComplex*, const int*, int*, int*, cuComplex) noexcept nogil>__cusparseCnnz_compress)(
+        handle, m, descr, csrSortedValA, csrSortedRowPtrA, nnzPerRow, nnzC, tol)
+
+
+cdef cusparseStatus_t _cusparseZnnz_compress(cusparseHandle_t handle, int m, const cusparseMatDescr_t descr, const cuDoubleComplex* csrSortedValA, const int* csrSortedRowPtrA, int* nnzPerRow, int* nnzC, cuDoubleComplex tol) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseZnnz_compress
+    _check_or_init_cusparse()
+    if __cusparseZnnz_compress == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseZnnz_compress is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, const cusparseMatDescr_t, const cuDoubleComplex*, const int*, int*, int*, cuDoubleComplex) noexcept nogil>__cusparseZnnz_compress)(
+        handle, m, descr, csrSortedValA, csrSortedRowPtrA, nnzPerRow, nnzC, tol)
+
+
+cdef cusparseStatus_t _cusparseScsr2csr_compress(cusparseHandle_t handle, int m, int n, const cusparseMatDescr_t descrA, const float* csrSortedValA, const int* csrSortedColIndA, const int* csrSortedRowPtrA, int nnzA, const int* nnzPerRow, float* csrSortedValC, int* csrSortedColIndC, int* csrSortedRowPtrC, float tol) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseScsr2csr_compress
+    _check_or_init_cusparse()
+    if __cusparseScsr2csr_compress == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseScsr2csr_compress is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, const cusparseMatDescr_t, const float*, const int*, const int*, int, const int*, float*, int*, int*, float) noexcept nogil>__cusparseScsr2csr_compress)(
+        handle, m, n, descrA, csrSortedValA, csrSortedColIndA, csrSortedRowPtrA, nnzA, nnzPerRow, csrSortedValC, csrSortedColIndC, csrSortedRowPtrC, tol)
+
+
+cdef cusparseStatus_t _cusparseDcsr2csr_compress(cusparseHandle_t handle, int m, int n, const cusparseMatDescr_t descrA, const double* csrSortedValA, const int* csrSortedColIndA, const int* csrSortedRowPtrA, int nnzA, const int* nnzPerRow, double* csrSortedValC, int* csrSortedColIndC, int* csrSortedRowPtrC, double tol) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseDcsr2csr_compress
+    _check_or_init_cusparse()
+    if __cusparseDcsr2csr_compress == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseDcsr2csr_compress is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, const cusparseMatDescr_t, const double*, const int*, const int*, int, const int*, double*, int*, int*, double) noexcept nogil>__cusparseDcsr2csr_compress)(
+        handle, m, n, descrA, csrSortedValA, csrSortedColIndA, csrSortedRowPtrA, nnzA, nnzPerRow, csrSortedValC, csrSortedColIndC, csrSortedRowPtrC, tol)
+
+
+cdef cusparseStatus_t _cusparseCcsr2csr_compress(cusparseHandle_t handle, int m, int n, const cusparseMatDescr_t descrA, const cuComplex* csrSortedValA, const int* csrSortedColIndA, const int* csrSortedRowPtrA, int nnzA, const int* nnzPerRow, cuComplex* csrSortedValC, int* csrSortedColIndC, int* csrSortedRowPtrC, cuComplex tol) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseCcsr2csr_compress
+    _check_or_init_cusparse()
+    if __cusparseCcsr2csr_compress == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseCcsr2csr_compress is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, const cusparseMatDescr_t, const cuComplex*, const int*, const int*, int, const int*, cuComplex*, int*, int*, cuComplex) noexcept nogil>__cusparseCcsr2csr_compress)(
+        handle, m, n, descrA, csrSortedValA, csrSortedColIndA, csrSortedRowPtrA, nnzA, nnzPerRow, csrSortedValC, csrSortedColIndC, csrSortedRowPtrC, tol)
+
+
+cdef cusparseStatus_t _cusparseZcsr2csr_compress(cusparseHandle_t handle, int m, int n, const cusparseMatDescr_t descrA, const cuDoubleComplex* csrSortedValA, const int* csrSortedColIndA, const int* csrSortedRowPtrA, int nnzA, const int* nnzPerRow, cuDoubleComplex* csrSortedValC, int* csrSortedColIndC, int* csrSortedRowPtrC, cuDoubleComplex tol) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseZcsr2csr_compress
+    _check_or_init_cusparse()
+    if __cusparseZcsr2csr_compress == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseZcsr2csr_compress is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, const cusparseMatDescr_t, const cuDoubleComplex*, const int*, const int*, int, const int*, cuDoubleComplex*, int*, int*, cuDoubleComplex) noexcept nogil>__cusparseZcsr2csr_compress)(
+        handle, m, n, descrA, csrSortedValA, csrSortedColIndA, csrSortedRowPtrA, nnzA, nnzPerRow, csrSortedValC, csrSortedColIndC, csrSortedRowPtrC, tol)
+
+
 cdef cusparseStatus_t _cusparseXcoo2csr(cusparseHandle_t handle, const int* cooRowInd, int nnz, int m, int* csrSortedRowPtr, cusparseIndexBase_t idxBase) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
     global __cusparseXcoo2csr
     _check_or_init_cusparse()
@@ -3973,6 +7567,56 @@ cdef cusparseStatus_t _cusparseXcsr2coo(cusparseHandle_t handle, const int* csrS
             raise FunctionNotFoundError("function cusparseXcsr2coo is not found")
     return (<cusparseStatus_t (*)(cusparseHandle_t, const int*, int, int, int*, cusparseIndexBase_t) noexcept nogil>__cusparseXcsr2coo)(
         handle, csrSortedRowPtr, nnz, m, cooRowInd, idxBase)
+
+
+cdef cusparseStatus_t _cusparseXcsr2bsrNnz(cusparseHandle_t handle, cusparseDirection_t dirA, int m, int n, const cusparseMatDescr_t descrA, const int* csrSortedRowPtrA, const int* csrSortedColIndA, int blockDim, const cusparseMatDescr_t descrC, int* bsrSortedRowPtrC, int* nnzTotalDevHostPtr) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseXcsr2bsrNnz
+    _check_or_init_cusparse()
+    if __cusparseXcsr2bsrNnz == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseXcsr2bsrNnz is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, int, int, const cusparseMatDescr_t, const int*, const int*, int, const cusparseMatDescr_t, int*, int*) noexcept nogil>__cusparseXcsr2bsrNnz)(
+        handle, dirA, m, n, descrA, csrSortedRowPtrA, csrSortedColIndA, blockDim, descrC, bsrSortedRowPtrC, nnzTotalDevHostPtr)
+
+
+cdef cusparseStatus_t _cusparseScsr2bsr(cusparseHandle_t handle, cusparseDirection_t dirA, int m, int n, const cusparseMatDescr_t descrA, const float* csrSortedValA, const int* csrSortedRowPtrA, const int* csrSortedColIndA, int blockDim, const cusparseMatDescr_t descrC, float* bsrSortedValC, int* bsrSortedRowPtrC, int* bsrSortedColIndC) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseScsr2bsr
+    _check_or_init_cusparse()
+    if __cusparseScsr2bsr == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseScsr2bsr is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, int, int, const cusparseMatDescr_t, const float*, const int*, const int*, int, const cusparseMatDescr_t, float*, int*, int*) noexcept nogil>__cusparseScsr2bsr)(
+        handle, dirA, m, n, descrA, csrSortedValA, csrSortedRowPtrA, csrSortedColIndA, blockDim, descrC, bsrSortedValC, bsrSortedRowPtrC, bsrSortedColIndC)
+
+
+cdef cusparseStatus_t _cusparseDcsr2bsr(cusparseHandle_t handle, cusparseDirection_t dirA, int m, int n, const cusparseMatDescr_t descrA, const double* csrSortedValA, const int* csrSortedRowPtrA, const int* csrSortedColIndA, int blockDim, const cusparseMatDescr_t descrC, double* bsrSortedValC, int* bsrSortedRowPtrC, int* bsrSortedColIndC) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseDcsr2bsr
+    _check_or_init_cusparse()
+    if __cusparseDcsr2bsr == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseDcsr2bsr is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, int, int, const cusparseMatDescr_t, const double*, const int*, const int*, int, const cusparseMatDescr_t, double*, int*, int*) noexcept nogil>__cusparseDcsr2bsr)(
+        handle, dirA, m, n, descrA, csrSortedValA, csrSortedRowPtrA, csrSortedColIndA, blockDim, descrC, bsrSortedValC, bsrSortedRowPtrC, bsrSortedColIndC)
+
+
+cdef cusparseStatus_t _cusparseCcsr2bsr(cusparseHandle_t handle, cusparseDirection_t dirA, int m, int n, const cusparseMatDescr_t descrA, const cuComplex* csrSortedValA, const int* csrSortedRowPtrA, const int* csrSortedColIndA, int blockDim, const cusparseMatDescr_t descrC, cuComplex* bsrSortedValC, int* bsrSortedRowPtrC, int* bsrSortedColIndC) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseCcsr2bsr
+    _check_or_init_cusparse()
+    if __cusparseCcsr2bsr == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseCcsr2bsr is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, int, int, const cusparseMatDescr_t, const cuComplex*, const int*, const int*, int, const cusparseMatDescr_t, cuComplex*, int*, int*) noexcept nogil>__cusparseCcsr2bsr)(
+        handle, dirA, m, n, descrA, csrSortedValA, csrSortedRowPtrA, csrSortedColIndA, blockDim, descrC, bsrSortedValC, bsrSortedRowPtrC, bsrSortedColIndC)
+
+
+cdef cusparseStatus_t _cusparseZcsr2bsr(cusparseHandle_t handle, cusparseDirection_t dirA, int m, int n, const cusparseMatDescr_t descrA, const cuDoubleComplex* csrSortedValA, const int* csrSortedRowPtrA, const int* csrSortedColIndA, int blockDim, const cusparseMatDescr_t descrC, cuDoubleComplex* bsrSortedValC, int* bsrSortedRowPtrC, int* bsrSortedColIndC) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseZcsr2bsr
+    _check_or_init_cusparse()
+    if __cusparseZcsr2bsr == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseZcsr2bsr is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, int, int, const cusparseMatDescr_t, const cuDoubleComplex*, const int*, const int*, int, const cusparseMatDescr_t, cuDoubleComplex*, int*, int*) noexcept nogil>__cusparseZcsr2bsr)(
+        handle, dirA, m, n, descrA, csrSortedValA, csrSortedRowPtrA, csrSortedColIndA, blockDim, descrC, bsrSortedValC, bsrSortedRowPtrC, bsrSortedColIndC)
 
 
 cdef cusparseStatus_t _cusparseSbsr2csr(cusparseHandle_t handle, cusparseDirection_t dirA, int mb, int nb, const cusparseMatDescr_t descrA, const float* bsrSortedValA, const int* bsrSortedRowPtrA, const int* bsrSortedColIndA, int blockDim, const cusparseMatDescr_t descrC, float* csrSortedValC, int* csrSortedRowPtrC, int* csrSortedColIndC) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
@@ -4133,6 +7777,56 @@ cdef cusparseStatus_t _cusparseZgebsr2gebsc(cusparseHandle_t handle, int mb, int
             raise FunctionNotFoundError("function cusparseZgebsr2gebsc is not found")
     return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, int, const cuDoubleComplex*, const int*, const int*, int, int, cuDoubleComplex*, int*, int*, cusparseAction_t, cusparseIndexBase_t, void*) noexcept nogil>__cusparseZgebsr2gebsc)(
         handle, mb, nb, nnzb, bsrSortedVal, bsrSortedRowPtr, bsrSortedColInd, rowBlockDim, colBlockDim, bscVal, bscRowInd, bscColPtr, copyValues, idxBase, pBuffer)
+
+
+cdef cusparseStatus_t _cusparseXgebsr2csr(cusparseHandle_t handle, cusparseDirection_t dirA, int mb, int nb, const cusparseMatDescr_t descrA, const int* bsrSortedRowPtrA, const int* bsrSortedColIndA, int rowBlockDim, int colBlockDim, const cusparseMatDescr_t descrC, int* csrSortedRowPtrC, int* csrSortedColIndC) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseXgebsr2csr
+    _check_or_init_cusparse()
+    if __cusparseXgebsr2csr == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseXgebsr2csr is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, int, int, const cusparseMatDescr_t, const int*, const int*, int, int, const cusparseMatDescr_t, int*, int*) noexcept nogil>__cusparseXgebsr2csr)(
+        handle, dirA, mb, nb, descrA, bsrSortedRowPtrA, bsrSortedColIndA, rowBlockDim, colBlockDim, descrC, csrSortedRowPtrC, csrSortedColIndC)
+
+
+cdef cusparseStatus_t _cusparseSgebsr2csr(cusparseHandle_t handle, cusparseDirection_t dirA, int mb, int nb, const cusparseMatDescr_t descrA, const float* bsrSortedValA, const int* bsrSortedRowPtrA, const int* bsrSortedColIndA, int rowBlockDim, int colBlockDim, const cusparseMatDescr_t descrC, float* csrSortedValC, int* csrSortedRowPtrC, int* csrSortedColIndC) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseSgebsr2csr
+    _check_or_init_cusparse()
+    if __cusparseSgebsr2csr == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseSgebsr2csr is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, int, int, const cusparseMatDescr_t, const float*, const int*, const int*, int, int, const cusparseMatDescr_t, float*, int*, int*) noexcept nogil>__cusparseSgebsr2csr)(
+        handle, dirA, mb, nb, descrA, bsrSortedValA, bsrSortedRowPtrA, bsrSortedColIndA, rowBlockDim, colBlockDim, descrC, csrSortedValC, csrSortedRowPtrC, csrSortedColIndC)
+
+
+cdef cusparseStatus_t _cusparseDgebsr2csr(cusparseHandle_t handle, cusparseDirection_t dirA, int mb, int nb, const cusparseMatDescr_t descrA, const double* bsrSortedValA, const int* bsrSortedRowPtrA, const int* bsrSortedColIndA, int rowBlockDim, int colBlockDim, const cusparseMatDescr_t descrC, double* csrSortedValC, int* csrSortedRowPtrC, int* csrSortedColIndC) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseDgebsr2csr
+    _check_or_init_cusparse()
+    if __cusparseDgebsr2csr == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseDgebsr2csr is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, int, int, const cusparseMatDescr_t, const double*, const int*, const int*, int, int, const cusparseMatDescr_t, double*, int*, int*) noexcept nogil>__cusparseDgebsr2csr)(
+        handle, dirA, mb, nb, descrA, bsrSortedValA, bsrSortedRowPtrA, bsrSortedColIndA, rowBlockDim, colBlockDim, descrC, csrSortedValC, csrSortedRowPtrC, csrSortedColIndC)
+
+
+cdef cusparseStatus_t _cusparseCgebsr2csr(cusparseHandle_t handle, cusparseDirection_t dirA, int mb, int nb, const cusparseMatDescr_t descrA, const cuComplex* bsrSortedValA, const int* bsrSortedRowPtrA, const int* bsrSortedColIndA, int rowBlockDim, int colBlockDim, const cusparseMatDescr_t descrC, cuComplex* csrSortedValC, int* csrSortedRowPtrC, int* csrSortedColIndC) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseCgebsr2csr
+    _check_or_init_cusparse()
+    if __cusparseCgebsr2csr == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseCgebsr2csr is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, int, int, const cusparseMatDescr_t, const cuComplex*, const int*, const int*, int, int, const cusparseMatDescr_t, cuComplex*, int*, int*) noexcept nogil>__cusparseCgebsr2csr)(
+        handle, dirA, mb, nb, descrA, bsrSortedValA, bsrSortedRowPtrA, bsrSortedColIndA, rowBlockDim, colBlockDim, descrC, csrSortedValC, csrSortedRowPtrC, csrSortedColIndC)
+
+
+cdef cusparseStatus_t _cusparseZgebsr2csr(cusparseHandle_t handle, cusparseDirection_t dirA, int mb, int nb, const cusparseMatDescr_t descrA, const cuDoubleComplex* bsrSortedValA, const int* bsrSortedRowPtrA, const int* bsrSortedColIndA, int rowBlockDim, int colBlockDim, const cusparseMatDescr_t descrC, cuDoubleComplex* csrSortedValC, int* csrSortedRowPtrC, int* csrSortedColIndC) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseZgebsr2csr
+    _check_or_init_cusparse()
+    if __cusparseZgebsr2csr == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseZgebsr2csr is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseDirection_t, int, int, const cusparseMatDescr_t, const cuDoubleComplex*, const int*, const int*, int, int, const cusparseMatDescr_t, cuDoubleComplex*, int*, int*) noexcept nogil>__cusparseZgebsr2csr)(
+        handle, dirA, mb, nb, descrA, bsrSortedValA, bsrSortedRowPtrA, bsrSortedColIndA, rowBlockDim, colBlockDim, descrC, csrSortedValC, csrSortedRowPtrC, csrSortedColIndC)
 
 
 cdef cusparseStatus_t _cusparseScsr2gebsr_bufferSize(cusparseHandle_t handle, cusparseDirection_t dirA, int m, int n, const cusparseMatDescr_t descrA, const float* csrSortedValA, const int* csrSortedRowPtrA, const int* csrSortedColIndA, int rowBlockDim, int colBlockDim, int* pBufferSizeInBytes) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
@@ -4395,6 +8089,16 @@ cdef cusparseStatus_t _cusparseZgebsr2gebsr(cusparseHandle_t handle, cusparseDir
         handle, dirA, mb, nb, nnzb, descrA, bsrSortedValA, bsrSortedRowPtrA, bsrSortedColIndA, rowBlockDimA, colBlockDimA, descrC, bsrSortedValC, bsrSortedRowPtrC, bsrSortedColIndC, rowBlockDimC, colBlockDimC, pBuffer)
 
 
+cdef cusparseStatus_t _cusparseCreateIdentityPermutation(cusparseHandle_t handle, int n, int* p) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseCreateIdentityPermutation
+    _check_or_init_cusparse()
+    if __cusparseCreateIdentityPermutation == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseCreateIdentityPermutation is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int*) noexcept nogil>__cusparseCreateIdentityPermutation)(
+        handle, n, p)
+
+
 cdef cusparseStatus_t _cusparseXcoosort_bufferSizeExt(cusparseHandle_t handle, int m, int n, int nnz, const int* cooRowsA, const int* cooColsA, size_t* pBufferSizeInBytes) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
     global __cusparseXcoosort_bufferSizeExt
     _check_or_init_cusparse()
@@ -4463,6 +8167,366 @@ cdef cusparseStatus_t _cusparseXcscsort(cusparseHandle_t handle, int m, int n, i
             raise FunctionNotFoundError("function cusparseXcscsort is not found")
     return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, int, const cusparseMatDescr_t, const int*, int*, int*, void*) noexcept nogil>__cusparseXcscsort)(
         handle, m, n, nnz, descrA, cscColPtrA, cscRowIndA, P, pBuffer)
+
+
+cdef cusparseStatus_t _cusparseScsru2csr_bufferSizeExt(cusparseHandle_t handle, int m, int n, int nnz, float* csrVal, const int* csrRowPtr, int* csrColInd, csru2csrInfo_t info, size_t* pBufferSizeInBytes) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseScsru2csr_bufferSizeExt
+    _check_or_init_cusparse()
+    if __cusparseScsru2csr_bufferSizeExt == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseScsru2csr_bufferSizeExt is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, int, float*, const int*, int*, csru2csrInfo_t, size_t*) noexcept nogil>__cusparseScsru2csr_bufferSizeExt)(
+        handle, m, n, nnz, csrVal, csrRowPtr, csrColInd, info, pBufferSizeInBytes)
+
+
+cdef cusparseStatus_t _cusparseDcsru2csr_bufferSizeExt(cusparseHandle_t handle, int m, int n, int nnz, double* csrVal, const int* csrRowPtr, int* csrColInd, csru2csrInfo_t info, size_t* pBufferSizeInBytes) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseDcsru2csr_bufferSizeExt
+    _check_or_init_cusparse()
+    if __cusparseDcsru2csr_bufferSizeExt == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseDcsru2csr_bufferSizeExt is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, int, double*, const int*, int*, csru2csrInfo_t, size_t*) noexcept nogil>__cusparseDcsru2csr_bufferSizeExt)(
+        handle, m, n, nnz, csrVal, csrRowPtr, csrColInd, info, pBufferSizeInBytes)
+
+
+cdef cusparseStatus_t _cusparseCcsru2csr_bufferSizeExt(cusparseHandle_t handle, int m, int n, int nnz, cuComplex* csrVal, const int* csrRowPtr, int* csrColInd, csru2csrInfo_t info, size_t* pBufferSizeInBytes) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseCcsru2csr_bufferSizeExt
+    _check_or_init_cusparse()
+    if __cusparseCcsru2csr_bufferSizeExt == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseCcsru2csr_bufferSizeExt is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, int, cuComplex*, const int*, int*, csru2csrInfo_t, size_t*) noexcept nogil>__cusparseCcsru2csr_bufferSizeExt)(
+        handle, m, n, nnz, csrVal, csrRowPtr, csrColInd, info, pBufferSizeInBytes)
+
+
+cdef cusparseStatus_t _cusparseZcsru2csr_bufferSizeExt(cusparseHandle_t handle, int m, int n, int nnz, cuDoubleComplex* csrVal, const int* csrRowPtr, int* csrColInd, csru2csrInfo_t info, size_t* pBufferSizeInBytes) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseZcsru2csr_bufferSizeExt
+    _check_or_init_cusparse()
+    if __cusparseZcsru2csr_bufferSizeExt == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseZcsru2csr_bufferSizeExt is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, int, cuDoubleComplex*, const int*, int*, csru2csrInfo_t, size_t*) noexcept nogil>__cusparseZcsru2csr_bufferSizeExt)(
+        handle, m, n, nnz, csrVal, csrRowPtr, csrColInd, info, pBufferSizeInBytes)
+
+
+cdef cusparseStatus_t _cusparseScsru2csr(cusparseHandle_t handle, int m, int n, int nnz, const cusparseMatDescr_t descrA, float* csrVal, const int* csrRowPtr, int* csrColInd, csru2csrInfo_t info, void* pBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseScsru2csr
+    _check_or_init_cusparse()
+    if __cusparseScsru2csr == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseScsru2csr is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, int, const cusparseMatDescr_t, float*, const int*, int*, csru2csrInfo_t, void*) noexcept nogil>__cusparseScsru2csr)(
+        handle, m, n, nnz, descrA, csrVal, csrRowPtr, csrColInd, info, pBuffer)
+
+
+cdef cusparseStatus_t _cusparseDcsru2csr(cusparseHandle_t handle, int m, int n, int nnz, const cusparseMatDescr_t descrA, double* csrVal, const int* csrRowPtr, int* csrColInd, csru2csrInfo_t info, void* pBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseDcsru2csr
+    _check_or_init_cusparse()
+    if __cusparseDcsru2csr == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseDcsru2csr is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, int, const cusparseMatDescr_t, double*, const int*, int*, csru2csrInfo_t, void*) noexcept nogil>__cusparseDcsru2csr)(
+        handle, m, n, nnz, descrA, csrVal, csrRowPtr, csrColInd, info, pBuffer)
+
+
+cdef cusparseStatus_t _cusparseCcsru2csr(cusparseHandle_t handle, int m, int n, int nnz, const cusparseMatDescr_t descrA, cuComplex* csrVal, const int* csrRowPtr, int* csrColInd, csru2csrInfo_t info, void* pBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseCcsru2csr
+    _check_or_init_cusparse()
+    if __cusparseCcsru2csr == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseCcsru2csr is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, int, const cusparseMatDescr_t, cuComplex*, const int*, int*, csru2csrInfo_t, void*) noexcept nogil>__cusparseCcsru2csr)(
+        handle, m, n, nnz, descrA, csrVal, csrRowPtr, csrColInd, info, pBuffer)
+
+
+cdef cusparseStatus_t _cusparseZcsru2csr(cusparseHandle_t handle, int m, int n, int nnz, const cusparseMatDescr_t descrA, cuDoubleComplex* csrVal, const int* csrRowPtr, int* csrColInd, csru2csrInfo_t info, void* pBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseZcsru2csr
+    _check_or_init_cusparse()
+    if __cusparseZcsru2csr == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseZcsru2csr is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, int, const cusparseMatDescr_t, cuDoubleComplex*, const int*, int*, csru2csrInfo_t, void*) noexcept nogil>__cusparseZcsru2csr)(
+        handle, m, n, nnz, descrA, csrVal, csrRowPtr, csrColInd, info, pBuffer)
+
+
+cdef cusparseStatus_t _cusparseScsr2csru(cusparseHandle_t handle, int m, int n, int nnz, const cusparseMatDescr_t descrA, float* csrVal, const int* csrRowPtr, int* csrColInd, csru2csrInfo_t info, void* pBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseScsr2csru
+    _check_or_init_cusparse()
+    if __cusparseScsr2csru == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseScsr2csru is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, int, const cusparseMatDescr_t, float*, const int*, int*, csru2csrInfo_t, void*) noexcept nogil>__cusparseScsr2csru)(
+        handle, m, n, nnz, descrA, csrVal, csrRowPtr, csrColInd, info, pBuffer)
+
+
+cdef cusparseStatus_t _cusparseDcsr2csru(cusparseHandle_t handle, int m, int n, int nnz, const cusparseMatDescr_t descrA, double* csrVal, const int* csrRowPtr, int* csrColInd, csru2csrInfo_t info, void* pBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseDcsr2csru
+    _check_or_init_cusparse()
+    if __cusparseDcsr2csru == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseDcsr2csru is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, int, const cusparseMatDescr_t, double*, const int*, int*, csru2csrInfo_t, void*) noexcept nogil>__cusparseDcsr2csru)(
+        handle, m, n, nnz, descrA, csrVal, csrRowPtr, csrColInd, info, pBuffer)
+
+
+cdef cusparseStatus_t _cusparseCcsr2csru(cusparseHandle_t handle, int m, int n, int nnz, const cusparseMatDescr_t descrA, cuComplex* csrVal, const int* csrRowPtr, int* csrColInd, csru2csrInfo_t info, void* pBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseCcsr2csru
+    _check_or_init_cusparse()
+    if __cusparseCcsr2csru == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseCcsr2csru is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, int, const cusparseMatDescr_t, cuComplex*, const int*, int*, csru2csrInfo_t, void*) noexcept nogil>__cusparseCcsr2csru)(
+        handle, m, n, nnz, descrA, csrVal, csrRowPtr, csrColInd, info, pBuffer)
+
+
+cdef cusparseStatus_t _cusparseZcsr2csru(cusparseHandle_t handle, int m, int n, int nnz, const cusparseMatDescr_t descrA, cuDoubleComplex* csrVal, const int* csrRowPtr, int* csrColInd, csru2csrInfo_t info, void* pBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseZcsr2csru
+    _check_or_init_cusparse()
+    if __cusparseZcsr2csru == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseZcsr2csru is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, int, const cusparseMatDescr_t, cuDoubleComplex*, const int*, int*, csru2csrInfo_t, void*) noexcept nogil>__cusparseZcsr2csru)(
+        handle, m, n, nnz, descrA, csrVal, csrRowPtr, csrColInd, info, pBuffer)
+
+
+cdef cusparseStatus_t _cusparseSpruneDense2csr_bufferSizeExt(cusparseHandle_t handle, int m, int n, const float* A, int lda, const float* threshold, const cusparseMatDescr_t descrC, const float* csrSortedValC, const int* csrSortedRowPtrC, const int* csrSortedColIndC, size_t* pBufferSizeInBytes) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseSpruneDense2csr_bufferSizeExt
+    _check_or_init_cusparse()
+    if __cusparseSpruneDense2csr_bufferSizeExt == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseSpruneDense2csr_bufferSizeExt is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, const float*, int, const float*, const cusparseMatDescr_t, const float*, const int*, const int*, size_t*) noexcept nogil>__cusparseSpruneDense2csr_bufferSizeExt)(
+        handle, m, n, A, lda, threshold, descrC, csrSortedValC, csrSortedRowPtrC, csrSortedColIndC, pBufferSizeInBytes)
+
+
+cdef cusparseStatus_t _cusparseDpruneDense2csr_bufferSizeExt(cusparseHandle_t handle, int m, int n, const double* A, int lda, const double* threshold, const cusparseMatDescr_t descrC, const double* csrSortedValC, const int* csrSortedRowPtrC, const int* csrSortedColIndC, size_t* pBufferSizeInBytes) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseDpruneDense2csr_bufferSizeExt
+    _check_or_init_cusparse()
+    if __cusparseDpruneDense2csr_bufferSizeExt == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseDpruneDense2csr_bufferSizeExt is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, const double*, int, const double*, const cusparseMatDescr_t, const double*, const int*, const int*, size_t*) noexcept nogil>__cusparseDpruneDense2csr_bufferSizeExt)(
+        handle, m, n, A, lda, threshold, descrC, csrSortedValC, csrSortedRowPtrC, csrSortedColIndC, pBufferSizeInBytes)
+
+
+cdef cusparseStatus_t _cusparseSpruneDense2csrNnz(cusparseHandle_t handle, int m, int n, const float* A, int lda, const float* threshold, const cusparseMatDescr_t descrC, int* csrRowPtrC, int* nnzTotalDevHostPtr, void* pBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseSpruneDense2csrNnz
+    _check_or_init_cusparse()
+    if __cusparseSpruneDense2csrNnz == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseSpruneDense2csrNnz is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, const float*, int, const float*, const cusparseMatDescr_t, int*, int*, void*) noexcept nogil>__cusparseSpruneDense2csrNnz)(
+        handle, m, n, A, lda, threshold, descrC, csrRowPtrC, nnzTotalDevHostPtr, pBuffer)
+
+
+cdef cusparseStatus_t _cusparseDpruneDense2csrNnz(cusparseHandle_t handle, int m, int n, const double* A, int lda, const double* threshold, const cusparseMatDescr_t descrC, int* csrSortedRowPtrC, int* nnzTotalDevHostPtr, void* pBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseDpruneDense2csrNnz
+    _check_or_init_cusparse()
+    if __cusparseDpruneDense2csrNnz == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseDpruneDense2csrNnz is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, const double*, int, const double*, const cusparseMatDescr_t, int*, int*, void*) noexcept nogil>__cusparseDpruneDense2csrNnz)(
+        handle, m, n, A, lda, threshold, descrC, csrSortedRowPtrC, nnzTotalDevHostPtr, pBuffer)
+
+
+cdef cusparseStatus_t _cusparseSpruneDense2csr(cusparseHandle_t handle, int m, int n, const float* A, int lda, const float* threshold, const cusparseMatDescr_t descrC, float* csrSortedValC, const int* csrSortedRowPtrC, int* csrSortedColIndC, void* pBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseSpruneDense2csr
+    _check_or_init_cusparse()
+    if __cusparseSpruneDense2csr == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseSpruneDense2csr is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, const float*, int, const float*, const cusparseMatDescr_t, float*, const int*, int*, void*) noexcept nogil>__cusparseSpruneDense2csr)(
+        handle, m, n, A, lda, threshold, descrC, csrSortedValC, csrSortedRowPtrC, csrSortedColIndC, pBuffer)
+
+
+cdef cusparseStatus_t _cusparseDpruneDense2csr(cusparseHandle_t handle, int m, int n, const double* A, int lda, const double* threshold, const cusparseMatDescr_t descrC, double* csrSortedValC, const int* csrSortedRowPtrC, int* csrSortedColIndC, void* pBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseDpruneDense2csr
+    _check_or_init_cusparse()
+    if __cusparseDpruneDense2csr == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseDpruneDense2csr is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, const double*, int, const double*, const cusparseMatDescr_t, double*, const int*, int*, void*) noexcept nogil>__cusparseDpruneDense2csr)(
+        handle, m, n, A, lda, threshold, descrC, csrSortedValC, csrSortedRowPtrC, csrSortedColIndC, pBuffer)
+
+
+cdef cusparseStatus_t _cusparseSpruneCsr2csr_bufferSizeExt(cusparseHandle_t handle, int m, int n, int nnzA, const cusparseMatDescr_t descrA, const float* csrSortedValA, const int* csrSortedRowPtrA, const int* csrSortedColIndA, const float* threshold, const cusparseMatDescr_t descrC, const float* csrSortedValC, const int* csrSortedRowPtrC, const int* csrSortedColIndC, size_t* pBufferSizeInBytes) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseSpruneCsr2csr_bufferSizeExt
+    _check_or_init_cusparse()
+    if __cusparseSpruneCsr2csr_bufferSizeExt == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseSpruneCsr2csr_bufferSizeExt is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, int, const cusparseMatDescr_t, const float*, const int*, const int*, const float*, const cusparseMatDescr_t, const float*, const int*, const int*, size_t*) noexcept nogil>__cusparseSpruneCsr2csr_bufferSizeExt)(
+        handle, m, n, nnzA, descrA, csrSortedValA, csrSortedRowPtrA, csrSortedColIndA, threshold, descrC, csrSortedValC, csrSortedRowPtrC, csrSortedColIndC, pBufferSizeInBytes)
+
+
+cdef cusparseStatus_t _cusparseDpruneCsr2csr_bufferSizeExt(cusparseHandle_t handle, int m, int n, int nnzA, const cusparseMatDescr_t descrA, const double* csrSortedValA, const int* csrSortedRowPtrA, const int* csrSortedColIndA, const double* threshold, const cusparseMatDescr_t descrC, const double* csrSortedValC, const int* csrSortedRowPtrC, const int* csrSortedColIndC, size_t* pBufferSizeInBytes) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseDpruneCsr2csr_bufferSizeExt
+    _check_or_init_cusparse()
+    if __cusparseDpruneCsr2csr_bufferSizeExt == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseDpruneCsr2csr_bufferSizeExt is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, int, const cusparseMatDescr_t, const double*, const int*, const int*, const double*, const cusparseMatDescr_t, const double*, const int*, const int*, size_t*) noexcept nogil>__cusparseDpruneCsr2csr_bufferSizeExt)(
+        handle, m, n, nnzA, descrA, csrSortedValA, csrSortedRowPtrA, csrSortedColIndA, threshold, descrC, csrSortedValC, csrSortedRowPtrC, csrSortedColIndC, pBufferSizeInBytes)
+
+
+cdef cusparseStatus_t _cusparseSpruneCsr2csrNnz(cusparseHandle_t handle, int m, int n, int nnzA, const cusparseMatDescr_t descrA, const float* csrSortedValA, const int* csrSortedRowPtrA, const int* csrSortedColIndA, const float* threshold, const cusparseMatDescr_t descrC, int* csrSortedRowPtrC, int* nnzTotalDevHostPtr, void* pBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseSpruneCsr2csrNnz
+    _check_or_init_cusparse()
+    if __cusparseSpruneCsr2csrNnz == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseSpruneCsr2csrNnz is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, int, const cusparseMatDescr_t, const float*, const int*, const int*, const float*, const cusparseMatDescr_t, int*, int*, void*) noexcept nogil>__cusparseSpruneCsr2csrNnz)(
+        handle, m, n, nnzA, descrA, csrSortedValA, csrSortedRowPtrA, csrSortedColIndA, threshold, descrC, csrSortedRowPtrC, nnzTotalDevHostPtr, pBuffer)
+
+
+cdef cusparseStatus_t _cusparseDpruneCsr2csrNnz(cusparseHandle_t handle, int m, int n, int nnzA, const cusparseMatDescr_t descrA, const double* csrSortedValA, const int* csrSortedRowPtrA, const int* csrSortedColIndA, const double* threshold, const cusparseMatDescr_t descrC, int* csrSortedRowPtrC, int* nnzTotalDevHostPtr, void* pBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseDpruneCsr2csrNnz
+    _check_or_init_cusparse()
+    if __cusparseDpruneCsr2csrNnz == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseDpruneCsr2csrNnz is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, int, const cusparseMatDescr_t, const double*, const int*, const int*, const double*, const cusparseMatDescr_t, int*, int*, void*) noexcept nogil>__cusparseDpruneCsr2csrNnz)(
+        handle, m, n, nnzA, descrA, csrSortedValA, csrSortedRowPtrA, csrSortedColIndA, threshold, descrC, csrSortedRowPtrC, nnzTotalDevHostPtr, pBuffer)
+
+
+cdef cusparseStatus_t _cusparseSpruneCsr2csr(cusparseHandle_t handle, int m, int n, int nnzA, const cusparseMatDescr_t descrA, const float* csrSortedValA, const int* csrSortedRowPtrA, const int* csrSortedColIndA, const float* threshold, const cusparseMatDescr_t descrC, float* csrSortedValC, const int* csrSortedRowPtrC, int* csrSortedColIndC, void* pBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseSpruneCsr2csr
+    _check_or_init_cusparse()
+    if __cusparseSpruneCsr2csr == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseSpruneCsr2csr is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, int, const cusparseMatDescr_t, const float*, const int*, const int*, const float*, const cusparseMatDescr_t, float*, const int*, int*, void*) noexcept nogil>__cusparseSpruneCsr2csr)(
+        handle, m, n, nnzA, descrA, csrSortedValA, csrSortedRowPtrA, csrSortedColIndA, threshold, descrC, csrSortedValC, csrSortedRowPtrC, csrSortedColIndC, pBuffer)
+
+
+cdef cusparseStatus_t _cusparseDpruneCsr2csr(cusparseHandle_t handle, int m, int n, int nnzA, const cusparseMatDescr_t descrA, const double* csrSortedValA, const int* csrSortedRowPtrA, const int* csrSortedColIndA, const double* threshold, const cusparseMatDescr_t descrC, double* csrSortedValC, const int* csrSortedRowPtrC, int* csrSortedColIndC, void* pBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseDpruneCsr2csr
+    _check_or_init_cusparse()
+    if __cusparseDpruneCsr2csr == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseDpruneCsr2csr is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, int, const cusparseMatDescr_t, const double*, const int*, const int*, const double*, const cusparseMatDescr_t, double*, const int*, int*, void*) noexcept nogil>__cusparseDpruneCsr2csr)(
+        handle, m, n, nnzA, descrA, csrSortedValA, csrSortedRowPtrA, csrSortedColIndA, threshold, descrC, csrSortedValC, csrSortedRowPtrC, csrSortedColIndC, pBuffer)
+
+
+cdef cusparseStatus_t _cusparseSpruneDense2csrByPercentage_bufferSizeExt(cusparseHandle_t handle, int m, int n, const float* A, int lda, float percentage, const cusparseMatDescr_t descrC, const float* csrSortedValC, const int* csrSortedRowPtrC, const int* csrSortedColIndC, pruneInfo_t info, size_t* pBufferSizeInBytes) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseSpruneDense2csrByPercentage_bufferSizeExt
+    _check_or_init_cusparse()
+    if __cusparseSpruneDense2csrByPercentage_bufferSizeExt == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseSpruneDense2csrByPercentage_bufferSizeExt is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, const float*, int, float, const cusparseMatDescr_t, const float*, const int*, const int*, pruneInfo_t, size_t*) noexcept nogil>__cusparseSpruneDense2csrByPercentage_bufferSizeExt)(
+        handle, m, n, A, lda, percentage, descrC, csrSortedValC, csrSortedRowPtrC, csrSortedColIndC, info, pBufferSizeInBytes)
+
+
+cdef cusparseStatus_t _cusparseDpruneDense2csrByPercentage_bufferSizeExt(cusparseHandle_t handle, int m, int n, const double* A, int lda, float percentage, const cusparseMatDescr_t descrC, const double* csrSortedValC, const int* csrSortedRowPtrC, const int* csrSortedColIndC, pruneInfo_t info, size_t* pBufferSizeInBytes) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseDpruneDense2csrByPercentage_bufferSizeExt
+    _check_or_init_cusparse()
+    if __cusparseDpruneDense2csrByPercentage_bufferSizeExt == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseDpruneDense2csrByPercentage_bufferSizeExt is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, const double*, int, float, const cusparseMatDescr_t, const double*, const int*, const int*, pruneInfo_t, size_t*) noexcept nogil>__cusparseDpruneDense2csrByPercentage_bufferSizeExt)(
+        handle, m, n, A, lda, percentage, descrC, csrSortedValC, csrSortedRowPtrC, csrSortedColIndC, info, pBufferSizeInBytes)
+
+
+cdef cusparseStatus_t _cusparseSpruneDense2csrNnzByPercentage(cusparseHandle_t handle, int m, int n, const float* A, int lda, float percentage, const cusparseMatDescr_t descrC, int* csrRowPtrC, int* nnzTotalDevHostPtr, pruneInfo_t info, void* pBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseSpruneDense2csrNnzByPercentage
+    _check_or_init_cusparse()
+    if __cusparseSpruneDense2csrNnzByPercentage == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseSpruneDense2csrNnzByPercentage is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, const float*, int, float, const cusparseMatDescr_t, int*, int*, pruneInfo_t, void*) noexcept nogil>__cusparseSpruneDense2csrNnzByPercentage)(
+        handle, m, n, A, lda, percentage, descrC, csrRowPtrC, nnzTotalDevHostPtr, info, pBuffer)
+
+
+cdef cusparseStatus_t _cusparseDpruneDense2csrNnzByPercentage(cusparseHandle_t handle, int m, int n, const double* A, int lda, float percentage, const cusparseMatDescr_t descrC, int* csrRowPtrC, int* nnzTotalDevHostPtr, pruneInfo_t info, void* pBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseDpruneDense2csrNnzByPercentage
+    _check_or_init_cusparse()
+    if __cusparseDpruneDense2csrNnzByPercentage == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseDpruneDense2csrNnzByPercentage is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, const double*, int, float, const cusparseMatDescr_t, int*, int*, pruneInfo_t, void*) noexcept nogil>__cusparseDpruneDense2csrNnzByPercentage)(
+        handle, m, n, A, lda, percentage, descrC, csrRowPtrC, nnzTotalDevHostPtr, info, pBuffer)
+
+
+cdef cusparseStatus_t _cusparseSpruneDense2csrByPercentage(cusparseHandle_t handle, int m, int n, const float* A, int lda, float percentage, const cusparseMatDescr_t descrC, float* csrSortedValC, const int* csrSortedRowPtrC, int* csrSortedColIndC, pruneInfo_t info, void* pBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseSpruneDense2csrByPercentage
+    _check_or_init_cusparse()
+    if __cusparseSpruneDense2csrByPercentage == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseSpruneDense2csrByPercentage is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, const float*, int, float, const cusparseMatDescr_t, float*, const int*, int*, pruneInfo_t, void*) noexcept nogil>__cusparseSpruneDense2csrByPercentage)(
+        handle, m, n, A, lda, percentage, descrC, csrSortedValC, csrSortedRowPtrC, csrSortedColIndC, info, pBuffer)
+
+
+cdef cusparseStatus_t _cusparseDpruneDense2csrByPercentage(cusparseHandle_t handle, int m, int n, const double* A, int lda, float percentage, const cusparseMatDescr_t descrC, double* csrSortedValC, const int* csrSortedRowPtrC, int* csrSortedColIndC, pruneInfo_t info, void* pBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseDpruneDense2csrByPercentage
+    _check_or_init_cusparse()
+    if __cusparseDpruneDense2csrByPercentage == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseDpruneDense2csrByPercentage is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, const double*, int, float, const cusparseMatDescr_t, double*, const int*, int*, pruneInfo_t, void*) noexcept nogil>__cusparseDpruneDense2csrByPercentage)(
+        handle, m, n, A, lda, percentage, descrC, csrSortedValC, csrSortedRowPtrC, csrSortedColIndC, info, pBuffer)
+
+
+cdef cusparseStatus_t _cusparseSpruneCsr2csrByPercentage_bufferSizeExt(cusparseHandle_t handle, int m, int n, int nnzA, const cusparseMatDescr_t descrA, const float* csrSortedValA, const int* csrSortedRowPtrA, const int* csrSortedColIndA, float percentage, const cusparseMatDescr_t descrC, const float* csrSortedValC, const int* csrSortedRowPtrC, const int* csrSortedColIndC, pruneInfo_t info, size_t* pBufferSizeInBytes) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseSpruneCsr2csrByPercentage_bufferSizeExt
+    _check_or_init_cusparse()
+    if __cusparseSpruneCsr2csrByPercentage_bufferSizeExt == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseSpruneCsr2csrByPercentage_bufferSizeExt is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, int, const cusparseMatDescr_t, const float*, const int*, const int*, float, const cusparseMatDescr_t, const float*, const int*, const int*, pruneInfo_t, size_t*) noexcept nogil>__cusparseSpruneCsr2csrByPercentage_bufferSizeExt)(
+        handle, m, n, nnzA, descrA, csrSortedValA, csrSortedRowPtrA, csrSortedColIndA, percentage, descrC, csrSortedValC, csrSortedRowPtrC, csrSortedColIndC, info, pBufferSizeInBytes)
+
+
+cdef cusparseStatus_t _cusparseDpruneCsr2csrByPercentage_bufferSizeExt(cusparseHandle_t handle, int m, int n, int nnzA, const cusparseMatDescr_t descrA, const double* csrSortedValA, const int* csrSortedRowPtrA, const int* csrSortedColIndA, float percentage, const cusparseMatDescr_t descrC, const double* csrSortedValC, const int* csrSortedRowPtrC, const int* csrSortedColIndC, pruneInfo_t info, size_t* pBufferSizeInBytes) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseDpruneCsr2csrByPercentage_bufferSizeExt
+    _check_or_init_cusparse()
+    if __cusparseDpruneCsr2csrByPercentage_bufferSizeExt == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseDpruneCsr2csrByPercentage_bufferSizeExt is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, int, const cusparseMatDescr_t, const double*, const int*, const int*, float, const cusparseMatDescr_t, const double*, const int*, const int*, pruneInfo_t, size_t*) noexcept nogil>__cusparseDpruneCsr2csrByPercentage_bufferSizeExt)(
+        handle, m, n, nnzA, descrA, csrSortedValA, csrSortedRowPtrA, csrSortedColIndA, percentage, descrC, csrSortedValC, csrSortedRowPtrC, csrSortedColIndC, info, pBufferSizeInBytes)
+
+
+cdef cusparseStatus_t _cusparseSpruneCsr2csrNnzByPercentage(cusparseHandle_t handle, int m, int n, int nnzA, const cusparseMatDescr_t descrA, const float* csrSortedValA, const int* csrSortedRowPtrA, const int* csrSortedColIndA, float percentage, const cusparseMatDescr_t descrC, int* csrSortedRowPtrC, int* nnzTotalDevHostPtr, pruneInfo_t info, void* pBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseSpruneCsr2csrNnzByPercentage
+    _check_or_init_cusparse()
+    if __cusparseSpruneCsr2csrNnzByPercentage == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseSpruneCsr2csrNnzByPercentage is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, int, const cusparseMatDescr_t, const float*, const int*, const int*, float, const cusparseMatDescr_t, int*, int*, pruneInfo_t, void*) noexcept nogil>__cusparseSpruneCsr2csrNnzByPercentage)(
+        handle, m, n, nnzA, descrA, csrSortedValA, csrSortedRowPtrA, csrSortedColIndA, percentage, descrC, csrSortedRowPtrC, nnzTotalDevHostPtr, info, pBuffer)
+
+
+cdef cusparseStatus_t _cusparseDpruneCsr2csrNnzByPercentage(cusparseHandle_t handle, int m, int n, int nnzA, const cusparseMatDescr_t descrA, const double* csrSortedValA, const int* csrSortedRowPtrA, const int* csrSortedColIndA, float percentage, const cusparseMatDescr_t descrC, int* csrSortedRowPtrC, int* nnzTotalDevHostPtr, pruneInfo_t info, void* pBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseDpruneCsr2csrNnzByPercentage
+    _check_or_init_cusparse()
+    if __cusparseDpruneCsr2csrNnzByPercentage == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseDpruneCsr2csrNnzByPercentage is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, int, const cusparseMatDescr_t, const double*, const int*, const int*, float, const cusparseMatDescr_t, int*, int*, pruneInfo_t, void*) noexcept nogil>__cusparseDpruneCsr2csrNnzByPercentage)(
+        handle, m, n, nnzA, descrA, csrSortedValA, csrSortedRowPtrA, csrSortedColIndA, percentage, descrC, csrSortedRowPtrC, nnzTotalDevHostPtr, info, pBuffer)
+
+
+cdef cusparseStatus_t _cusparseSpruneCsr2csrByPercentage(cusparseHandle_t handle, int m, int n, int nnzA, const cusparseMatDescr_t descrA, const float* csrSortedValA, const int* csrSortedRowPtrA, const int* csrSortedColIndA, float percentage, const cusparseMatDescr_t descrC, float* csrSortedValC, const int* csrSortedRowPtrC, int* csrSortedColIndC, pruneInfo_t info, void* pBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseSpruneCsr2csrByPercentage
+    _check_or_init_cusparse()
+    if __cusparseSpruneCsr2csrByPercentage == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseSpruneCsr2csrByPercentage is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, int, const cusparseMatDescr_t, const float*, const int*, const int*, float, const cusparseMatDescr_t, float*, const int*, int*, pruneInfo_t, void*) noexcept nogil>__cusparseSpruneCsr2csrByPercentage)(
+        handle, m, n, nnzA, descrA, csrSortedValA, csrSortedRowPtrA, csrSortedColIndA, percentage, descrC, csrSortedValC, csrSortedRowPtrC, csrSortedColIndC, info, pBuffer)
+
+
+cdef cusparseStatus_t _cusparseDpruneCsr2csrByPercentage(cusparseHandle_t handle, int m, int n, int nnzA, const cusparseMatDescr_t descrA, const double* csrSortedValA, const int* csrSortedRowPtrA, const int* csrSortedColIndA, float percentage, const cusparseMatDescr_t descrC, double* csrSortedValC, const int* csrSortedRowPtrC, int* csrSortedColIndC, pruneInfo_t info, void* pBuffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseDpruneCsr2csrByPercentage
+    _check_or_init_cusparse()
+    if __cusparseDpruneCsr2csrByPercentage == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseDpruneCsr2csrByPercentage is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, int, int, int, const cusparseMatDescr_t, const double*, const int*, const int*, float, const cusparseMatDescr_t, double*, const int*, int*, pruneInfo_t, void*) noexcept nogil>__cusparseDpruneCsr2csrByPercentage)(
+        handle, m, n, nnzA, descrA, csrSortedValA, csrSortedRowPtrA, csrSortedColIndA, percentage, descrC, csrSortedValC, csrSortedRowPtrC, csrSortedColIndC, info, pBuffer)
 
 
 cdef cusparseStatus_t _cusparseCsr2cscEx2(cusparseHandle_t handle, int m, int n, int nnz, const void* csrVal, const int* csrRowPtr, const int* csrColInd, void* cscVal, int* cscColPtr, int* cscRowInd, cudaDataType valType, cusparseAction_t copyValues, cusparseIndexBase_t idxBase, cusparseCsr2CscAlg_t alg, void* buffer) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
@@ -5093,6 +9157,16 @@ cdef cusparseStatus_t _cusparseScatter(cusparseHandle_t handle, cusparseConstSpV
             raise FunctionNotFoundError("function cusparseScatter is not found")
     return (<cusparseStatus_t (*)(cusparseHandle_t, cusparseConstSpVecDescr_t, cusparseDnVecDescr_t) noexcept nogil>__cusparseScatter)(
         handle, vecX, vecY)
+
+
+cdef cusparseStatus_t _cusparseRot(cusparseHandle_t handle, const void* c_coeff, const void* s_coeff, cusparseSpVecDescr_t vecX, cusparseDnVecDescr_t vecY) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:
+    global __cusparseRot
+    _check_or_init_cusparse()
+    if __cusparseRot == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cusparseRot is not found")
+    return (<cusparseStatus_t (*)(cusparseHandle_t, const void*, const void*, cusparseSpVecDescr_t, cusparseDnVecDescr_t) noexcept nogil>__cusparseRot)(
+        handle, c_coeff, s_coeff, vecX, vecY)
 
 
 cdef cusparseStatus_t _cusparseSpVV_bufferSize(cusparseHandle_t handle, cusparseOperation_t opX, cusparseConstSpVecDescr_t vecX, cusparseConstDnVecDescr_t vecY, const void* result, cudaDataType computeType, size_t* bufferSize) except?_CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR nogil:

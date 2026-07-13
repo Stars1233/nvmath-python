@@ -6,7 +6,6 @@ import os
 
 from nvmath.bindings import cufft  # type: ignore
 from nvmath.bindings._internal import utils as _bindings_utils  # type: ignore
-from nvmath.fft import _configuration
 
 IS_EXEC_GPU_AVAILABLE = False
 IS_EXEC_CPU_AVAILABLE = False
@@ -81,29 +80,3 @@ def _check_init_fftw():
             _fftw.init_threads_double()
 
         IS_EXEC_CPU_AVAILABLE = True
-
-
-def _cross_setup_execution_and_options(
-    options: _configuration.FFTOptions,
-    execution: _configuration.ExecutionCUDA | _configuration.ExecutionCPU,
-):
-    if execution.name == "cpu":
-        _check_init_fftw()
-        if options.device_id is not None:
-            raise ValueError("The 'device_id' is not a valid option when 'execution' is specified to be 'cpu'.")
-        if execution.num_threads is None:
-            execution.num_threads = _get_num_threads_default()
-        if not isinstance(execution.num_threads, int) or execution.num_threads <= 0:
-            raise ValueError("The 'num_threads' must be a positive integer")
-    else:
-        assert execution.name == "cuda"
-        _check_init_cufft()
-        if execution.device_id is None:
-            execution.device_id = options.device_id or 0
-        elif options.device_id is not None and execution.device_id != options.device_id:
-            raise ValueError(
-                f"Got conflicting 'device_id' passed in 'execution' ({execution.device_id}) "
-                f"and 'options' ({options.device_id}). It should be passed as 'execution' "
-                f"configuration only."
-            )
-    return options, execution

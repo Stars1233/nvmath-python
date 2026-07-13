@@ -151,7 +151,7 @@ def test_layouts(a_layout, b_layout, c_layout):
     ),
 )
 @pytest.mark.parametrize("use_cuda", use_cuda_options)
-def test_batching(a_batch, b_batch, c_batch, out_batch, use_cuda):
+def test_batching_implicit(a_batch, b_batch, c_batch, out_batch, use_cuda):
     """
     Tests if matmul works with different batch sizes.
     """

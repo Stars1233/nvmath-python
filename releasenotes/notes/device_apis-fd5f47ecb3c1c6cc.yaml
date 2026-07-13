@@ -1,0 +1,45 @@
+---
+# Uncomment a section header and replace with your own note.
+#release_summary:
+#api:
+#  - Backward incompatible changes
+features:
+#  - Non-breaking additions or performance improvements
+  - |
+    The device APIs now support the MLIR-based ``numba-cuda-mlir`` compiler in
+    addition to ``numba-cuda``. The ``FFT``, ``Matmul``, and ``Solver``
+    objects are compiler-agnostic; the compiler is selected by the
+    ``cuda.jit`` decorator used for the kernel. The ``nvmath.device.random``
+    APIs and the advanced ``Matmul`` APIs (opaque tensors, accumulators, and
+    pipelines) remain available only with ``numba-cuda``.
+  - |
+    Added the ``float32x4``, ``float64x4``, and ``uint32x4`` vector types
+    (and the corresponding ``*_type`` numba types) to ``nvmath.device``.
+  - |
+    The cuBLASDx ``DevicePipeline`` now accepts any input
+    arrays supporting DLPack or the CUDA Array Interface.
+dependencies:
+#  - Dependency change announcements
+  - The ``numba`` extra now installs ``numba-cuda-mlir`` in addition to ``numba-cuda``.
+#deprecations:
+#  - Announcements of deprecations
+fixes:
+#  - Bug fixes only
+  - |
+    Fixed a crash in ``get_current_device_cc()`` caused by unpacking the
+    3-field ``ComputeCapability``.
+  - |
+    ``FFT`` now raises a descriptive error instead of a
+    cryptic ``KeyError`` when an incomplete ``real_fft_options`` dict is
+    provided.
+#issues:
+#  - Known issues that are not yet fixed
+#security:
+#  - Non-breaking fixes of security issues
+doc:
+#  - Notable documentation changes
+  - The device API documentation was refreshed.
+  - |
+    The device API examples were restructured to mirror the CUDALibrarySamples
+    layout, and ``numba-cuda-mlir`` variants of the examples were added.
+  - New cuSOLVERDx examples were added, matching the cuSOLVERDx 0.3 CUDA samples.

@@ -1,0 +1,21 @@
+---
+# Uncomment a section header and replace with your own note.
+#release_summary:
+#api:
+#  - Backward incompatible changes
+#features:
+#  - Non-breaking additions or performance improvements
+dependencies:
+#deprecations:
+#  - Announcements of deprecations
+#fixes:
+#  - Bug fixes only
+#issues:
+#  - Known issues that are not yet fixed
+#security:
+#  - Non-breaking fixes of security issues
+#doc:
+#  - Notable documentation changes
+ - |
+   The ``nvmath-python`` package now requires ``cuda-core >=0.5, <2``
+   (updated from ``cuda-core >=0.4.2, <1``).

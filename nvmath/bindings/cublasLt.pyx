@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 #
-# This code was automatically generated across versions from 11.0.3 to 13.2.0, generator version 0.3.1.dev1301+g7215ac36e. Do not modify it directly.
+# This code was automatically generated across versions from 11.0.3 to 13.2.0, generator version 0.3.1.dev1471+g7122059e9. Do not modify it directly.
 
 cimport cython  # NOQA
 from libcpp.vector cimport vector
@@ -79,20 +79,16 @@ matmul_algo_dtype = _get_matmul_algo_dtype_offsets()
 
 cdef class MatmulAlgo:
     """Empty-initialize an array of `cublasLtMatmulAlgo_t`.
-
     The resulting object is of length `size` and of dtype `matmul_algo_dtype`.
     If default-constructed, the instance represents a single struct.
 
     Args:
         size (int): number of structs, default=1.
 
-
     .. seealso:: `cublasLtMatmulAlgo_t`
     """
     cdef:
         readonly object _data
-
-
 
     def __init__(self, size=1):
         arr = _numpy.empty(size, dtype=matmul_algo_dtype)
@@ -226,20 +222,16 @@ matmul_heuristic_result_dtype = _get_matmul_heuristic_result_dtype_offsets()
 
 cdef class MatmulHeuristicResult:
     """Empty-initialize an array of `cublasLtMatmulHeuristicResult_t`.
-
     The resulting object is of length `size` and of dtype `matmul_heuristic_result_dtype`.
     If default-constructed, the instance represents a single struct.
 
     Args:
         size (int): number of structs, default=1.
 
-
     .. seealso:: `cublasLtMatmulHeuristicResult_t`
     """
     cdef:
         readonly object _data
-
-
 
     def __init__(self, size=1):
         arr = _numpy.empty(size, dtype=matmul_heuristic_result_dtype)
@@ -385,7 +377,6 @@ cdef class MatmulHeuristicResult:
         obj._data = data.view(_numpy.recarray)
 
         return obj
-
 
 
 ###############################################################################
@@ -1530,7 +1521,6 @@ cpdef get_matrix_layout_attribute_dtype(int attr):
 
 ###########################################################################
 
-
 cpdef matrix_layout_set_attribute(intptr_t mat_layout, int attr, intptr_t buf, size_t size_in_bytes):
     """See `cublasLtMatrixLayoutSetAttribute`."""
     with nogil:
@@ -1621,7 +1611,6 @@ cpdef get_matmul_desc_attribute_dtype(int attr):
 
 ###########################################################################
 
-
 cpdef matmul_desc_set_attribute(intptr_t matmul_desc, int attr, intptr_t buf, size_t size_in_bytes):
     """See `cublasLtMatmulDescSetAttribute`."""
     with nogil:
@@ -1676,7 +1665,6 @@ cpdef get_matrix_transform_desc_attribute_dtype(int attr):
     return matrix_transform_desc_attribute_sizes[attr]
 
 ###########################################################################
-
 
 cpdef matrix_transform_desc_set_attribute(intptr_t transform_desc, int attr, intptr_t buf, size_t size_in_bytes):
     """See `cublasLtMatrixTransformDescSetAttribute`."""
@@ -1750,7 +1738,6 @@ cpdef get_matmul_preference_attribute_dtype(int attr):
     return matmul_preference_attribute_sizes[attr]
 
 ###########################################################################
-
 
 cpdef matmul_preference_set_attribute(intptr_t pref, int attr, intptr_t buf, size_t size_in_bytes):
     """See `cublasLtMatmulPreferenceSetAttribute`."""
@@ -1832,7 +1819,6 @@ cpdef get_matmul_algo_cap_attribute_dtype(int attr):
 
 ###########################################################################
 
-
 cpdef matmul_algo_cap_get_attribute(intptr_t algo, int attr, intptr_t buf, size_t size_in_bytes, intptr_t size_written):
     """See `cublasLtMatmulAlgoCapGetAttribute`."""
     with nogil:
@@ -1869,7 +1855,6 @@ cpdef get_matmul_algo_config_attribute_dtype(int attr):
     return matmul_algo_config_attribute_sizes[attr]
 
 ###########################################################################
-
 
 cpdef matmul_algo_config_set_attribute(intptr_t algo, int attr, intptr_t buf, size_t size_in_bytes):
     """See `cublasLtMatmulAlgoConfigSetAttribute`."""
@@ -2005,7 +1990,6 @@ cpdef get_emulation_desc_attribute_dtype(int attr):
     return emulation_desc_attribute_sizes[attr]
 
 ###########################################################################
-
 
 cpdef emulation_desc_set_attribute(intptr_t emulation_desc, int attr, intptr_t buf, size_t size_in_bytes):
     """See `cublasLtEmulationDescSetAttribute`."""

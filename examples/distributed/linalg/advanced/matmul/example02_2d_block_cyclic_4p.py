@@ -6,31 +6,23 @@
 This example demonstrates distributed matrix multiplication using 2D block-cyclic
 distribution.
 
-The global operation performed in this example is: A @ B
+The global operation performed in this example is: a @ b
 
 $ mpiexec -n 4 python example02_2d_block_cyclic_4p.py
 """
 
 import numpy as np
-
-try:
-    from cuda.core import system
-except ImportError:
-    from cuda.core.experimental import system
+from cuda.core import system
 from mpi4py import MPI
 
 import nvmath.distributed
 from nvmath.distributed.distribution import BlockCyclic, ProcessGrid
 
 # Initialize nvmath.distributed.
-try:
-    num_devices = system.get_num_devices()
-except AttributeError:
-    num_devices = system.num_devices
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 nranks = comm.Get_size()
-device_id = rank % num_devices
+device_id = rank % system.get_num_devices()
 # cuBLASMp requires NCCL communication backend.
 nvmath.distributed.initialize(device_id, comm, backends=["nccl"])
 
@@ -54,7 +46,7 @@ process_grid = ProcessGrid(shape=(2, 2), layout=ProcessGrid.Layout.COL_MAJOR)
 # Cyclic distribution with 4x4 block size.
 distribution = BlockCyclic(process_grid, (4, 4))
 
-# Get the shape of inputs a and b on this rank according to this distribution.
+# Get the shape of inputs 'a' and 'b' on this rank according to this distribution.
 a_shape = distribution.shape(rank, (m, k))
 b_shape = distribution.shape(rank, (k, n))
 
@@ -66,7 +58,7 @@ b = np.random.rand(*b_shape).astype(np.float32)
 a = np.asfortranarray(a)
 b = np.asfortranarray(b)
 
-# Matrices a, b and output use the same distribution.
+# Matrices 'a', 'b' and output use the same distribution.
 distributions = [distribution, distribution, distribution]
 
 # Perform the distributed matrix multiplication.

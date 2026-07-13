@@ -39,6 +39,30 @@ _FFT_API_STR_TO_MATHDX = {
 _FFT_KNOB_TYPE_TO_MATHDX = {t.name.lower(): t for t in mathdx.CufftdxKnobType}
 
 
+_FFT_DEFINITION_ARGS = [
+    "size",
+    "precision",
+    "fft_type",
+    "execution",
+    "sm",
+    "direction",
+    "ffts_per_block",
+    "elements_per_thread",
+    "real_fft_options",
+]
+
+_FFT_COMPILED_ARGS = [
+    "value_type",
+    "input_type",
+    "output_type",
+    "storage_size",
+    "shared_memory_size",
+    "stride",
+    "block_dim",
+    "implicit_type_batching",
+]
+
+
 class CallableGetIntTraits(Protocol):
     def __call__(self, handle: int, trait_type: mathdx.CufftdxTraitType, size: int) -> tuple: ...
 
@@ -100,7 +124,7 @@ def validate(
         check_contains(real_fft_options, "real_mode")
         check_in("real_fft_options['complex_layout']", real_fft_options["complex_layout"], ["natural", "packed", "full"])
         check_in("real_fft_options['real_mode']", real_fft_options["real_mode"], ["normal", "folded"])
-    check_sm(sm, "sm")
+    check_sm(sm, "cuFFTDx")
 
 
 def validate_execute_api(execution: str, execute_api: str | None):
@@ -111,7 +135,7 @@ def validate_execute_api(execution: str, execute_api: str | None):
         check_in("execute_api", execute_api, list(_FFT_API_STR_TO_MATHDX.keys()) + [None])
     else:
         if execute_api is not None:
-            raise ValueError(f"api may be set only for block execution ; got execution = {execution}")
+            raise ValueError(f"execute_api may be set only for 'Block' execution; got execution = {execution}")
 
 
 @lru_cache

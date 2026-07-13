@@ -1,0 +1,75 @@
+/* Experimental API styling */
+
+/* Shared vars for every experimental left bar. */
+:root {
+    --experimental-bar-width: 6px;
+    --experimental-bar-pad: 10px;
+}
+
+/* Add left border to the entire method/function/class/attribute marked experimental. */
+/* This covers both the signature and docstring. */
+/* `attribute` covers dataclass option fields, which napoleon renders
+/* as `.. attribute::` blocks rather than Parameters rows. */
+/* Uses theme's attention color variables that automatically adapt to light/dark mode. */
+/* The negative margin equals border + padding so the content keeps its normal */
+/* alignment with non-experimental siblings; only the bar falls into the left */
+/* gutter. It is derived from the bar constants so it stays in sync. */
+dl.py.method.experimental,
+dl.py.function.experimental,
+dl.py.class.experimental,
+dl.py.attribute.experimental {
+    border-left: var(--experimental-bar-width) solid var(--pst-color-attention-bg);
+    padding-left: var(--experimental-bar-pad);
+    margin-left: calc(-1 * (var(--experimental-bar-width) + var(--experimental-bar-pad)));
+}
+
+/* Style the experimental marker box. */
+/* This is a simple container created by .. experimental:: directive. */
+/* Using CSS variables from the theme's attention admonition style. */
+/* These variables automatically change with the theme switcher. */
+.experimental-marker {
+    background-color: var(--pst-color-attention-bg);
+    padding: 8px 12px;
+    margin: 12px 0;
+    border-radius: 4px;
+}
+
+/* Style the paragraph inside the container. */
+.experimental-marker > p {
+    color: var(--pst-color-attention-text);
+    font-weight: 700;
+    margin: 0;
+    padding-left: 8px;
+    font-size: 0.95em;
+}
+
+/* The module banner names its module in a `code` span. Keep it monospace but */
+/* let it inherit the banner's attention colors instead of the theme's default */
+/* code background/border, which would clash with the banner fill. */
+.experimental-marker > p code {
+    background-color: transparent;
+    color: inherit;
+    border: none;
+    padding: 0;
+}
+
+/* Highlight an experimental parameter row ("Parameters" list) or attribute row */
+/* (":ivar:"/"Variables" list). Both are set by mark_experimental_apis on the */
+/* row's block container -- the <li> for several entries, or the field body <dd> */
+/* when a lone entry collapses the list -- so the bar spans the whole row.
+/* (An attribute written as a ".. attribute::" object instead gets the object
+/* border via dl.py.attribute.experimental above.) */
+.experimental-param,
+.experimental-ivar {
+    border-left: var(--experimental-bar-width) solid var(--pst-color-attention-bg);
+    padding-left: var(--experimental-bar-pad);
+    border-radius: 4px;
+}
+
+/* Whole-module experimental: one bar spanning the entire module page. */
+/* Set by mark_experimental_apis on the `compound` div wrapping the page body. */
+/* Mirrors the per-entry treatment above (border-left + padding-left). */
+.experimental-module {
+    border-left: var(--experimental-bar-width) solid var(--pst-color-attention-bg);
+    padding-left: var(--experimental-bar-pad);
+}

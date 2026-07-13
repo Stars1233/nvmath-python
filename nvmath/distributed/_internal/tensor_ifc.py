@@ -45,7 +45,10 @@ class DistributedTensor(TensorHolder[Tensor]):
 
     @abstractmethod
     def to(
-        self, device_id: int | Literal["cpu"], stream_holder: StreamHolder | None, symmetric_memory: bool = False
+        self,
+        device_id: int | Literal["cpu"],
+        stream_holder: StreamHolder | None,
+        symmetric_memory: None | Literal["nvshmem", "nccl"] = None,
     ) -> DistributedTensor:
         """Copy the TensorHolder to a different device.
 

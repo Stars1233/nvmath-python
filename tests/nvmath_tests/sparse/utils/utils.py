@@ -10,16 +10,15 @@ from typing import Literal
 
 import numpy as np
 import pytest
+from cuda.core import Device, StreamOptions, system
 
 import nvmath.bindings.cusparse as cusparse
 from nvmath._utils import get_nvrtc_version
 
-try:
-    from cuda.core import Device, StreamOptions, system
-except ImportError:
-    from cuda.core.experimental import Device, StreamOptions, system
 from .common_axes import (
+    DType,
     Framework,
+    SparseArrayType,
     copy_array,
     cp,
     device_id_from_array,
@@ -54,10 +53,7 @@ def multi_gpu_only(fn):
 
     @functools.wraps(fn)
     def inner(*args, **kwargs):
-        try:
-            dev_count = system.get_num_devices()
-        except AttributeError:
-            dev_count = system.num_devices
+        dev_count = system.get_num_devices()
         if dev_count < 2:
             pytest.skip(f"Test requires at least two gpus, got {dev_count}")
         else:
@@ -108,24 +104,26 @@ def to_dense_numpy(a):
         else:
             return a[0]
 
-    match framework_from_array(a):
-        case Framework.numpy:
-            return np.asarray(a)
-        case Framework.cupy:
-            return cp.asnumpy(a)
-        case Framework.cupyx | Framework.scipy:
-            return to_dense_numpy(a.todense())
-        case Framework.torch:
-            assert a.dtype not in [torch.bfloat16, torch.complex32], (
-                "numpy does not support bfloat16 and complex32. Please convert the array before calling this function."
-            )
+    framework = framework_from_array(a)
+    with get_framework_device_ctx(device_id_from_array(a), framework):
+        match framework:
+            case Framework.numpy:
+                return np.asarray(a)
+            case Framework.cupy:
+                return cp.asnumpy(a)
+            case Framework.cupyx | Framework.scipy:
+                return to_dense_numpy(a.todense())
+            case Framework.torch:
+                assert a.dtype not in [torch.bfloat16, torch.complex32], (
+                    "numpy does not support bfloat16 and complex32. Please convert the array before calling this function."
+                )
 
-            if a.layout != torch.strided:
-                return to_dense_numpy(a.to_dense())
+                if a.layout != torch.strided:
+                    return to_dense_numpy(a.to_dense())
 
-            return a.cpu().numpy()
-        case _:
-            raise ValueError(f"Unsupported framework: {type(a)}")
+                return a.cpu().numpy()
+            case _:
+                raise ValueError(f"Unsupported framework: {type(a)}")
 
 
 def idfn(val):
@@ -146,6 +144,24 @@ def is_known_linker_error(message: str) -> bool:
         pass
 
     return "multiply defined" in message and "_ZN6__halfC1E13__nv_bfloat16" in message
+
+
+_LOW_PRECISION_COMPUTE = {
+    DType.float16: DType.float32,
+    DType.bfloat16: DType.float32,
+}
+
+
+def cusparse_may_reject(sparse_array_type, data_type, compute_type=None) -> bool:
+    if compute_type is None:
+        compute_type = _LOW_PRECISION_COMPUTE.get(data_type, data_type)
+
+    return (
+        (sparse_array_type == SparseArrayType.BSR)
+        or
+        # Mixed compute type and data type is not supported for CSC
+        (sparse_array_type == SparseArrayType.CSC and data_type != compute_type)
+    )
 
 
 class allow_cusparse_unsupported:
@@ -216,9 +232,9 @@ def ust_snapshot(ust):
     Snapshot of direct attributes of the UST and the wrapped operand.
     """
     snap = shallow_state_snapshot(ust)
-    if ust.wrapped_operand is not None:
-        for key, value in shallow_state_snapshot(ust.wrapped_operand).items():
-            snap[f"wrapped_operand__{key}"] = value
+    if ust._wrapped_operand is not None:
+        for key, value in shallow_state_snapshot(ust._wrapped_operand).items():
+            snap[f"_wrapped_operand__{key}"] = value
     return snap
 
 
@@ -234,3 +250,15 @@ def assert_snapshot_equal(current, ref):
     for key in ref:
         if key not in current:
             raise AssertionError(f"The object does not have an attribute {key} that was present in the reference")
+
+
+@contextlib.contextmanager
+def allow_unsupported_conversion():
+    try:
+        yield
+    except NotImplementedError as e:
+        pytest.skip(f"Unable to perform UST conversion (NotImplementedError): {str(e)}")
+    except TypeError as e:
+        if "is unsupported or invalid" in str(e):
+            pytest.skip(f"Unable to perform UST conversion (TypeError): {str(e)}")
+        raise

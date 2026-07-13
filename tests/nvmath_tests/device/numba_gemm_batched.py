@@ -5,7 +5,7 @@
 import numpy as np
 import pytest
 
-from nvmath.device import TransposeMode, matmul
+from nvmath.device import Matmul, TransposeMode
 
 from .helpers import _TOLERANCE, l2error
 
@@ -23,14 +23,13 @@ class NumbaGemmBatched:
         assert precision == np.float32
         assert data_type == "real"
 
-        MM = matmul(
+        MM = Matmul(
             size=size,
             data_type="real",
             precision=np.float32,
             transpose_mode=TransposeMode("non_transposed", "non_transposed"),
             block_size=block_size,
             execution="Block",
-            compiler="numba",
         )
 
         (m, n, k) = size
@@ -48,7 +47,7 @@ class NumbaGemmBatched:
         alpha = 1.0
         beta = 0.0
 
-        @cuda.jit(link=MM.files)
+        @cuda.jit()
         def f(a_global, b_global, c_global):
             bid = cuda.blockIdx.x
 
@@ -64,7 +63,7 @@ class NumbaGemmBatched:
 
             # Execute FFT
             for _r in range(repeat):
-                MM(alpha, a_smem, b_smem, beta, c_smem)
+                MM.execute(alpha, a_smem, b_smem, beta, c_smem)
 
             cuda.syncthreads()
             # Store shared --> global

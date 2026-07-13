@@ -2,13 +2,14 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 #
-# This code was automatically generated across versions from 12.0.1 to 13.2.1, generator version 0.3.1.dev1380+g2c74a7741. Do not modify it directly.
+# This code was automatically generated across versions from 12.0.1 to 13.2.1, generator version 0.3.1.dev1471+g7122059e9. Do not modify it directly.
 # This layer exposes the C header to Cython as-is.
 
 from libc.stdint cimport int64_t
 from libc.stdio cimport FILE
 
 from .cycusolver cimport *
+from ._internal.common_types cimport cudaEmulationMantissaControl, cudaEmulationMantissaControl_t, cudaEmulationSpecialValuesSupport, cudaEmulationSpecialValuesSupport_t, cudaEmulationStrategy_t
 
 
 ###############################################################################
@@ -24,22 +25,18 @@ ctypedef enum cusolverDnFunction_t "cusolverDnFunction_t":
 
 
 # types
-cdef extern from *:
-    """
-    #include <library_types.h>
-    """
-    ctypedef int cudaEmulationStrategy_t 'cudaEmulationStrategy_t'
-    ctypedef int cudaEmulationMantissaControl_t 'cudaEmulationMantissaControl_t'
-    ctypedef int cudaEmulationMantissaControl 'cudaEmulationMantissaControl'
-    ctypedef int cudaEmulationSpecialValuesSupport_t 'cudaEmulationSpecialValuesSupport_t'
-    ctypedef int cudaEmulationSpecialValuesSupport 'cudaEmulationSpecialValuesSupport'
-
 ctypedef void* cusolverDnHandle_t 'cusolverDnHandle_t'
+
 ctypedef void* syevjInfo_t 'syevjInfo_t'
+
 ctypedef void* gesvdjInfo_t 'gesvdjInfo_t'
+
 ctypedef void* cusolverDnIRSParams_t 'cusolverDnIRSParams_t'
+
 ctypedef void* cusolverDnIRSInfos_t 'cusolverDnIRSInfos_t'
+
 ctypedef void* cusolverDnParams_t 'cusolverDnParams_t'
+
 ctypedef void (*cusolverDnLoggerCallback_t 'cusolverDnLoggerCallback_t')(
     int logLevel,
     const char* functionName,

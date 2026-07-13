@@ -10,7 +10,7 @@ nvmath-python accepts operands from multiple frameworks. The result of each oper
 is a tensor of the same framework that was used to pass the inputs, and is located
 on the same device as the inputs (GPU in this example).
 
-The global operation performed in this example is: A.H @ B where H is the hermitian
+The global operation performed in this example is: a.H @ b where H is the hermitian
 transpose.
 
 $ mpiexec -n 4 python example01_cupy_complex_conjugate_transpose.py
@@ -47,8 +47,8 @@ m, n, k = 128, 512, 1024
 row_wise_distribution = Slab.X  # partitioning on rows
 col_wise_distribution = Slab.Y  # partitioning on columns
 
-a_shape = col_wise_distribution.shape(rank, (k, m))  # a is transposed and partitioned on m
-b_shape = col_wise_distribution.shape(rank, (k, n))  # b is partitioned on n
+a_shape = col_wise_distribution.shape(rank, (k, m))  # 'a' is transposed and partitioned on m
+b_shape = col_wise_distribution.shape(rank, (k, n))  # 'b' is partitioned on n
 
 with cp.cuda.Device(device_id):
     a = cp.random.rand(*a_shape, dtype=cp.float32) + 1j * cp.random.rand(*a_shape, dtype=cp.float32)
@@ -59,8 +59,8 @@ with cp.cuda.Device(device_id):
 # you can follow these guidelines:
 # - The transpose of a C-ordered (row-major) matrix is a Fortran-ordered (column-major)
 #   matrix and vice-versa.
-# - In a distributed setting, a row-wise distributed matrix A is equivalent to a column-wise
-#   distributed matrix A.T, and vice-versa.
+# - In a distributed setting, a row-wise distributed matrix 'a' is equivalent to a
+#   column-wise distributed matrix 'a'.T, and vice-versa.
 
 # Here we use cupy's asfortranarray function to convert the inputs to Fortran order
 # (note that this copies the matrix to a new buffer with the same shape but different
@@ -71,18 +71,18 @@ with cp.cuda.Device(device_id):
 
 # Specify distribution of input and output matrices.
 
-# Note: The choice of distribution for a, b and output as well as whether a and b are
-# transposed influences the distributed algorithm used by cuBLASMp and can have a
+# Note: The choice of distribution for 'a', 'b' and output as well as whether 'a' and 'b'
+# are transposed influences the distributed algorithm used by cuBLASMp and can have a
 # substantial impact on performance.
 # The following configuration will run AllGather+GEMM.
 # Refer to https://docs.nvidia.com/cuda/cublasmp/usage/tp.html for more information.
 
-# Distribution of a, b and output.
+# Distribution of 'a', 'b' and output.
 distributions = [col_wise_distribution, col_wise_distribution, row_wise_distribution]
 
 # Perform the distributed matrix multiplication.
 qualifiers = np.zeros((3,), dtype=matrix_qualifiers_dtype)
-# Conjugate transpose on A.
+# Conjugate transpose on 'a'.
 qualifiers[0]["is_conjugate"] = qualifiers[0]["is_transpose"] = True
 result = nvmath.distributed.linalg.advanced.matmul(
     a,

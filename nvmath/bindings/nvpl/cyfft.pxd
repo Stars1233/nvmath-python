@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 #
-# This code was automatically generated with version 25.5, generator version 0.3.1.dev1303+g031f1197f. Do not modify it directly.
+# This code was automatically generated with version 25.5, generator version 0.3.1.dev1471+g7122059e9. Do not modify it directly.
 # This layer exposes the C header to Cython as-is.
 
 ###############################################################################
@@ -60,6 +60,7 @@ cdef extern from *:
 
 
 ctypedef void* fftw_plan 'fftw_plan'
+
 ctypedef void* fftwf_plan 'fftwf_plan'
 
 

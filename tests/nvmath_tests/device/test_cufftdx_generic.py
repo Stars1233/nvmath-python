@@ -7,9 +7,7 @@ import functools
 import numpy as np
 import pytest
 
-from nvmath.device import FFT, Code, CodeType, ComputeCapability, fft
-from nvmath.device.cufftdx import compile_fft_execute
-from nvmath.device.types import complex64, complex128, half4
+from nvmath.device import FFT, Code, CodeType, ComputeCapability, compile_fft_execute, complex64, complex128, half4
 
 from .helpers import (
     SM70,
@@ -378,9 +376,9 @@ def test_negative(opt, value):
     else:
         opts[opt] = value
     with pytest.raises(Exception):  # noqa: B017
-        FFT = fft(**opts)
+        fft = FFT(**opts)
         # trigger compilation
-        value_type = FFT.value_type  # noqa: F841
+        value_type = fft.value_type  # noqa: F841
 
 
 @pytest.mark.parametrize(

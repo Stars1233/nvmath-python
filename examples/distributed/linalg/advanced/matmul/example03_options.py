@@ -9,31 +9,23 @@ operation.
 In this example, we'll use NumPy ndarrays as input, and look at two equivalent ways to
 specify the compute type.
 
-The global operation performed in this example is: A @ B
+The global operation performed in this example is: a @ b
 
 $ mpiexec -n 4 python example03_options.py
 """
 
 import numpy as np
-
-try:
-    from cuda.core import system
-except ImportError:
-    from cuda.core.experimental import system
+from cuda.core import system
 from mpi4py import MPI
 
 import nvmath.distributed
 from nvmath.distributed.distribution import Slab
 
 # Initialize nvmath.distributed.
-try:
-    num_devices = system.get_num_devices()
-except AttributeError:
-    num_devices = system.num_devices
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 nranks = comm.Get_size()
-device_id = rank % num_devices
+device_id = rank % system.get_num_devices()
 # cuBLASMp requires NCCL communication backend.
 nvmath.distributed.initialize(device_id, comm, backends=["nccl"])
 

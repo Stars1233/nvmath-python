@@ -48,7 +48,7 @@ print()
 a_float = torch.tensor([[1.0, 2.0], [3.0, 4.0]], dtype=torch.float32, device=device)
 a_fp4 = quantize_to_fp4(a_float, axis=-1)
 a_decoded = unpack_fp4(a_fp4, axis=-1)
-print(f"2D row-wise (A layout): {a_float.tolist()} -> encode -> decode -> {a_decoded.tolist()}")
+print(f"2D row-wise (a layout): {a_float.tolist()} -> encode -> decode -> {a_decoded.tolist()}")
 # Last dimension (K) is packed; after encoding the packed axis is halved.
 print(f"   shapes:  {tuple(a_float.shape)} -> {tuple(a_fp4.shape)} -> {tuple(a_decoded.shape)}")
 # Last stride = 1.
@@ -60,7 +60,7 @@ print()
 b_float = torch.tensor([[1.0, 3.0], [2.0, 4.0], [1.5, 2.0], [0.5, 6.0]], dtype=torch.float32, device=device)
 b_fp4 = quantize_to_fp4(b_float, axis=-2)
 b_decoded = unpack_fp4(b_fp4, axis=-2)
-print(f"2D column-wise (B layout): {b_float.tolist()} -> encode -> decode -> {b_decoded.tolist()}")
+print(f"2D column-wise (b layout): {b_float.tolist()} -> encode -> decode -> {b_decoded.tolist()}")
 # Second-to-last dimension (K) is packed; after encoding the packed axis is halved.
 print(f"   shapes:  {tuple(b_float.shape)} -> {tuple(b_fp4.shape)} -> {tuple(b_decoded.shape)}")
 # Second-to-last stride = 1.

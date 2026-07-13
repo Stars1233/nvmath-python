@@ -35,8 +35,8 @@ from ....utils.utils import coalesce_array, get_framework_device_ctx, to_dense_n
 
 
 def _create_np_random_matrix(
-    n: int,
-    m: int,
+    rows: int,
+    cols: int,
     dtype: DType,
     seed: int,
     lo: float,
@@ -47,7 +47,7 @@ def _create_np_random_matrix(
     assert lo < hi
 
     rng = np.random.default_rng(seed)
-    shape = (*batch_dims, n, m)
+    shape = (*batch_dims, rows, cols)
 
     a = rng.uniform(lo, hi, size=shape)
     if is_complex(dtype):
@@ -63,9 +63,9 @@ def _create_np_random_matrix(
 def _zero_out(a, density, rng):
     assert 0 < density <= 1
 
-    n, m = a.shape[-2:]
+    rows, cols = a.shape[-2:]
     batch_vol = math.prod(a.shape[:-2])
-    size_per_batch = n * m
+    size_per_batch = rows * cols
     zeros_per_batch = int((1 - density) * size_per_batch)
 
     if batch_vol <= 1:
@@ -98,8 +98,8 @@ def _cupy_as_sparse(a, sparse_array_type: SparseArrayType, dtype):
 
 def _torch_as_sparse(a, sparse_array_type: SparseArrayType, dtype, index_dtype):
     a = torch.from_numpy(a).type(dtype)
-    m, n = a.shape[-2:]
-    block_size = (2 if m % 2 == 0 else 1, 2 if n % 2 == 0 else 1)
+    rows, cols = a.shape[-2:]
+    block_size = (2 if rows % 2 == 0 else 1, 2 if cols % 2 == 0 else 1)
 
     match sparse_array_type:
         case SparseArrayType.COO:
@@ -294,16 +294,6 @@ def _cast_dtype(a, dtype):
                 raise RuntimeError(f"Framework {framework} is not supported")
 
 
-def get_rtol(dtype):
-    _COMPLEX32_RTOL = 1e-2
-
-    match dtype:
-        case DType.complex32:
-            return _COMPLEX32_RTOL
-        case _:
-            return None
-
-
 # ==========================
 # Sample generation
 # ==========================
@@ -313,8 +303,8 @@ def create_random_sparse_matrix(
     framework: Framework,
     operand_placement: OperandPlacement,
     sparse_array_type: SparseArrayType,
-    n: int,
-    m: int,
+    rows: int,
+    cols: int,
     density: None | float,
     dtype: DType,
     seed: int,
@@ -324,19 +314,21 @@ def create_random_sparse_matrix(
     batch_dims=(),
     index_dtype: DType = DType.int32,
 ):
+    assert framework in Framework.enabled()
+
     if isinstance(batch_dims, int):
         batch_dims = (batch_dims,)
-    a = _create_np_random_matrix(n, m, dtype, seed, lo, hi, density, batch_dims)
+    a = _create_np_random_matrix(rows, cols, dtype, seed, lo, hi, density, batch_dims)
     sa = _as_sparse_matrix(a, framework, operand_placement, sparse_array_type, dtype, device_id, index_dtype, batch_dims)
-    assert sa.shape == (*batch_dims, n, m)
+    assert sa.shape == (*batch_dims, rows, cols)
     return sa
 
 
 def create_random_dense_matrix(
     framework: Framework,
     operand_placement: OperandPlacement,
-    n: int,
-    m: int,
+    rows: int,
+    cols: int,
     dtype: DType,
     seed: int,
     lo: float = 0.0,
@@ -348,7 +340,7 @@ def create_random_dense_matrix(
     if isinstance(batch_dims, int):
         batch_dims = (batch_dims,)
 
-    a = _create_np_random_matrix(n, m, dtype, seed, lo, hi, density, batch_dims)
+    a = _create_np_random_matrix(rows, cols, dtype, seed, lo, hi, density, batch_dims)
     return _move_to_framework(a, dtype, framework, operand_placement, device_id, batch_dims)
 
 
@@ -399,7 +391,6 @@ def calculate_reference(a, b, c, dtype, alpha=1.0, beta=1.0, qualifiers=None, de
         DType.complex64: DType.complex64,
         DType.complex128: DType.complex128,
         DType.bfloat16: DType.float32,
-        DType.complex32: DType.complex64,
         DType.float16: DType.float32,
     }
     assert dtype in _COMPUTE_TYPES, f"{dtype} is not supported by reference calculation"
@@ -433,7 +424,6 @@ def calculate_reference(a, b, c, dtype, alpha=1.0, beta=1.0, qualifiers=None, de
 
 def compare_results(original_result, reference_result, dtype, rtol=None):
     _CAST_RULES = {
-        DType.complex32: DType.complex64,
         DType.bfloat16: DType.float16,
     }
 
@@ -445,4 +435,4 @@ def compare_results(original_result, reference_result, dtype, rtol=None):
 
     result = to_dense_numpy(result)
     reference = to_dense_numpy(reference)
-    assert_tensors_equal(result, reference, rtol=rtol if rtol is not None else get_rtol(dtype))
+    assert_tensors_equal(result, reference, rtol=rtol)

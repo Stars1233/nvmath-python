@@ -1,0 +1,15 @@
+---
+# Uncomment a section header and replace with your own note.
+#release_summary:
+features:
+#api:
+#deprecations:
+#fixes:
+#issues:
+#security:
+#doc:
+ - >
+  Added :py:meth:`nvmath.linalg.generic.Matmul.reset_operands_unchecked`,
+  a performance-optimized variant of
+  :py:meth:`~nvmath.linalg.generic.Matmul.reset_operands` that skips
+  operand validation and logging.

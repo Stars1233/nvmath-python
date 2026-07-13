@@ -24,19 +24,32 @@ import nvmath
 from nvmath.linalg._internal.utils import axis_order_in_memory, calculate_strides
 
 
-def sample_matrix(framework, dtype, shape, use_cuda, min=-5, max=5):
+def sample_matrix(framework, dtype: str, shape: tuple[int, ...], use_cuda: bool, min_val: int = -5, max_val: int = 5):
     """
     Generates a sample matrix with random contents.
     """
+    assert isinstance(dtype, str), "sample_matrix expects dtype as a string"
 
     if framework == "numpy/cupy":
         framework = "cupy" if use_cuda else "numpy"
+
+    # Casting a real array to a complex dtype leaves the imaginary part zero,
+    # which would mask any bug specific to complex arithmetic. Build real and
+    # imaginary parts separately instead.
+    if dtype.startswith("complex"):
+        assert dtype in ("complex64", "complex128"), f"sample_matrix: unsupported complex dtype {dtype!r}"
+        real_dtype = "float32" if dtype == "complex64" else "float64"
+        real = sample_matrix(framework, real_dtype, shape, use_cuda, min_val, max_val)
+        imag = sample_matrix(framework, real_dtype, shape, use_cuda, min_val, max_val)
+        if framework == "torch":
+            return torch.complex(real, imag)
+        return (real + 1j * imag).astype(dtype)
 
     if framework == "torch":
         if torch is None:
             pytest.skip("pytorch not present")
         dtype = getattr(torch, dtype)
-        r = ((max - min) * torch.rand(shape) + min).type(dtype)
+        r = ((max_val - min_val) * torch.rand(shape) + min_val).type(dtype)
         return r.cuda() if use_cuda else r
     elif framework == "cupy":
         if cupy is None:

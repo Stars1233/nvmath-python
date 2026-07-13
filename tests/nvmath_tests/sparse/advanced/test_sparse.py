@@ -2,6 +2,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+import logging
 import random
 import sys
 import typing
@@ -22,7 +23,7 @@ except ImportError:
 
 from nvmath_tests.helpers import get_framework_device_ctx
 
-from ...helpers import check_freed_after
+from ...helpers import assert_reset_to_none_behavior, check_freed_after
 from ..utils.common_axes import (
     DType,
     ExecutionSpace,
@@ -312,8 +313,9 @@ def test_matrix_unsupported_reset_density_change(
     ids=idfn,
 )
 @multi_gpu_only
+@pytest.mark.parametrize("use_unchecked", [False, True], ids=["checked", "unchecked"])
 def test_matrix_solve_non_default_device_id(
-    framework, exec_space, operand_placement, device_id, sparse_array_type, index_type, dtype, n, rhs_k
+    framework, exec_space, operand_placement, device_id, sparse_array_type, index_type, dtype, n, rhs_k, use_unchecked
 ):
     density = 0.5
     device_id = device_id.value
@@ -354,7 +356,10 @@ def test_matrix_solve_non_default_device_id(
             index_dtype=index_type,
             device_id=device_id,
         )
-        solver.reset_operands(a=a_1)
+        if use_unchecked:
+            solver.reset_operands_unchecked(a=a_1)
+        else:
+            solver.reset_operands(a=a_1)
         solver.plan()
         solver.factorize()
         x = solver.solve()
@@ -400,8 +405,9 @@ def test_matrix_solve_non_default_device_id(
     ids=idfn,
 )
 @multi_gpu_only
+@pytest.mark.parametrize("use_unchecked", [False, True], ids=["checked", "unchecked"])
 def test_matrix_solve_device_id(
-    framework, exec_space, operand_placement, device_id_0, device_id_1, sparse_array_type, dtype, n, rhs_k
+    framework, exec_space, operand_placement, device_id_0, device_id_1, sparse_array_type, dtype, n, rhs_k, use_unchecked
 ):
     density = 0.5
     tensor_framework = framework2tensor_framework[framework]
@@ -436,7 +442,10 @@ def test_matrix_solve_device_id(
         check_meta_data(a_1, b_01, x_01, framework, tensor_framework, operand_placement, device_id_1, dtype)
         check(a_1, b_01, x_01, device_id=device_id_1)
         del b_01, x_01
-        solver_1.reset_operands(b=b_11)
+        if use_unchecked:
+            solver_1.reset_operands_unchecked(b=b_11)
+        else:
+            solver_1.reset_operands(b=b_11)
         x_11 = solver_1.solve()
     finally:
         if solver_0 is not None:
@@ -666,6 +675,7 @@ def test_solver_matrix_type_options(
     ids=idfn,
 )
 def test_solver_matrix_options_external_handle(
+    caplog,
     framework,
     exec_space,
     operand_placement,
@@ -677,6 +687,7 @@ def test_solver_matrix_options_external_handle(
         handle = nvmath.bindings.cudss.create()
         tensor_framework = framework2tensor_framework[framework]
         options_format = options_format.value
+        i = 0
         for n in [1, 7]:
             for rhs_k in [RHSVector(n), RHSMatrix(n, 5)]:
                 if rhs_k.type not in supported_exec_space_dense_rhs[exec_space]:
@@ -717,12 +728,25 @@ def test_solver_matrix_options_external_handle(
                         sparse_system_view=sparse_view,
                         handle=handle,
                     )
-                with nvmath.sparse.advanced.DirectSolver(
-                    a_view,
-                    b,
-                    execution=exec_space.nvname,
-                    options=options,
-                ) as solver:
+                caplog.clear()
+                with (
+                    caplog.at_level(logging.DEBUG),
+                    nvmath.sparse.advanced.DirectSolver(
+                        a_view,
+                        b,
+                        execution=exec_space.nvname,
+                        options=options,
+                    ) as solver,
+                ):
+                    if operand_placement == OperandPlacement.device:
+                        if i == 0:
+                            assert "async workspace allocator has been set" in caplog.text
+                        else:
+                            assert "handle already has a custom allocator set" in caplog.text
+                    else:
+                        assert "async workspace allocator has been set" not in caplog.text
+                        assert "handle already has a custom allocator set" not in caplog.text
+                    i += 1
                     assert solver.handle == handle, f"{solver.handle} != {handle}"
                     solver.plan()
                     solver.factorize()
@@ -1170,8 +1194,20 @@ def test_batching(
         if not free or (lhs and rhs)  # both operands need to be set after freeing
     ],
 )
+@pytest.mark.parametrize("use_unchecked", [False, True], ids=["checked", "unchecked"])
 def test_reset(
-    framework, exec_space, operand_placement, sparse_array_type, index_type, dtype, n, rhs_k, reset_lhs, reset_rhs, free
+    framework,
+    exec_space,
+    operand_placement,
+    sparse_array_type,
+    index_type,
+    dtype,
+    n,
+    rhs_k,
+    reset_lhs,
+    reset_rhs,
+    free,
+    use_unchecked,
 ):
     a = create_random_sparse_matrix(
         framework, operand_placement, sparse_array_type, n, n, None, dtype, seed=42, index_dtype=index_type
@@ -1192,12 +1228,13 @@ def test_reset(
         check(a, b, x)
         if free:
             solver.release_operands()
+        reset = solver.reset_operands_unchecked if use_unchecked else solver.reset_operands
         if (reset_lhs, reset_rhs) == (True, False):
-            solver.reset_operands(a=a2)
+            reset(a=a2)
         elif (reset_lhs, reset_rhs) == (False, True):
-            solver.reset_operands(b=b2)
+            reset(b=b2)
         elif (reset_lhs, reset_rhs) == (True, True):
-            solver.reset_operands(a=a2, b=b2)
+            reset(a=a2, b=b2)
         if not reset_lhs:
             a2 = a
         if not reset_rhs:
@@ -1260,6 +1297,7 @@ def test_reset(
 )
 @pytest.mark.parametrize("reset_lhs", [True, False])
 @pytest.mark.parametrize("reset_rhs", [True, False])
+@pytest.mark.parametrize("use_unchecked", [False, True], ids=["checked", "unchecked"])
 def test_reset_batched(
     framework: Framework,
     exec_space,
@@ -1274,6 +1312,7 @@ def test_reset_batched(
     rhs_ks,
     reset_lhs,
     reset_rhs,
+    use_unchecked,
 ):
     a = _generate_lhs_batch(
         lhs_batching_mode,
@@ -1310,12 +1349,13 @@ def test_reset_batched(
         solver.factorize()
         x = solver.solve()
         _check_batched_result(a, b, x, batch_size, rhs_batching_mode)
+        reset = solver.reset_operands_unchecked if use_unchecked else solver.reset_operands
         if (reset_lhs, reset_rhs) == (True, False):
-            solver.reset_operands(a=a2)
+            reset(a=a2)
         elif (reset_lhs, reset_rhs) == (False, True):
-            solver.reset_operands(b=b2)
+            reset(b=b2)
         elif (reset_lhs, reset_rhs) == (True, True):
-            solver.reset_operands(a=a2, b=b2)
+            reset(a=a2, b=b2)
         if not reset_lhs:
             a2 = a
         if not reset_rhs:
@@ -1329,7 +1369,8 @@ def test_reset_batched(
 
 
 @pytest.mark.parametrize("reset_target", ["a", "b"])
-def test_reset_implicit_batch_device_pointers(reset_target):
+@pytest.mark.parametrize("use_unchecked", [False, True], ids=["checked", "unchecked"])
+def test_reset_implicit_batch_device_pointers(reset_target, use_unchecked):
     """
     Verify that reset_operands() with implicit-batch on device actually updates
     the cuDSS device pointer arrays.  Both a1/b1 are kept alive so CUDA cannot
@@ -1363,13 +1404,14 @@ def test_reset_implicit_batch_device_pointers(reset_target):
     solver.factorize()
     solver.solve()
 
+    reset = solver.reset_operands_unchecked if use_unchecked else solver.reset_operands
     if reset_target == "a":
-        solver.reset_operands(a=a2)
+        reset(a=a2)
         solver.plan()
         solver.factorize()
         a_check, b_check = a2, b1
     else:
-        solver.reset_operands(b=b2)
+        reset(b=b2)
         a_check, b_check = a1, b2
 
     x = solver.solve()
@@ -1459,6 +1501,23 @@ def test_invalid_sparse_format(
                 solver.reset_operands(a=invalid_a)
     else:
         raise ValueError(f"Bad `when`: {when}")
+
+
+@pytest.mark.parametrize("problem", ["single", "all_in_sequence"])
+def test_invalid_sparse_format_nvmath_ust(problem):
+    torch = pytest.importorskip("torch")
+    import nvmath.sparse.ust as ust
+
+    n = 4
+    if problem == "single":
+        a = ust.Tensor.from_package(torch.rand(n, n, dtype=torch.float64))
+        b = torch.ones(n, 1, dtype=torch.float64)
+    else:
+        a = [ust.Tensor.from_package(torch.rand(n, n, dtype=torch.float64)) for _ in range(2)]
+        b = [torch.ones(n, 1, dtype=torch.float64) for _ in range(2)]
+
+    with pytest.raises(TypeError, match="DirectSolver does not support UST sparse format"):
+        nvmath.sparse.advanced.direct_solver(a, b)
 
 
 @pytest.mark.parametrize(
@@ -1998,9 +2057,11 @@ def test_execute_after_release_operands_raises():
 
 
 @pytest.mark.skipif(HAS_CUPY_SPARSE is False, reason="cupy.sparse is not available")
-def test_reset_operands_after_release_works():
+@pytest.mark.parametrize("use_unchecked", [False, True], ids=["checked", "unchecked"])
+def test_reset_operands_after_release_works(use_unchecked):
     """
-    Test that calling reset_operands() after release_operands() works correctly.
+    Test that calling reset_operands() / reset_operands_unchecked() after
+    release_operands() works correctly.
     """
     n = 8
     a = sp.random(n, n, density=0.5, format="csr", dtype="float64")
@@ -2021,7 +2082,11 @@ def test_reset_operands_after_release_works():
     b_new = cp.random.rand(n).astype("float64")
 
     # Reset with new operands (must provide both after release)
-    solver.reset_operands(a=a_new, b=b_new)
+    if use_unchecked:
+        solver.reset_operands_unchecked(a=a_new, b=b_new)
+    else:
+        solver.reset_operands(a=a_new, b=b_new)
+
     # Need to re-plan because reset_operands invalidated the plan
     solver.plan()
     # Then refactorize because values changed
@@ -2036,3 +2101,23 @@ def test_reset_operands_after_release_works():
     np.testing.assert_allclose(x2_cpu, expected, rtol=1e-5)
 
     solver.free()
+
+
+@pytest.mark.skipif(HAS_CUPY_SPARSE is False, reason="cupy.sparse is not available")
+@pytest.mark.parametrize("with_release", [False, True])
+def test_reset_operands_all_none(with_release):
+    """reset_operands() with all-None always raises ValueError.
+    See assert_reset_to_none_behavior."""
+    n = 8
+    a = sp.random(n, n, density=0.5, format="csr", dtype="float64")
+    a += sp.diags([2.0] * n, format="csr", dtype="float64")
+    b = cp.ones((n,), dtype="float64")
+
+    with nvmath.sparse.advanced.DirectSolver(a, b) as solver:
+        solver.plan()
+        solver.factorize()
+        assert_reset_to_none_behavior(
+            with_release=with_release,
+            single_operand=False,
+            obj=solver,
+        )

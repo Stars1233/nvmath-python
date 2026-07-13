@@ -1,0 +1,8 @@
+---
+issues:
+ - |
+   Using the :class:`nvmath.distributed.distributions.Box` distribution with
+   :class:`nvmath.distributed.fft.FFT` and
+   :class:`nvmath.distributed.distributions.Redistribute` APIs may result in
+   a spurious validation error. The workaround is to use an equivalent
+   :class:`nvmath.distributed.distributions.Slab` distribution.

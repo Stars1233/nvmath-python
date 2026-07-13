@@ -10,6 +10,7 @@ import pytest
 
 import nvmath
 
+from ....helpers import assert_reset_to_none_behavior
 from ...utils import assert_tensors_equal, random_torch_complex, sample_matrix, skip_if_cublas_before
 
 
@@ -505,3 +506,20 @@ def test_device_mismatch():
         # Attempt to reset with bias on wrong device should raise ValueError
         with pytest.raises(ValueError, match="The operand bias is on device .*, but it should be on device .*"):
             mm.reset_operands(epilog_inputs={"bias": bias_cpu})
+
+
+@pytest.mark.parametrize("with_release", [False, True])
+def test_reset_operands_all_none(with_release):
+    """reset_operands() with all-None always raises ValueError.
+    See assert_reset_to_none_behavior."""
+    m, n, k = 8, 8, 8
+    a = sample_matrix("numpy/cupy", "float32", (m, k), use_cuda=True)
+    b = sample_matrix("numpy/cupy", "float32", (k, n), use_cuda=True)
+
+    with nvmath.linalg.advanced.Matmul(a, b) as mm:
+        mm.plan()
+        assert_reset_to_none_behavior(
+            with_release=with_release,
+            single_operand=False,
+            obj=mm,
+        )

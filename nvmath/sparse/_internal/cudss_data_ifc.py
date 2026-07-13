@@ -17,7 +17,7 @@ import numpy as np
 from nvmath.bindings import cudss
 from nvmath.internal import utils
 
-DataParamEnum: TypeAlias = cudss.DataParam
+DataParamEnum: TypeAlias = cudss.DataParam  # type: ignore[name-defined, attr-defined]
 
 # Future-proofing - cuDSS is currently not thread-safe.
 # https://docs.nvidia.com/cuda/cudss/general.html#thread-safety
@@ -168,7 +168,7 @@ class PlanInfo:
         if self._batched:
             raise RuntimeError("Matching (column) permutation is not available for batched systems.")
 
-        if not self._solver.plan_config.use_matching:
+        if self._solver.plan_config.matching_algorithm == cudss.MatchingAlg.NONE:
             # documented in https://github.com/NVIDIA/CUDALibrarySamples/blob/main/cuDSS/simple_get_set/simple_get_set.cpp#L269-L274  # noqa: E501, W505
             raise RuntimeError("Matching (column) permutation is not available if matching is not enabled.")
 
@@ -362,7 +362,7 @@ class FactorizationInfo:
         if self._batched:
             raise RuntimeError("The factorized system's row scale factors is not available for batched systems.")
 
-        if not self._solver.plan_config.use_matching:
+        if self._solver.plan_config.matching_algorithm == cudss.MatchingAlg.NONE:
             raise RuntimeError("Row scale factors is only available if matching is enabled.")
 
         if self._scale_row is None:
@@ -386,7 +386,7 @@ class FactorizationInfo:
         if self._batched:
             raise RuntimeError("The factorized system's column scale factors is not available for batched systems.")
 
-        if not self._solver.plan_config.use_matching:
+        if self._solver.plan_config.matching_algorithm == cudss.MatchingAlg.NONE:
             raise RuntimeError("Column scale factors is only available if matching is enabled.")
 
         if self._scale_col is None:

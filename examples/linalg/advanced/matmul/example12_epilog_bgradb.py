@@ -7,7 +7,7 @@ This example demonstrates usage of epilogs.
 
 Epilogs allow you to execute extra computations after the matrix multiplication in a single
 fused kernel. In this example we'll use the BGRADB epilog, which generates an extra output
-"bgradb" corresponding to the reduction of the B matrix.
+"bgradb" corresponding to the reduction of the 'b' matrix.
 """
 
 import cupy as cp

@@ -1,0 +1,21 @@
+---
+# Uncomment a section header and replace with your own note.
+#release_summary:
+api:
+#  - Backward incompatible changes
+#features:
+#  - Non-breaking additions or performance improvements
+#deprecations:
+#  - Announcements of deprecations
+#fixes:
+#  - Bug fixes only
+#issues:
+#  - Known issues that are not yet fixed
+#security:
+#  - Non-breaking fixes of security issues
+#doc:
+#  - Notable documentation changes
+ - Distributed reshape has moved to ``nvmath.distributed.distribution.Redistribute`` and the API has
+   been generalized to accept any Distribution type as input and output distribution. Note that
+   the specific distributions that are supported depends on the capabilities of the underlying
+   library (currently cuFFTMp).

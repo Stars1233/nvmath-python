@@ -44,11 +44,11 @@ with torch.cuda.device(device_id):
     b = (torch.rand(*row_wise_distribution.shape(rank, (n, k)), device="cuda") * 10).type(torch.float8_e4m3fn)
 
 # Get a transposed view to obtain column-major memory layout. Note that this
-# also changes the distribution of a and b (see example01 for more information).
-a = a.T  # a is now (k, m) with col_wise_distribution
-b = b.T  # b is now (k, n) with col_wise_distribution
+# also changes the distribution of 'a' and 'b' (see example01 for more information).
+a = a.T  # 'a' is now (k, m) with col_wise_distribution
+b = b.T  # 'b' is now (k, n) with col_wise_distribution
 
-# Distributions for A, B, and result matrix D
+# Distributions for 'a', 'b', and result matrix 'd'
 distributions = [col_wise_distribution, col_wise_distribution, row_wise_distribution]
 
 # Prepare quantization scales. The scales must allow the result to fit within the dynamic
@@ -60,7 +60,7 @@ qualifiers = np.zeros((3,), dtype=matrix_qualifiers_dtype)
 qualifiers[0]["is_transpose"] = True
 
 # Perform the multiplication. The result of the multiplication will be:
-# (scales.a * A) @ (scales.b * B) * scales.d
+# (scales.a * a) @ (scales.b * b) * scales.d
 result = nvmath.distributed.linalg.advanced.matmul(
     a, b, distributions=distributions, quantization_scales=scales, qualifiers=qualifiers
 )
@@ -74,5 +74,5 @@ if rank == 0:
     print("Without scaling, most of the elements were clamped to the maximum value of float8_e4m3fn type (448):")
     # Printing the tensor synchronizes on the default CUDA stream.
     print(result_without_scaling)
-    print(f"\nWith D scale set to {scales['d']}, they were scaled down to fit into the dynamic range of float8_e4m3fn:")
+    print(f"\nWith 'd' scale set to {scales['d']}, they were scaled down to fit into the dynamic range of float8_e4m3fn:")
     print(result)

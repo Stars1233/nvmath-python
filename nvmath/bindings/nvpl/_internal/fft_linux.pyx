@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 #
-# This code was automatically generated with version 25.5, generator version 0.3.1.dev1303+g031f1197f. Do not modify it directly.
+# This code was automatically generated with version 25.5, generator version 0.3.1.dev1471+g7122059e9. Do not modify it directly.
 
 cimport cython
 from libc.stdint cimport intptr_t
@@ -37,7 +37,8 @@ cdef extern from "<dlfcn.h>" nogil:
 cdef object __symbol_lock = threading.Lock()
 cdef bint __py_nvpl_fft_init = False
 cdef str __current_so_name = ""
-cdef tuple __lib_so_names = ("libnvpl_fftw.so.0", "libmkl_rt.so.2",)
+# From MKL 2026.0.0 onward, only libmkl_rt.so.3 is shipped; keep libmkl_rt.so.2 in the probe order for older installs.
+cdef tuple __lib_so_names = ("libnvpl_fftw.so.0", "libmkl_rt.so.3", "libmkl_rt.so.2",)
 
 
 cdef void* __nvpl_fft_get_version = NULL

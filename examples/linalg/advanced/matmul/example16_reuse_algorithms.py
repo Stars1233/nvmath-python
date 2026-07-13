@@ -11,9 +11,9 @@ operation, thereby avoiding the cost of planning and autotuning.
 """
 
 import os
-import pickle
 
 import cupy as cp
+import numpy as np
 
 import nvmath
 
@@ -27,10 +27,10 @@ a = cp.random.rand(m, k)
 b = cp.random.rand(k, n)
 bias = cp.random.rand(m, 1)
 
-pickle_file = f"algorithms_{m}_{n}_{k}_f64_relu_bias.pickle"
+npy_file = f"algorithms_{m}_{n}_{k}_f64_relu_bias.npy"
 # In the first pass, we will plan and autotune the matrix multiplication. Autotuning
 # reorders the algorithms based on measured performance from fastest to slowest, and we will
-# pickle the ordered algorithms.
+# save the ordered algorithms.
 print("= Phase 1: Plan, autotune, and save the optimal algorithm sequence. =")
 with nvmath.linalg.advanced.Matmul(a, b) as mm:
     epilog = nvmath.linalg.advanced.MatmulEpilog.RELU_BIAS
@@ -39,9 +39,8 @@ with nvmath.linalg.advanced.Matmul(a, b) as mm:
     mm.autotune(iterations=5)
 
     # Save the algorithms as ordered by autotuning.
-    with open(pickle_file, "wb") as f:
-        pickle.dump(mm.algorithms, f)
-    print(f"Saved optimized algorithms to '{pickle_file}' for later use.")
+    np.save(npy_file, [a.as_numpy() for a in mm.algorithms], allow_pickle=False)
+    print(f"Saved optimized algorithms to '{npy_file}' for later use.")
 
     # Execute the multiplication
     result = mm.execute()
@@ -50,14 +49,8 @@ with nvmath.linalg.advanced.Matmul(a, b) as mm:
 print()
 print("= Phase 2: Reuse the optimized algorithm sequence later in another compatible matrix multiplication. =")
 # Load the algorithms saved earlier for use in a compatible matrix multiplication.
-with open(pickle_file, "rb") as f:
-    # WARNING: Using pickle is insecure if you are loading data from untrusted sources.
-    # Pickle can execute arbitrary code during unpickling, which may lead to security
-    # vulnerabilities including code execution or data compromise. Only load pickle files
-    # from trusted, verified sources, and never unpickle data from an untrusted or
-    # unauthenticated origin.
-    algorithms = pickle.load(f)
-print(f"Loaded optimized algorithms from '{pickle_file}'.")
+algorithms = [nvmath.linalg.advanced.Algorithm.from_numpy(a) for a in np.load(npy_file, allow_pickle=False)]
+print(f"Loaded optimized algorithms from '{npy_file}'.")
 
 # In the second pass, we will provide the loaded algorithms to plan() to bypass planning and
 # autotuning costs, since we already know the optimal algorithm(s) for this case.
@@ -77,5 +70,5 @@ with nvmath.linalg.advanced.Matmul(a, b) as mm:
     # operands.
     cp.cuda.get_current_stream().synchronize()
 
-# Remove the pickle file.
-os.remove(pickle_file)
+# Remove the npy file.
+os.remove(npy_file)

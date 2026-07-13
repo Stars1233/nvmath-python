@@ -12,78 +12,67 @@ import time
 
 from cuda import pathfinder
 
-from ._emitter import emit_matmul
+from ._cpp import prolog_a_impl, prolog_b_impl, prolog_decl
+from ._emitter import Index, emit_matmul_kernel
 from ._jit import compile_cpp_and_link
-from ._semiring import (
-    epilog_impl,
-    prolog_a_impl,
-    prolog_b_impl,
-    prolog_c_impl,
-    prolog_epilog_decl,
-    semiring_add_impl,
-    semiring_atomic_add_impl,
-    semiring_mul_impl,
-    semiring_ops_decl,
-)
-from ._utils import COMPLEX_PRECISION, Cache, type_str
+from ._utils import Cache, type_str
 
-# Maps matmul(a,b,c) to pre-defined kernel source code. All kernels should adhere to the
-# parameter passing conventions for each of the three UST parameters.
+# Maps matmul(a,b,c) to pre-defined kernel source code.
 _tensor_matmul_kernels = {
     # (format_a, format_b, format_c, transpose_a, transpose_b)
     ("DIAI", "DenseVector", "DenseVector", False, False): """
-extern "C" __global__ void matmul(
+extern "C" __global__ void matmul_kernel(
     const POS* __restrict__ pos0,
     const CRD* __restrict__ diags,
     const VAL* __restrict__ A,
+    const VAL *__restrict__ B,
+    VAL *__restrict__ C,
     unsigned long m,
     unsigned long n,
     unsigned long l0,
-    unsigned long l1,
-    const VAL *__restrict__ B,
-    VAL *__restrict__ C) {
+    unsigned long l1) {
   const unsigned long tidx = threadIdx.x;
   const unsigned long bidx = blockIdx.x;
   const unsigned long i = bidx * blockDim.x + tidx;
   if (i < m) {
-    CTP acc = prolog_c(static_cast<CTP>(C[i]));
+    CTP acc = 0;
     const POS numDiags = pos0[1];
     for (unsigned long d = 0, di = i; d < numDiags; d++, di += m) {
       const long j = i + diags[d];
       if (0 <= j && j < n) {
-        acc = add(acc, mul(prolog_a(static_cast<CTP>(A[di])),
-                           prolog_b(static_cast<CTP>(B[j]))));
+        acc += prolog_a(static_cast<CTP>(A[di])) *
+               prolog_b(static_cast<CTP>(B[j]));
       }
     }
-    C[i] = static_cast<VAL>(epilog(acc));
+    C[i] += static_cast<VAL>(acc);
   }
 }
 """,
     ("DIAJ", "DenseVector", "DenseVector", False, False): """
-extern "C" __global__ void matmul(
+extern "C" __global__ void matmul_kernel(
     const POS* __restrict__ pos0,
     const CRD* __restrict__ diags,
     const VAL* __restrict__ A,
+    const VAL *__restrict__ B,
+    VAL *__restrict__ C,
     unsigned long m,
     unsigned long n,
     unsigned long l0,
-    unsigned long l1,
-    const VAL *__restrict__ B,
-    VAL *__restrict__ C) {
+    unsigned long l1) {
   const unsigned long tidx = threadIdx.x;
   const unsigned long bidx = blockIdx.x;
   const unsigned long i = bidx * blockDim.x + tidx;
   if (i < m) {
-    CTP acc = prolog_c(static_cast<CTP>(C[i]));
+    CTP acc = 0;
     const POS numDiags = pos0[1];
     for (unsigned long d = 0, di = 0; d < numDiags; d++, di += n) {
       const long j = i + diags[d];
       if (0 <= j && j < n) {
-        acc = add(acc, mul(static_cast<CTP>(prolog_a(A[di + j])),
-                           static_cast<CTP>(prolog_b(B[j]))));
+        acc += static_cast<CTP>(prolog_a(A[di + j])) *
+               static_cast<CTP>(prolog_b(B[j]));
       }
     }
-    C[i] = static_cast<VAL>(epilog(acc));
+    C[i] += static_cast<VAL>(acc);
   }
 }
 """,
@@ -149,11 +138,10 @@ class KernelGen:
         c,
         compute_type,
         prologs=None,
-        epilog=None,
-        semiring=None,
         transpose_a=False,
         transpose_b=False,
         arch=None,
+        kernel=0,
     ):
         """
         Matmul semantics:
@@ -182,15 +170,15 @@ class KernelGen:
         format_c = c.tensor_format.name
         vtp = type_str(a.dtype)
         itp = type_str(a.index_type)
+
         # Get user code.
-        if semiring is None:
-            user_mul, user_add, user_atomic_add = None, None, None
-        else:
-            user_mul, user_add, user_atomic_add = semiring.get("mul"), semiring.get("add"), semiring.get("atomic_add")
         if prologs is None:
-            user_prolog_a, user_prolog_b, user_prolog_c = None, None, None
+            user_prolog_a, user_prolog_b = None, None
         else:
             user_prolog_a, user_prolog_b, user_prolog_c = prologs.get("a"), prologs.get("b"), prologs.get("c")
+            if user_prolog_c is not None:
+                raise NotImplementedError("The code generation currently does not support prolog for C.")
+
         # Try cache lookup.
         key = (
             format_a,
@@ -199,148 +187,96 @@ class KernelGen:
             vtp,
             itp,
             compute_type,
-            user_mul,
-            user_add,
-            user_atomic_add,
             user_prolog_a,
             user_prolog_b,
-            user_prolog_c,
-            epilog,
             transpose_a,
             transpose_b,
             arch,
+            kernel,
         )
-        kernel = self._matmul_kernels_cache.get(key)
-        if kernel is None:
-            # Nothing in cache, try kernel lookup.
-            typeless_key = (format_a, format_b, format_c, transpose_a, transpose_b)
-            code = _tensor_matmul_kernels.get(typeless_key)
+        entry = self._matmul_kernels_cache.get(key)
+        if entry is not None:
+            return entry
 
-            # Prepare prolog.
-            ctp = type_str(compute_type)
-            if a.dtype in ["float8_e4m3fn", "float8_e5m2"]:
-                prolog = f"#include <cuda_fp8.h>\nusing ATP = {ctp};\nusing CTP = {ctp};\n"  # TODO: ATP=vtp
-            elif a.dtype == "float16":
-                prolog = f"#include <cuda_fp16.h>\nusing ATP = {vtp};\nusing CTP = {ctp};\n"
-            elif a.dtype == "bfloat16":
-                prolog = f"#include <cuda_bf16.h>\nusing ATP = {vtp};\nusing CTP = {ctp};\n"
-            elif a.dtype in ["complex64", "complex128"]:
-                prolog = f"#include <cuda/std/complex>\nusing ATP = {COMPLEX_PRECISION[a.dtype]};\nusing CTP = {ctp};\n"
-            else:
-                prolog = f"using ATP = {vtp};\nusing CTP = {ctp};\n"
+        # Nothing in cache, try kernel lookup. Note that kernel==0 overrides codegen
+        # with this lookup mechanism, all subsequent choices go to actual codegen.
+        typeless_key = (format_a, format_b, format_c, transpose_a, transpose_b)
+        code = _tensor_matmul_kernels.get(typeless_key) if kernel == 0 else None
 
-            # Use kernel lookup or emitter.
-            if code is not None:
-                # (1) Kernel lookup successful. Inject types into the typeless kernel.
-                source = (
-                    f"{prolog}\nusing VAL = {vtp};\nusing POS = {itp};\n"
-                    f"using CRD = {itp};\n{semiring_ops_decl}{prolog_epilog_decl}{code}"
-                )
-            else:
-                if user_prolog_c is not None or epilog is not None:
-                    raise NotImplementedError(
-                        "The code generation (emitter) path does not currently support \
-prolog for the `c` operand or epilog."
-                    )
-                # (2) Sparse emitter. Emits proper types.
-                source = emit_matmul(a, b, c, ctp, transpose_a, transpose_b)
+        # Prepare prolog.
+        ctp = type_str(compute_type)
+        if a.dtype in ["float8_e4m3fn", "float8_e5m2"]:
+            prolog = f"#include <cuda_fp8.h>\n\nusing CTP = {ctp};\n"
+        elif a.dtype == "float16":
+            prolog = f"#include <cuda_fp16.h>\n\nusing CTP = {ctp};\n"
+        elif a.dtype == "bfloat16":
+            prolog = f"#include <cuda_bf16.h>\n\nusing CTP = {ctp};\n"
+        elif a.dtype in ["complex64", "complex128"]:
+            prolog = f"#include <cuda/std/complex>\n\nusing CTP = {ctp};\n"
+        else:
+            prolog = f"using CTP = {ctp};\n"
 
-            # The source and object code lists.
-            src_code_list, obj_code_list = [source], []
-
-            # User-provided or default semiring mul operation.
-            src_code_list, obj_code_list = _set_user_or_default_code(
-                user_code=user_mul,
-                default_code=semiring_mul_impl,
-                default_prolog=prolog,
-                src_code_list=src_code_list,
-                obj_code_list=obj_code_list,
+        # Use kernel lookup or emitter.
+        if code is not None:
+            # (1) Kernel lookup successful. Inject types into the typeless kernel.
+            source = f"{prolog}using VAL = {vtp};\nusing POS = {itp};\nusing CRD = {itp};\n{prolog_decl}{code}"
+            grid_iter = [(Index.FREE, 0)], True
+        else:
+            # (2) Sparse emitter. Emits proper types.
+            source, grid_iter = emit_matmul_kernel(
+                a, b, c, ctp, transpose_a=transpose_a, transpose_b=transpose_b, kernel=kernel
             )
 
-            # User-provided or default semiring add operation.
-            src_code_list, obj_code_list = _set_user_or_default_code(
-                user_code=user_add,
-                default_code=semiring_add_impl,
-                default_prolog=prolog,
-                src_code_list=src_code_list,
-                obj_code_list=obj_code_list,
-            )
+        # The source and object code lists.
+        src_code_list, obj_code_list = [source], []
 
-            # User-provided or default semiring atomic add operation.
-            src_code_list, obj_code_list = _set_user_or_default_code(
-                user_code=user_atomic_add,
-                default_code=semiring_atomic_add_impl,
-                default_prolog=prolog,
-                src_code_list=src_code_list,
-                obj_code_list=obj_code_list,
-            )
+        # User-provided or default prolog operation on A and B.
+        src_code_list, obj_code_list = _set_user_or_default_code(
+            user_code=user_prolog_a,
+            default_code=prolog_a_impl,
+            default_prolog=prolog,
+            src_code_list=src_code_list,
+            obj_code_list=obj_code_list,
+        )
+        src_code_list, obj_code_list = _set_user_or_default_code(
+            user_code=user_prolog_b,
+            default_code=prolog_b_impl,
+            default_prolog=prolog,
+            src_code_list=src_code_list,
+            obj_code_list=obj_code_list,
+        )
 
-            # User-provided or default prolog operation on A.
-            src_code_list, obj_code_list = _set_user_or_default_code(
-                user_code=user_prolog_a,
-                default_code=prolog_a_impl,
-                default_prolog=prolog,
-                src_code_list=src_code_list,
-                obj_code_list=obj_code_list,
-            )
+        # TODO: this should use logger.debug(...)
+        if self._debug:
+            print("\n==> Compiling matmul\n")
+            for s in src_code_list:
+                print(s)
+                print("/////////////////////\n")
+            t1 = time.perf_counter_ns()
 
-            # User-provided or default prolog operation on B.
-            src_code_list, obj_code_list = _set_user_or_default_code(
-                user_code=user_prolog_b,
-                default_code=prolog_b_impl,
-                default_prolog=prolog,
-                src_code_list=src_code_list,
-                obj_code_list=obj_code_list,
-            )
+        # Compile and link matmul function. Cache the result.
+        complex_path = pathfinder.find_nvidia_header_directory("cccl")
+        narrow_prec_path = pathfinder.find_nvidia_header_directory("cudart")
+        compiler_options = {
+            "std": "c++17",
+            "link_time_optimization": True,
+            "arch": arch,
+            "include_path": [complex_path, narrow_prec_path],
+        }
+        linker_options = {"link_time_optimization": True}
+        kernel_obj = compile_cpp_and_link(
+            src_code=src_code_list,
+            object_code=obj_code_list,
+            function_name="matmul_kernel",
+            compiler_options=compiler_options,
+            linker_options=linker_options,
+        )
+        assert kernel_obj is not None, "Internal error."
+        self._matmul_kernels_cache[key] = kernel_obj, grid_iter
 
-            # User-provided or default prolog operation on C.
-            src_code_list, obj_code_list = _set_user_or_default_code(
-                user_code=user_prolog_c,
-                default_code=prolog_c_impl,
-                default_prolog=prolog,
-                src_code_list=src_code_list,
-                obj_code_list=obj_code_list,
-            )
+        if self._debug:
+            t2 = time.perf_counter_ns()
+            tt = (t2 - t1) / 1000.0  # ns -> us
+            print(f"<== Compiled matmul in {tt:10.2f} us.\n")
 
-            # User-provided or default epilog operation.
-            src_code_list, obj_code_list = _set_user_or_default_code(
-                user_code=epilog,
-                default_code=epilog_impl,
-                default_prolog=prolog,
-                src_code_list=src_code_list,
-                obj_code_list=obj_code_list,
-            )
-
-            if self._debug:
-                print("\n==> Compiling matmul()\n")
-                for s in src_code_list:
-                    print(s)
-                    print("/////////////////////\n")
-                t1 = time.perf_counter_ns()
-
-            # Compile and link matmul function. Cache the result.
-            complex_path = pathfinder.find_nvidia_header_directory("cccl")
-            narrow_prec_path = pathfinder.find_nvidia_header_directory("cudart")
-            compiler_options = {
-                "std": "c++17",
-                "link_time_optimization": True,
-                "arch": arch,
-                "include_path": [complex_path, narrow_prec_path],
-            }
-            linker_options = {"link_time_optimization": True}
-            kernel = compile_cpp_and_link(
-                src_code=src_code_list,
-                object_code=obj_code_list,
-                function_name="matmul",
-                compiler_options=compiler_options,
-                linker_options=linker_options,
-            )
-            assert kernel is not None, "Internal error."
-            self._matmul_kernels_cache[key] = kernel
-
-            if self._debug:
-                t2 = time.perf_counter_ns()
-                tt = (t2 - t1) / 1000.0  # ns -> us
-                print(f"<== Compiled matmul() in {tt:10.2f} us.\n")
-
-        return kernel
+        return kernel_obj, grid_iter

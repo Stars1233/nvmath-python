@@ -4,17 +4,17 @@
 
 __all__ = ["FFTDirection", "FFTOptions", "DeviceCallable", "ExecutionCUDA", "ExecutionCPU"]
 
-import warnings
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import IntEnum
 from logging import Logger
 from typing import Literal
 
+from nvmath._internal import templates
 from nvmath.memory import BaseCUDAMemoryManager
 
 
-@dataclass
-class ExecutionCUDA:
+@dataclass(frozen=True, slots=True, kw_only=True)
+class ExecutionCUDA(templates.ExecutionCUDA):
     """
     A data class for providing GPU execution options to the :class:`FFT` object and the
     family of wrapper functions :func:`fft`, :func:`ifft`, :func:`rfft`, and :func:`irfft`.
@@ -28,14 +28,9 @@ class ExecutionCUDA:
        :func:`irfft`.
     """
 
-    name: Literal["cuda"] = field(default="cuda", init=False)
-    # If not specified, it defaults to the deprecated FFTOptions.device_id or 0
-    # Keep None as an option to differentiate between the user-provided 0 and the default 0.
-    device_id: int | None = None
 
-
-@dataclass
-class ExecutionCPU:
+@dataclass(frozen=True, slots=True, kw_only=True)
+class ExecutionCPU(templates.ExecutionCPU):
     """
     A data class for providing CPU execution options to the :class:`FFT` object and the
     family of wrapper functions :func:`fft`, :func:`ifft`, :func:`rfft`, and :func:`irfft`.
@@ -49,9 +44,6 @@ class ExecutionCPU:
        :class:`ExecutionCUDA`, :class:`FFT`, :func:`fft`, :func:`ifft`, :func:`rfft`, and
        :func:`irfft`.
     """
-
-    name: Literal["cpu"] = field(default="cpu", init=False)
-    num_threads: int | None = None
 
 
 @dataclass
@@ -68,9 +60,11 @@ class FFTOptions:
         inplace: Specify if the operation is in-place (`True` or `False`). The operand is
             overwritten by the result if ``inplace`` is `True`. The default is `False`.
 
+            .. experimental:: attribute
+
         last_axis_parity: For complex-to-real FFT (corresponding to ``fft_type='C2R'``),
             specify whether the size of the last axis in the result should be even or odd.
-            The even size is calculated as :math:`2 * (m - 1)`, where :math:`m` is the the
+            The even size is calculated as :math:`2 * (m - 1)`, where :math:`m` is the
             size of the last axis of the operand, and the odd size is calculated as :math:`2
             * (m - 1) + 1`. The specified value should be either ``'even'`` or ``'odd'``,
             with the default being ``'even'``.
@@ -83,14 +77,6 @@ class FFTOptions:
             the device type, shape and strides of the operand, and the FFT dimensions, the
             ``'natural'`` layout may perform better. This option is ignored if ``inplace``
             is specified to be True.
-
-        device_id: CUDA device ordinal (used if the operand resides on the CPU).
-            Device 0 will be used if not specified.
-
-            .. deprecated:: 0.2.0
-                The ``device_id`` should be specified as ``execution`` option,
-                see :attr:`ExecutionCUDA.device_id`.
-
 
         logger (logging.Logger): Python Logger object. The root logger will be used if a
             logger object is not provided.
@@ -119,7 +105,6 @@ class FFTOptions:
     inplace: bool = False
     last_axis_parity: Literal["even", "odd"] = "even"
     result_layout: Literal["natural", "optimized"] = "optimized"
-    device_id: int | None = None
     logger: Logger | None = None
     blocking: Literal[True, "auto"] = "auto"
     allocator: BaseCUDAMemoryManager | None = None
@@ -142,10 +127,6 @@ class FFTOptions:
 
         if self.blocking not in (True, "auto"):
             raise ValueError("The value specified for 'blocking' must be either True or 'auto'.")
-
-        if self.device_id is not None:
-            msg = "`FFTOptions.device_id` is deprecated. Use `ExecutionCUDA.device_id` instead."
-            warnings.warn(msg, DeprecationWarning)
 
 
 @dataclass

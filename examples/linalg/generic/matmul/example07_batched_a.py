@@ -9,7 +9,9 @@ Executing multiple multiplications together (in a batch) yields better performan
 executing them separately. nvmath supports broadcasting, so if one of the inputs is batched
 and the other one is not, it will be broadcasted to match the batch size.
 
-In this example we will multiply each of our `a` matrices with the same `b` matrix.
+In this example we will multiply each of our `a` matrices with the same `b` matrix. The
+batch is encoded as the leading dimension of `a` - this is *implicit* batching. See
+example09 for *explicit* batching, where the batch is provided as a sequence of matrices.
 """
 
 import cupy as cp

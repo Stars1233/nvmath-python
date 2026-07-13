@@ -20,8 +20,6 @@ import warnings
 
 import numpy as np
 
-from ._deprecated import deprecated
-
 np_float16x2 = np.dtype([("x", np.float16), ("y", np.float16)], align=True)
 np_float16x4 = np.dtype([("x", np.float16), ("y", np.float16), ("z", np.float16), ("w", np.float16)], align=True)
 
@@ -32,8 +30,11 @@ _alignment_warning_msg = (
     "You are using the host counterpart of a dtype that is under-aligned "
     "compared to what the device function expects. In most cases this will "
     "work, since device memory is typically allocated with at least 256-byte "
-    "alignment. For details, please review the alignment guidelines at "
-    "https://nvidia.com/docs/nvmath/alignment"
+    "alignment. For details on device memory access and built-in type "
+    "alignment requirements, see "
+    "https://docs.nvidia.com/cuda/cuda-c-programming-guide/#device-memory-accesses "
+    "and "
+    "https://docs.nvidia.com/cuda/cuda-programming-guide/05-appendices/cpp-language-extensions.html#built-in-types"
 )
 
 
@@ -46,8 +47,8 @@ class Complex:
     However on device side we expect those types to be aligned to the full size
     of the complex type, so the array defined on host and device side will have
     different type and alignment. :py:const:`np_float16x2`,
-    :py:const:`numpy.dtype(numpy.complex64)` and
-    :py:const:`numpy.dtype(numpy.complex128)` are the host side dtypes and
+    ``numpy.dtype(numpy.complex64)`` and
+    ``numpy.dtype(numpy.complex128)`` are the host side dtypes and
     :py:const:`float16x2_type`, :py:const:`float32x2_type` and
     :py:const:`float64x2_type` are the device side types.
     """
@@ -80,11 +81,6 @@ class Complex:
         assert self.real_dtype == np.float64
         return float64x2_type
 
-    @property
-    @deprecated("This is a numba fallback behavior and will be removed in future releases, please use numba types directly")
-    def make(self):
-        return self._numba_type.make
-
 
 complex32 = Complex(np.float16)
 complex64 = Complex(np.float32)
@@ -93,7 +89,7 @@ complex128 = Complex(np.float64)
 
 class Vector:
     """
-    Vector type that can be used to represent vector numbers both
+    Vector type that can be used to represent vector values both
     on host and device side. Host side representation uses numpy structured
     dtypes to represent the vector components, while device side representation
     uses custom numba types. This difference is necessary because device
@@ -136,11 +132,6 @@ class Vector:
             return float16x2_type
         assert self._size == 4
         return float16x4_type
-
-    @property
-    @deprecated("This is a numba fallback behavior and will be removed in future releases, please use numba types directly")
-    def make(self):
-        return self._numba_type.make
 
 
 half2 = Vector(np.float16, 2)

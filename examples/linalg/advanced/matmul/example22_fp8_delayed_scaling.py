@@ -6,8 +6,8 @@
 This example demonstrates how to implement a simple delayed scaling algorithm. We use the
 amax value from the previous iteration to set the scale for the next iteration. In a more
 advanced setup, an average amax from N previous iterations could be used as well. In each
-iteration, we multiply two normally-distributed matrices A and B and add matrix C to the
-result.
+iteration, we multiply two normally-distributed matrices 'a' and 'b' and add matrix 'c'
+to the result.
 
 FP8 is only supported with cuBLAS 12.8 or newer and on devices with compute
 capability 8.9 or higher.
@@ -30,7 +30,7 @@ def regenerate_inputs():
     return a, b, c
 
 
-# Keep D scale in a GPU tensor instead of a Python float to allow in-place changes
+# Keep 'd' scale in a GPU tensor instead of a Python float to allow in-place changes
 dscale = torch.ones((1,), dtype=torch.float32, device="cuda")
 scales = {"a": 1, "b": 1, "d": dscale}
 
@@ -41,7 +41,7 @@ with nvmath.linalg.advanced.Matmul(a, b, c=c, beta=1, quantization_scales=scales
     mm.plan()
 
     for iteration in range(10):
-        # Populate a, b, and c with fresh random data
+        # Populate 'a', 'b', and 'c' with fresh random data
         regenerate_inputs()
 
         # Execute the matrix multiplication
@@ -60,5 +60,5 @@ with nvmath.linalg.advanced.Matmul(a, b, c=c, beta=1, quantization_scales=scales
             f"amax={amax.item():.2f}, {clamped_percent:.02f}% of values were clamped to the max value."
         )
 
-        # Update D scale for the next iteration
+        # Update 'd' scale for the next iteration
         dscale[:] = max_representable_value / amax

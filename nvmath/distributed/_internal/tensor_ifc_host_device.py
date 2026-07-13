@@ -15,12 +15,14 @@ we can delegate the `super()` calls without specifying the parent class.
 
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
+from typing import Literal
 
 __all__ = ["HostDistributedTensorMixIn", "CudaDistributedTensorMixIn"]
 
 import nvmath.distributed
+from nvmath.distributed._internal.nccl import NcclNDBufferAllocator
 from nvmath.distributed._internal.nvshmem import NvshmemNDBufferAllocator
-from nvmath.internal.ndbuffer import ndbuffer
+from nvmath.internal.ndbuffer import NDBuffer, StridedLayout
 from nvmath.internal.package_ifc import StreamHolder
 from nvmath.internal.tensor_ifc import TensorHolder
 from nvmath.internal.typemaps import NAME_TO_ITEM_SIZE
@@ -34,11 +36,11 @@ class HostDistributedTensorMixIn(ABC):  # noqa: B024
     as abstract, because the mixin is not meant to be instantiated directly.
     """
 
-    def to(self, device_id, stream_holder, symmetric_memory: bool = False):
+    def to(self, device_id, stream_holder, symmetric_memory: None | Literal["nvshmem", "nccl"] = None):
         """
         In addition to the base class semantics:
-          - If symmetric_memory=True, target device must be the one used to initialize
-            NVSHMEM on this process.
+          - If symmetric_memory != None, target device must be the one used to initialize
+            NVSHMEM or NCCL on this process.
           - Strides must be dense non-overlapping.
           - Memory layout is preserved (if strides are dense non-overlapping,
             the base class guarantees that)
@@ -50,8 +52,16 @@ class HostDistributedTensorMixIn(ABC):  # noqa: B024
             tensor = device_cls.create_from_host(self, device_id, stream_holder, symmetric_memory)
         else:
             raise ValueError(f"The device must be specified as an integer or 'cpu', not '{device_id}'.")
-        assert tensor.is_symmetric_memory == symmetric_memory
+        assert tensor.is_symmetric_memory == (symmetric_memory == "nvshmem")
         return tensor
+
+
+def _get_symmetric_memory_allocator(backend: Literal["nvshmem", "nccl"]):
+    if backend == "nvshmem":
+        return NvshmemNDBufferAllocator
+    elif backend == "nccl":
+        return NcclNDBufferAllocator
+    raise AssertionError(f"Internal error: unsupported backend {backend}.")
 
 
 class CudaDistributedTensorMixIn(ABC):
@@ -72,13 +82,13 @@ class CudaDistributedTensorMixIn(ABC):
         Note, that the strides, if specified, MUST correspond to a dense (possibly permuted)
         tensor, otherwise the created tensor may be corrupted.
         """
-        symmetric_memory = context.pop("symmetric_memory", False)
+        symmetric_memory = context.pop("symmetric_memory", None)
         make_symmetric = context.pop("make_symmetric", False)
         skip_symmetric_check = context.pop("skip_symmetric_check", False)
 
         if not symmetric_memory:
             if make_symmetric or skip_symmetric_check:
-                raise ValueError("Use of symmetric memory option with symmetric_memory=False")
+                raise ValueError("Use of symmetric memory option with symmetric_memory=None")
             return super().empty(  # type: ignore
                 shape,
                 device_id=device_id,
@@ -88,25 +98,17 @@ class CudaDistributedTensorMixIn(ABC):
                 **context,
             )
 
+        allocator_cls = _get_symmetric_memory_allocator(symmetric_memory)
+
         logger = context.get("logger")
         with device_ctx(device_id):
             ctx = nvmath.distributed.get_context()
             assert ctx is not None, "nvmath.distributed has not been initialized"
-            allocator = NvshmemNDBufferAllocator(
-                device_id, ctx, make_symmetric=make_symmetric, skip_symmetric_check=skip_symmetric_check
-            )
-            nd_dst = ndbuffer.empty(
-                shape,
-                device_id=device_id,
-                dtype_name=dtype,
-                itemsize=NAME_TO_ITEM_SIZE[dtype],
-                strides=strides,
-                stream=stream_holder,
-                device_memory_pool=allocator,
-                logger=logger,
-            )
-            if nd_dst.cf_order() == "K":
+            allocator = allocator_cls(device_id, ctx, make_symmetric=make_symmetric, skip_symmetric_check=skip_symmetric_check)
+            layout = StridedLayout(shape, strides, NAME_TO_ITEM_SIZE[dtype])
+            if not layout.is_contiguous_c and not layout.is_contiguous_f:
                 raise ValueError("CudaDistributedTensor only supports 'C' or 'F' order")
+            nd_dst = NDBuffer.empty(layout, dtype, device_id, stream=stream_holder, memory_resource=allocator, logger=logger)
             return cls.wrap_ndbuffer(nd_dst)
 
     @classmethod
@@ -115,29 +117,33 @@ class CudaDistributedTensorMixIn(ABC):
         tensor: TensorHolder,
         device_id: int,
         stream_holder: StreamHolder,
-        symmetric_memory: bool = False,
+        symmetric_memory: None | Literal["nvshmem", "nccl"] = None,
     ):
         if not symmetric_memory:
             return super().create_from_host(tensor, device_id, stream_holder)  # type: ignore
+
+        allocator_cls = _get_symmetric_memory_allocator(symmetric_memory)
+
         with device_ctx(device_id):
             ctx = nvmath.distributed.get_context()
             assert ctx is not None, "nvmath.distributed has not been initialized"
-            allocator = NvshmemNDBufferAllocator(device_id, ctx, make_symmetric=True, skip_symmetric_check=False)
+            allocator = allocator_cls(device_id, ctx, make_symmetric=True, skip_symmetric_check=False)
             src_ndbuffer = tensor.asndbuffer()
-            dst_ndbuffer = ndbuffer.empty_like(
+            dst_ndbuffer = NDBuffer.empty_like(
                 src_ndbuffer,
                 device_id=device_id,
                 stream=stream_holder,
-                device_memory_pool=allocator,
+                memory_resource=allocator,
             )
-            if dst_ndbuffer.cf_order() == "K":
+            layout = dst_ndbuffer.layout
+            if not layout.is_contiguous_c and not layout.is_contiguous_f:
                 raise ValueError("CudaDistributedTensor only supports 'C' or 'F' order")
-            ndbuffer.copy_into(dst_ndbuffer, src_ndbuffer, stream_holder)
+            dst_ndbuffer.copy_(src_ndbuffer, stream=stream_holder)
             return cls.wrap_ndbuffer(dst_ndbuffer)
 
     @classmethod
     @abstractmethod
-    def wrap_ndbuffer(cls, ndbuffer: ndbuffer.NDBuffer):
+    def wrap_ndbuffer(cls, ndbuffer: NDBuffer):
         """
         Defines how to wrap NDBuffer into a distributed tensor instance.
         The exact implementation depends on `self.tensor` type
@@ -147,16 +153,17 @@ class CudaDistributedTensorMixIn(ABC):
         """
         raise NotImplementedError
 
-    def to(self, device_id, stream_holder, symmetric_memory: bool = False):
+    def to(self, device_id, stream_holder, symmetric_memory: None | Literal["nvshmem", "nccl"] = None):
         """
         In addition to the base class semantics:
-          - Target device must be the one used to initialize NVSHMEM on this process.
+          - Target device must be the one used to initialize NVSHMEM or NCCL on
+            this process.
           - Strides must be dense non-overlapping.
           - Memory layout is preserved (if strides are dense non-overlapping,
             the base class guarantees that)
         """
         tensor = super().to(device_id, stream_holder)  # type: ignore
-        assert tensor.is_symmetric_memory == symmetric_memory
+        assert tensor.is_symmetric_memory == (symmetric_memory == "nvshmem")
         return tensor
 
     def reshape(self, shape: Sequence[int], *, copy: bool | None = None):

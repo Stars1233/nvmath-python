@@ -1,0 +1,13 @@
+---
+api:
+  - |
+    The common algorithm type (``nvmath.sparse.advanced.DirectSolverAlgType``)
+    for the sparse advanced direct solver has been removed in favor of new
+    algorithm types specific to each phase such as
+    :class:`nvmath.sparse.advanced.DirectSolverFactorizationAlg`. This is a
+    result of the changes in cuDSS ``v0.8.0``.
+features:
+  - |
+    The sparse advanced direct solver has been updated to use cuDSS ``v0.8.0``,
+    and hence benefits from the performance improvements and bug fixes in this
+    version.

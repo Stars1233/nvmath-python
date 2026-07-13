@@ -9,7 +9,7 @@ cimport cython
 from libc.stdint cimport intptr_t, int64_t, uint8_t, uint32_t, int32_t
 
 from .cycusparseLt cimport *
-from .cycusparseLt cimport cudaDataType, cudaStream_t, libraryPropertyType, cusparseComputeType
+from .cycusparseLt cimport cusparseComputeType
 from .cycusparse cimport cusparseStatus_t, cusparseOrder_t, cusparseOperation_t
 from .cusparse cimport LibraryPropertyType
 

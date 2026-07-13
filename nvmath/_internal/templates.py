@@ -2,13 +2,10 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-import abc
-import contextlib
 import dataclasses
 import logging
-from collections.abc import MutableSequence
 from logging import Logger
-from typing import ClassVar, Final, Generic, Literal, TypeVar
+from typing import ClassVar, Literal
 
 from nvmath import memory
 from nvmath.internal import utils
@@ -99,7 +96,7 @@ def copy_operand_perhaps(
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class StatefulAPIOptions:
-    """A dataclass for providing options to a :class:`StatefulAPI` object.
+    """A dataclass for providing options to a stateful API object.
 
     Attributes:
         allocator: An object that supports the :class:`BaseCUDAMemoryManager` protocol, used
@@ -117,9 +114,6 @@ class StatefulAPIOptions:
 
         logger: Python Logger object. The root logger will be used if a
             logger object is not provided.
-
-    .. seealso::
-       :class:`StatefulAPI`
     """
 
     allocator: memory.BaseCUDAMemoryManager | memory.BaseCUDAMemoryManagerAsync | None = None
@@ -134,250 +128,3 @@ class StatefulAPIOptions:
             self.allocator, memory.BaseCUDAMemoryManager | memory.BaseCUDAMemoryManagerAsync
         ):
             raise TypeError("The allocator must be an object of type that fulfills the BaseCUDAMemoryManager protocol.")
-
-
-OptionsPlaceholder = TypeVar("OptionsPlaceholder", bound=StatefulAPIOptions)
-
-
-class StatefulAPI(contextlib.AbstractContextManager, Generic[OptionsPlaceholder]):
-    """A base class for APIs which amortize setup costs across multiple executions.
-
-    StatefulAPIs separate planning (``plan()``) and setup (``__init__()``) actions from
-    execution (``_execute()``), so that plans may be reused with different operands. The
-    ``reset_operands()`` method allows changing the operands of the API without replanning
-    when the input and execution space do not match (the user does not have a reference to
-    the execution space buffers). If the execution and input space match, we expect the
-    user to be able update the operands by overwriting their buffers in-place.
-    """
-
-    # options is declared Final in __init__() because mypy issue #8982 is not fixed yet.
-    # options: Final[OptionsPlaceholder]
-    # See docstring for StatefulAPIOptions
-    _allocator: Final[memory.BaseCUDAMemoryManager | memory.BaseCUDAMemoryManagerAsync | None]
-    _blocking: Final[bool]
-    _logger: Final[logging.Logger]
-
-    # Metadata related to execution space
-    execution: Final[ExecutionCPU | ExecutionCUDA]
-    """A class which describes the execution space parameters."""
-    _internal_op_package: Final[str]
-    """The package of the operands in the execution space."""
-    _operands: MutableSequence[utils.TensorHolder]
-    """A copy of the operands in execution space."""
-    _result_class: Final[type[utils.TensorHolder]]
-    """The type of TensorHolder to use for the execution space result."""
-
-    # Metadata about the input/output tensors
-    _operands_backup: MutableSequence[utils.TensorHolder | None]
-    """A reference to original operands in their input space."""
-    _operands_device_id: Final[int | Literal["cpu"]]
-    """The device_id of the input space."""
-    _operands_package: Final[str]
-    """The package of the operands in the input space."""
-
-    _call_prologue: Final[str]
-    """Stores a message for logging about blocking behavior"""
-
-    _has_plan: bool
-    """True if plan has been called."""
-
-    @property
-    def options(self) -> OptionsPlaceholder:
-        """The options object used to construct this class."""
-        # This is a workaround for mypy issue #8982, where we cannot declare options as
-        # Final in the class definition, but we still want it to appear in the docs as an
-        # attribute.
-        return self._options
-
-    def __init__(
-        self,
-        operands: MutableSequence[utils.TensorHolder],
-        *,
-        options: OptionsPlaceholder,
-        execution: ExecutionCPU | ExecutionCUDA | None | Literal["cuda", "cpu"] = None,
-        stream: utils.AnyStream | int | None = None,
-    ) -> None:
-        """Copy operands to the execution space and setup options.
-
-        When inheriting from this class, you must create valid operands and options in
-        the child class before calling StatefulAPI.__init__( ... ).
-        """
-        self._options: Final[OptionsPlaceholder] = options
-        self._logger = self._options.logger
-
-        self._logger.info("= SPECIFICATION PHASE =")
-
-        operands_device_id = utils.get_operands_device_id(operands)
-
-        match execution, operands_device_id:
-            case (None | "cuda", int()):
-                execution = ExecutionCUDA(device_id=operands_device_id)
-            case ("cuda", "cpu"):
-                execution = ExecutionCUDA()
-            case (None, "cpu") | ("cpu", _):
-                execution = ExecutionCPU()
-            case (ExecutionCUDA(), int()):
-                # If operands are on a CUDA device, use the same device for execution.
-                execution = dataclasses.replace(execution, device_id=operands_device_id)
-            case (ExecutionCPU(), _) | (ExecutionCUDA(), "cpu"):
-                pass
-            case _:
-                raise ValueError(
-                    f"{self.__class__.__name__}.execution must be one of ExecutionCUDA, ExecutionCPU, None, 'cuda', or 'cpu'."
-                )
-        assert isinstance(execution, (ExecutionCPU, ExecutionCUDA))
-        self.execution = execution
-
-        self._operands_device_id = operands_device_id
-        self._operands_package = utils.get_operands_package(operands)
-        self._internal_op_package = self._internal_operand_package(self._operands_package)
-        exec_stream_holder, operand_stream_holder = self._get_or_create_stream_maybe(stream)
-
-        self._logger.info(
-            f"The input tensors are located on device {operands_device_id}, and the execution space "
-            f"is {self.execution.name}, with device {getattr(self.execution, 'device_id', 'cpu')}."
-        )
-
-        self._logger.info(
-            f"The specified stream for the {self.__class__.__name__} constructor is "
-            f"{(exec_stream_holder or operand_stream_holder) and getattr(exec_stream_holder or operand_stream_holder, 'obj', None)}."  # noqa: E501
-        )
-
-        operands_backup: list[utils.TensorHolder | None] = [None] * len(operands)
-        for i in range(len(operands)):
-            # Copy the operand to execution_space's device if needed.
-            operands[i], operands_backup[i] = copy_operand_perhaps(
-                None,
-                operands[i],
-                operand_stream_holder,
-                getattr(self.execution, "device_id", "cpu"),
-                self._operands_device_id,
-            )
-        self._operands = operands
-        self._operands_backup = operands_backup
-
-        # The result's package and device.
-        self._result_class = self._operands[0].__class__
-
-        # Set blocking or non-blocking behavior.
-        self._blocking = self._options.blocking != "auto" or self._operands_device_id == "cpu" or self.execution.name == "cpu"
-        if self._blocking:
-            call_prologue = "This call is blocking and will return only after the operation is complete."
-        else:
-            call_prologue = (
-                "This call is non-blocking and will return immediately after the operation is launched on the device."
-            )
-        self._call_prologue = call_prologue
-
-        # Set memory allocator.
-        allocator: memory.BaseCUDAMemoryManager | memory.BaseCUDAMemoryManagerAsync | None
-        match self.execution:
-            case ExecutionCUDA():
-                allocator = (
-                    memory._MEMORY_MANAGER[self._internal_op_package](self.execution.device_id, self._logger)
-                    if self._options.allocator is None
-                    else self._options.allocator
-                )
-            case ExecutionCPU() | _:
-                allocator = None  # currently, the nvpl/fftw does not support custom workspace allocation
-        self._allocator = allocator
-
-        self._has_plan = False
-
-    def _internal_operand_package(self, package_name: str) -> str:
-        if self.execution.name == "cuda":
-            return package_name if package_name != "numpy" else "cuda"
-        else:
-            return package_name if package_name != "cupy" else "cupy_host"
-
-    def _get_or_create_stream_maybe(
-        self, stream: utils.AnyStream
-    ) -> tuple[utils.StreamHolder | None, utils.StreamHolder | None]:
-        """Return a 2-tuple of Stream | None: one for execution space, one for input space.
-
-        The first stream should be used for everything in the execution space: doing work,
-        allocating workspace, allocating input/output buffers.
-
-        The second stream should be used whenever data is being moved between the input and
-        output spaces: copying data to/from the input/output tensors.
-
-        NOTE: If two streams are returned, they will be the same stream.
-        """
-        if self.execution.name == "cuda":
-            stream_holder = utils.get_or_create_stream(self.execution.device_id, stream, self._internal_op_package)
-            return stream_holder, stream_holder
-        elif isinstance(self._operands_device_id, int):
-            operand_device_steam = utils.get_or_create_stream(self._operands_device_id, stream, self._operands_package)
-            return None, operand_device_steam
-        else:
-            return None, None
-
-    # input checks
-
-    def _check_valid_operands(self, *args, **kwargs):
-        """
-        Check if the operands are available for the operation.
-        """
-        what = kwargs["what"]
-        if self._operands is None:
-            raise RuntimeError(
-                f"{what} cannot be performed if the operands have been set to None. Use reset_operands() to set the "
-                f"desired input before using performing the {what.lower()}."
-            )
-
-    def _check_planned(self, *args, **kwargs):
-        what = kwargs["what"]
-        if not self._has_plan:
-            raise RuntimeError(f"{what} cannot be performed before plan() has been called.")
-
-    # execution
-
-    @abc.abstractmethod
-    def _execute(self):
-        """Perform the main functionality of this :class:`StatefulAPI` instance without
-        safety checks."""
-        msg = f"{self.__name__}._execute() is not implemented."
-        raise NotImplementedError(msg)
-
-    @abc.abstractmethod
-    def plan(self):
-        """Plan the main functionality of this :class:`StatefulAPI` instance."""
-        msg = f"{self.__class__.__name__}.plan() is not implemented."
-        raise NotImplementedError(msg)
-
-    @abc.abstractmethod
-    def reset_operands(self):
-        """Reset the operands held by this :class:`StatefulAPI` instance."""
-        msg = f"{self.__class__.__name__}.reset_operands() is not implemented."
-        raise NotImplementedError(msg)
-
-    def free(self):
-        """Free resources held by this :class:`StatefulAPI` instance.
-
-        This method releases references to operands to ensure proper reference counting.
-        Subclasses should call super().free() if they override this method to add
-        additional cleanup logic.
-        """
-        # Release references to operands to ensure proper reference counting
-        self._operands = []
-        self._operands_backup = []
-
-
-class HasWorkspaceMemory(contextlib.AbstractContextManager):
-    """A base class for APIs which need to allocate a working buffer in memory."""
-
-    def _allocate_workspace_memory_perhaps(self, stream_holder: utils.StreamHolder):
-        """
-        Allocate workspace memory using the specified allocator, if it hasn't already been
-        done.
-        """
-        raise NotImplementedError
-
-    def _release_workspace_memory_perhaps(self, release_workspace: bool):
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def free(self):
-        """Free the resources of this :class:`StatefulAPI` instance."""
-        msg = f"{self.__name__}.free() is not implemented."
-        raise NotImplementedError(msg)

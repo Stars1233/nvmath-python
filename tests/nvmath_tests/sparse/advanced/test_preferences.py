@@ -73,8 +73,7 @@ class TestPreferences:
 
     def test_plan_preference(self):
         plan_preferences_dict = {
-            "use_matching": True,
-            "matching_algorithm": cudss.AlgType.ALG_1,
+            "matching_algorithm": cudss.MatchingAlg.AUTO,
         }
         plan_preferences_object = DirectSolverPlanPreferences(**plan_preferences_dict)
 
@@ -83,7 +82,7 @@ class TestPreferences:
 
     def test_factorization_preference(self):
         factorization_preferences_dict = {
-            "factorization_algorithm": cudss.AlgType.ALG_1,
+            "factorization_algorithm": cudss.FactorizationAlg.GENERAL,
         }
         factorization_preferences_object = DirectSolverFactorizationPreferences(**factorization_preferences_dict)
 

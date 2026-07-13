@@ -4,7 +4,8 @@ cuSPARSE (:mod:`nvmath.bindings.cusparse`)
 ==========================================
 
 For detailed documentation on the original C APIs, refer to the `cuSPARSE documentation
-<https://docs.nvidia.com/cuda/cusparse/>`_.
+<https://docs.nvidia.com/cuda/cusparse/>`_. Users are also encouraged to check whether an
+API has been deprecated in the cuSPARSE documentation.
 
 Enums and constants
 *******************
@@ -51,13 +52,47 @@ Functions
    blocked_ell_get
    bsr_set_strided_batch
    cbsr2csr
+   cbsric02
+   cbsric02_analysis
+   cbsric02_buffer_size
+   cbsric02_buffer_size_ext
+   cbsrilu02
+   cbsrilu02_analysis
+   cbsrilu02_buffer_size
+   cbsrilu02_buffer_size_ext
+   cbsrilu02_numeric_boost
    cbsrmm
    cbsrmv
+   cbsrsm2_analysis
+   cbsrsm2_buffer_size
+   cbsrsm2_buffer_size_ext
+   cbsrsm2_solve
+   cbsrsv2_analysis
+   cbsrsv2_buffer_size
+   cbsrsv2_buffer_size_ext
+   cbsrsv2_solve
+   cbsrxmv
+   ccsr2bsr
+   ccsr2csr_compress
+   ccsr2csru
    ccsr2gebsr
    ccsr2gebsr_buffer_size
    ccsr2gebsr_buffer_size_ext
+   ccsrcolor
    ccsrgeam2
    ccsrgeam2_buffer_size_ext
+   ccsric02
+   ccsric02_analysis
+   ccsric02_buffer_size
+   ccsric02_buffer_size_ext
+   ccsrilu02
+   ccsrilu02_analysis
+   ccsrilu02_buffer_size
+   ccsrilu02_buffer_size_ext
+   ccsrilu02_numeric_boost
+   ccsru2csr
+   ccsru2csr_buffer_size_ext
+   cgebsr2csr
    cgebsr2gebsc
    cgebsr2gebsc_buffer_size
    cgebsr2gebsc_buffer_size_ext
@@ -68,16 +103,17 @@ Functions
    cgemvi_buffer_size
    cgpsv_interleaved_batch
    cgpsv_interleaved_batch_buffer_size_ext
-   cgtsv_interleaved_batch
-   cgtsv_interleaved_batch_buffer_size_ext
    cgtsv2
    cgtsv2_buffer_size_ext
    cgtsv2_nopivot
    cgtsv2_nopivot_buffer_size_ext
    cgtsv2strided_batch
    cgtsv2strided_batch_buffer_size_ext
+   cgtsv_interleaved_batch
+   cgtsv_interleaved_batch_buffer_size_ext
    check_status
    cnnz
+   cnnz_compress
    const_blocked_ell_get
    const_coo_get
    const_csc_get
@@ -95,6 +131,11 @@ Functions
    create
    create_blocked_ell
    create_bsr
+   create_bsric02_info
+   create_bsrilu02_info
+   create_bsrsm2_info
+   create_bsrsv2_info
+   create_color_info
    create_const_blocked_ell
    create_const_bsr
    create_const_coo
@@ -107,35 +148,83 @@ Functions
    create_coo
    create_csc
    create_csr
+   create_csric02_info
+   create_csrilu02_info
+   create_csru2csr_info
    create_dn_mat
    create_dn_vec
+   create_identity_permutation
    create_mat_descr
+   create_prune_info
    create_sliced_ell
    create_sp_vec
    csc_get
    csc_set_pointers
+   csr2csc_ex2
+   csr2csc_ex2_buffer_size
    csr_get
    csr_set_pointers
    csr_set_strided_batch
-   csr2csc_ex2
-   csr2csc_ex2_buffer_size
    dbsr2csr
+   dbsric02
+   dbsric02_analysis
+   dbsric02_buffer_size
+   dbsric02_buffer_size_ext
+   dbsrilu02
+   dbsrilu02_analysis
+   dbsrilu02_buffer_size
+   dbsrilu02_buffer_size_ext
+   dbsrilu02_numeric_boost
    dbsrmm
    dbsrmv
+   dbsrsm2_analysis
+   dbsrsm2_buffer_size
+   dbsrsm2_buffer_size_ext
+   dbsrsm2_solve
+   dbsrsv2_analysis
+   dbsrsv2_buffer_size
+   dbsrsv2_buffer_size_ext
+   dbsrsv2_solve
+   dbsrxmv
+   dcsr2bsr
+   dcsr2csr_compress
+   dcsr2csru
    dcsr2gebsr
    dcsr2gebsr_buffer_size
    dcsr2gebsr_buffer_size_ext
+   dcsrcolor
    dcsrgeam2
    dcsrgeam2_buffer_size_ext
+   dcsric02
+   dcsric02_analysis
+   dcsric02_buffer_size
+   dcsric02_buffer_size_ext
+   dcsrilu02
+   dcsrilu02_analysis
+   dcsrilu02_buffer_size
+   dcsrilu02_buffer_size_ext
+   dcsrilu02_numeric_boost
+   dcsru2csr
+   dcsru2csr_buffer_size_ext
    dense_to_sparse_analysis
    dense_to_sparse_buffer_size
    dense_to_sparse_convert
    destroy
+   destroy_bsric02_info
+   destroy_bsrilu02_info
+   destroy_bsrsm2_info
+   destroy_bsrsv2_info
+   destroy_color_info
+   destroy_csric02_info
+   destroy_csrilu02_info
+   destroy_csru2csr_info
    destroy_dn_mat
    destroy_dn_vec
    destroy_mat_descr
+   destroy_prune_info
    destroy_sp_mat
    destroy_sp_vec
+   dgebsr2csr
    dgebsr2gebsc
    dgebsr2gebsc_buffer_size
    dgebsr2gebsc_buffer_size_ext
@@ -146,14 +235,14 @@ Functions
    dgemvi_buffer_size
    dgpsv_interleaved_batch
    dgpsv_interleaved_batch_buffer_size_ext
-   dgtsv_interleaved_batch
-   dgtsv_interleaved_batch_buffer_size_ext
    dgtsv2
    dgtsv2_buffer_size_ext
    dgtsv2_nopivot
    dgtsv2_nopivot_buffer_size_ext
    dgtsv2strided_batch
    dgtsv2strided_batch_buffer_size_ext
+   dgtsv_interleaved_batch
+   dgtsv_interleaved_batch_buffer_size_ext
    dn_mat_get
    dn_mat_get_strided_batch
    dn_mat_get_values
@@ -163,7 +252,21 @@ Functions
    dn_vec_get_values
    dn_vec_set_values
    dnnz
+   dnnz_compress
+   dprune_csr2csr
+   dprune_csr2csr_buffer_size_ext
+   dprune_csr2csr_by_percentage
+   dprune_csr2csr_by_percentage_buffer_size_ext
+   dprune_csr2csr_nnz
+   dprune_csr2csr_nnz_by_percentage
+   dprune_dense2csr
+   dprune_dense2csr_buffer_size_ext
+   dprune_dense2csr_by_percentage
+   dprune_dense2csr_by_percentage_buffer_size_ext
+   dprune_dense2csr_nnz
+   dprune_dense2csr_nnz_by_percentage
    gather
+   get_color_algs
    get_error_name
    get_error_string
    get_mat_diag_type
@@ -179,24 +282,60 @@ Functions
    logger_open_file
    logger_set_level
    logger_set_mask
+   rot
    sbsr2csr
+   sbsric02
+   sbsric02_analysis
+   sbsric02_buffer_size
+   sbsric02_buffer_size_ext
+   sbsrilu02
+   sbsrilu02_analysis
+   sbsrilu02_buffer_size
+   sbsrilu02_buffer_size_ext
+   sbsrilu02_numeric_boost
    sbsrmm
    sbsrmv
+   sbsrsm2_analysis
+   sbsrsm2_buffer_size
+   sbsrsm2_buffer_size_ext
+   sbsrsm2_solve
+   sbsrsv2_analysis
+   sbsrsv2_buffer_size
+   sbsrsv2_buffer_size_ext
+   sbsrsv2_solve
+   sbsrxmv
    scatter
+   scsr2bsr
+   scsr2csr_compress
+   scsr2csru
    scsr2gebsr
    scsr2gebsr_buffer_size
    scsr2gebsr_buffer_size_ext
+   scsrcolor
    scsrgeam2
    scsrgeam2_buffer_size_ext
+   scsric02
+   scsric02_analysis
+   scsric02_buffer_size
+   scsric02_buffer_size_ext
+   scsrilu02
+   scsrilu02_analysis
+   scsrilu02_buffer_size
+   scsrilu02_buffer_size_ext
+   scsrilu02_numeric_boost
+   scsru2csr
+   scsru2csr_buffer_size_ext
    sddmm
    sddmm_buffer_size
    sddmm_preprocess
+   set_color_algs
    set_mat_diag_type
    set_mat_fill_mode
    set_mat_index_base
    set_mat_type
    set_pointer_mode
    set_stream
+   sgebsr2csr
    sgebsr2gebsc
    sgebsr2gebsc_buffer_size
    sgebsr2gebsc_buffer_size_ext
@@ -207,19 +346,22 @@ Functions
    sgemvi_buffer_size
    sgpsv_interleaved_batch
    sgpsv_interleaved_batch_buffer_size_ext
-   sgtsv_interleaved_batch
-   sgtsv_interleaved_batch_buffer_size_ext
    sgtsv2
    sgtsv2_buffer_size_ext
    sgtsv2_nopivot
    sgtsv2_nopivot_buffer_size_ext
    sgtsv2strided_batch
    sgtsv2strided_batch_buffer_size_ext
+   sgtsv_interleaved_batch
+   sgtsv_interleaved_batch_buffer_size_ext
    snnz
+   snnz_compress
    sp_gemm_compute
    sp_gemm_copy
    sp_gemm_create_descr
    sp_gemm_destroy_descr
+   sp_gemm_estimate_memory_buffersize2
+   sp_gemm_estimate_memory_buffersize3
    sp_gemm_get_num_products
    sp_gemm_reuse_compute
    sp_gemm_reuse_copy
@@ -242,6 +384,13 @@ Functions
    sp_mm_preprocess
    sp_mv
    sp_mv_buffer_size
+   sp_mv_op
+   sp_mv_op_buffer_size
+   sp_mv_op_create_descr
+   sp_mv_op_create_plan
+   sp_mv_op_destroy_descr
+   sp_mv_op_destroy_plan
+   sp_mv_op_set_global_user_data
    sp_mv_preprocess
    sp_sm_analysis
    sp_sm_buffer_size
@@ -263,26 +412,80 @@ Functions
    sp_vv_buffer_size
    sparse_to_dense
    sparse_to_dense_buffer_size
+   sprune_csr2csr
+   sprune_csr2csr_buffer_size_ext
+   sprune_csr2csr_by_percentage
+   sprune_csr2csr_by_percentage_buffer_size_ext
+   sprune_csr2csr_nnz
+   sprune_csr2csr_nnz_by_percentage
+   sprune_dense2csr
+   sprune_dense2csr_buffer_size_ext
+   sprune_dense2csr_by_percentage
+   sprune_dense2csr_by_percentage_buffer_size_ext
+   sprune_dense2csr_nnz
+   sprune_dense2csr_nnz_by_percentage
+   xbsric02_zero_pivot
+   xbsrilu02_zero_pivot
+   xbsrsm2_zero_pivot
+   xbsrsv2_zero_pivot
    xcoo2csr
    xcoosort_buffer_size_ext
    xcoosort_by_column
    xcoosort_by_row
    xcscsort
    xcscsort_buffer_size_ext
+   xcsr2bsr_nnz
    xcsr2coo
    xcsr2gebsr_nnz
    xcsrgeam2nnz
+   xcsric02_zero_pivot
+   xcsrilu02_zero_pivot
    xcsrsort
    xcsrsort_buffer_size_ext
+   xgebsr2csr
    xgebsr2gebsr_nnz
    zbsr2csr
+   zbsric02
+   zbsric02_analysis
+   zbsric02_buffer_size
+   zbsric02_buffer_size_ext
+   zbsrilu02
+   zbsrilu02_analysis
+   zbsrilu02_buffer_size
+   zbsrilu02_buffer_size_ext
+   zbsrilu02_numeric_boost
    zbsrmm
    zbsrmv
+   zbsrsm2_analysis
+   zbsrsm2_buffer_size
+   zbsrsm2_buffer_size_ext
+   zbsrsm2_solve
+   zbsrsv2_analysis
+   zbsrsv2_buffer_size
+   zbsrsv2_buffer_size_ext
+   zbsrsv2_solve
+   zbsrxmv
+   zcsr2bsr
+   zcsr2csr_compress
+   zcsr2csru
    zcsr2gebsr
    zcsr2gebsr_buffer_size
    zcsr2gebsr_buffer_size_ext
+   zcsrcolor
    zcsrgeam2
    zcsrgeam2_buffer_size_ext
+   zcsric02
+   zcsric02_analysis
+   zcsric02_buffer_size
+   zcsric02_buffer_size_ext
+   zcsrilu02
+   zcsrilu02_analysis
+   zcsrilu02_buffer_size
+   zcsrilu02_buffer_size_ext
+   zcsrilu02_numeric_boost
+   zcsru2csr
+   zcsru2csr_buffer_size_ext
+   zgebsr2csr
    zgebsr2gebsc
    zgebsr2gebsc_buffer_size
    zgebsr2gebsc_buffer_size_ext
@@ -293,12 +496,13 @@ Functions
    zgemvi_buffer_size
    zgpsv_interleaved_batch
    zgpsv_interleaved_batch_buffer_size_ext
-   zgtsv_interleaved_batch
-   zgtsv_interleaved_batch_buffer_size_ext
    zgtsv2
    zgtsv2_buffer_size_ext
    zgtsv2_nopivot
    zgtsv2_nopivot_buffer_size_ext
    zgtsv2strided_batch
    zgtsv2strided_batch_buffer_size_ext
+   zgtsv_interleaved_batch
+   zgtsv_interleaved_batch_buffer_size_ext
    znnz
+   znnz_compress

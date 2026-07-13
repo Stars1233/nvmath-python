@@ -14,6 +14,7 @@ from collections.abc import Sequence
 import numpy as np
 
 from . import formatters
+from .ndbuffer import NDBuffer
 from .tensor_ifc import AnyTensor, Tensor, TensorHolder
 from .tensor_ifc_numpy import CudaTensor, NumpyTensor
 
@@ -28,6 +29,8 @@ def infer_tensor_package(tensor):
     """
     if issubclass(tensor.__class__, np.ndarray):
         return "numpy"
+    if type(tensor) is NDBuffer:
+        return "cuda" if tensor.device == "cuda" else "cupy_host"
     module = tensor.__class__.__module__
     package = module.split(".")[0]
     maybe_register_package(package)

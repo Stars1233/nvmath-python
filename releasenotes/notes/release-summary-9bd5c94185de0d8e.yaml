@@ -1,0 +1,9 @@
+---
+release_summary: |
+   The first nvmath-python GA release, with key new features including the
+   single-GPU and distributed dense generic direct solver, performance
+   improvements to the sparse generic matrix multiplication API, support for
+   ``numba-cuda-mlir`` for device APIs, support for NVFP4 in distributed
+   matrix multiplication, support for explicit batching in generic matrix
+   multiplication, and more. As always, we look forward to your feedback
+   and suggestions as we continue to improve the library to meet your needs.

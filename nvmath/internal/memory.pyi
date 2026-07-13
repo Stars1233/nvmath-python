@@ -2,14 +2,16 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-import _cython_3_2_4
+import _cython_3_2_5
 from typing import Any, ClassVar
 
 __pyx_capi__: dict
 __test__: dict
-allocate_from_mr: _cython_3_2_4.cython_function_or_method
-free_reserved_memory: _cython_3_2_4.cython_function_or_method
-get_device_memory_resource: _cython_3_2_4.cython_function_or_method
+allocate_from_mr: _cython_3_2_5.cython_function_or_method
+free_reserved_memory: _cython_3_2_5.cython_function_or_method
+get_device_memory_resource: _cython_3_2_5.cython_function_or_method
+get_legacy_pinned_memory_resource: _cython_3_2_5.cython_function_or_method
+get_pinned_async_memory_resource: _cython_3_2_5.cython_function_or_method
 
 class _MemoryPointer:
     """
@@ -37,6 +39,8 @@ class _MemoryPointer:
     @classmethod
     def __init__(cls, *args, **kwargs) -> None:
         """Create and return a new object.  See help(type) for accurate signature."""
+    def close(self, stream) -> Any:
+        """_MemoryPointer.close(self, stream)"""
     def __del__(self, *args, **kwargs) -> None: ...
     def __reduce__(self):
         """_MemoryPointer.__reduce_cython__(self)"""

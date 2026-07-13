@@ -2,15 +2,13 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-__all__ = ["fft", "FFT", "compile_fft_execute"]
-import warnings
+__all__ = ["FFT", "compile_fft_execute"]
 from functools import cached_property
 from typing import Any
 
 from nvmath.bindings import mathdx
 from nvmath.internal.utils import docstring_decorator
 
-from ._deprecated import deprecated
 from .common import (
     SHARED_DEVICE_DOCSTRINGS,
     check_code_type,
@@ -50,23 +48,16 @@ A string specifying the direction of FFT, can be ``'forward'`` or ``'inverse'``.
 if real-to-complex FFT is specified and ``'inverse'`` if complex-to-real FFT is specified.""".replace("\n", " "),
         #
         "ffts_per_block": """\
-The number of FFTs calculated per CUDA block, optional. The default is 1. Alternatively, if provided as ``'suggested'``
-will be set to a suggested value""".replace("\n", " "),
+The number of FFTs calculated per CUDA block, optional. The default is 1. Alternatively, if provided as ``'suggested'``,
+will be set to a suggested value.""".replace("\n", " "),
         #
         "elements_per_thread": """\
-The number of elements per thread, optional. The default is 1. Alternatively, if provided as ``'suggested'``, will be
-set to a suggested value. """.replace("\n", " "),
+The number of elements per thread, optional. If not provided, the default value selected by cuFFTDx is used.
+Alternatively, if provided as ``'suggested'``, will be set to a suggested value.""".replace("\n", " "),
         #
         "real_fft_options": """\
 A dictionary specifying the options for real FFT operation, optional.""".replace("\n", " "),
-        "execute_api": """\
-A string specifying the signature of the function that handles problems with input in register or in shared memory buffers.
-Could be ``'shared_memory'`` or ``'register_memory'``.""".replace("\n", " "),
     }
-)
-
-_workspace_deprecation_warning = lambda: warnings.warn(
-    "Using workspaces is deprecated and will be removed in future release.", DeprecationWarning
 )
 
 
@@ -75,8 +66,7 @@ class FFT:
     """
     A class that encapsulates a partial FFT device function. A partial device function can
     be queried for available or optimal values for some knobs (such as `ffts_per_block`
-    or `elements_per_thread`). It does not contain a compiled, ready-to-use,
-    device function until finalized using :meth:`create`.
+    or `elements_per_thread`).
 
     .. versionchanged:: 0.7.0
         `FFT` has replaced `FFTOptions` and `FFTOptionsComplete`.
@@ -84,13 +74,13 @@ class FFT:
     Args:
         size (int): {size}
 
-        precision (str): {precision}
+        precision (type[np.floating]): {precision}
 
         fft_type (str): {fft_type}
 
-        sm (ComputeCapability): {sm}
-
         execution (str): {execution}
+
+        sm (ComputeCapability): {sm}
 
         direction (str): {direction}
 
@@ -103,7 +93,7 @@ class FFT:
 
             - ``'complex_layout'``, currently supports ``'natural'``, ``'packed'``, and
               ``'full'``.
-            - ``'real_mode'``, currently supports ``'normal'`` and ``'folded``.
+            - ``'real_mode'``, currently supports ``'normal'`` and ``'folded'``.
 
     .. seealso::
         The attributes of this class provide a 1:1 mapping with the CUDA C++ cuFFTDx APIs.
@@ -225,42 +215,6 @@ class FFT:
 
         return self._get_knobs(*knobs)
 
-    @deprecated("definition is deprecated and may be removed in future versions")
-    def definition(self):
-        """
-        .. deprecated:: 0.7.0
-        """
-        dd = {
-            "size": self.size,
-            "precision": self.precision,
-            "fft_type": self.fft_type,
-            "sm": self.sm,
-            "execution": self.execution,
-            "direction": self.direction,
-            "ffts_per_block": self.ffts_per_block,
-            "elements_per_thread": self.elements_per_thread,
-            "real_fft_options": self.real_fft_options,
-        }
-        return dd
-
-    @deprecated("create is deprecated and may be removed in future versions. Use `functools.partial` instead")
-    def create(self, **kwargs):
-        """
-        Creates a copy of the instance with provided arguments updated.
-
-        .. deprecated:: 0.7.0
-            Please use :py:func:`functools.partial` instead.
-        """
-        code_type = kwargs.pop("code_type", None)
-        if code_type is not None:
-            DeprecationWarning("code_type is deprecated and will be removed in future releases. It is no longer needed.")
-        compiler = kwargs.pop("compiler", None)
-        if compiler is not None:
-            DeprecationWarning("compiler is deprecated and will be removed in future releases. It is no longer needed.")
-        dd = self.definition()
-        dd.update(**kwargs)
-        return FFT(**dd)
-
     @property
     def value_type(self):
         return self._traits.value_type
@@ -290,15 +244,6 @@ class FFT:
         return self._traits.block_dim
 
     @property
-    def requires_workspace(self):
-        _workspace_deprecation_warning()
-        return False
-
-    @property
-    def workspace_size(self):
-        return self._traits.workspace_size
-
-    @property
     def implicit_type_batching(self):
         return self._traits.implicit_type_batching
 
@@ -307,16 +252,7 @@ class FFT:
         raise NotImplementedError("Extensions not supported yet")
 
     def execute(*args):
-        raise RuntimeError("execute is a device function and can not be called on host.")
-
-    @deprecated("Calling MM(...) directly is deprecated, please use MM.execute(...) method instead.")
-    def __call__(self, *args):
-        raise RuntimeError("__call__ is a device function and can not be called on host.")
-
-    @property
-    @deprecated("files is deprecated and is no longer required and will be removed in future releases.")
-    def files(self) -> list:
-        return []
+        raise RuntimeError("execute should not be called directly outside of a jitted kernel.")
 
     #
     # Private implementations
@@ -394,7 +330,6 @@ class _FFTTraits:
         self.elements_per_thread = get_int_trait(h, mathdx.CufftdxTraitType.ELEMENTS_PER_THREAD)
         self.implicit_type_batching = get_int_trait(h, mathdx.CufftdxTraitType.IMPLICIT_TYPE_BATCHING)
 
-        self.workspace_size = 0
         if FFT.execution == "Block":
             self.block_dim: Dim3 | None = Dim3(*get_int_traits(h, mathdx.CufftdxTraitType.BLOCK_DIM, 3))
             self.shared_memory_size: int | None = get_int_trait(h, mathdx.CufftdxTraitType.SHARED_MEMORY_SIZE)
@@ -436,75 +371,3 @@ def compile_fft_execute(
     symbol = get_str_trait(h, mathdx.CufftdxTraitType.SYMBOL_NAME)
 
     return Code(code_type, isa_version, lto_fn), symbol
-
-
-@docstring_decorator(FFTDX_DOCSTRING, skip_missing=False)
-def fft(*, compiler=None, code_type=None, execute_api=None, **kwargs):
-    """
-    Create an :class:`FFT` object that encapsulates a compiled and ready-to-use FFT
-    device function.
-
-    .. deprecated:: 0.7.0
-
-    Args:
-        size (int): {size}
-
-        precision (str): {precision}
-
-        fft_type (str): {fft_type}
-
-        sm (ComputeCapability): {sm}
-
-        execution (str): {execution}
-
-        direction (str): {direction}
-
-        ffts_per_block (int): {ffts_per_block}
-
-        elements_per_thread (int): {elements_per_thread}
-
-        real_fft_options (dict): {real_fft_options} User may specify the following options
-            in the dictionary:
-
-            - ``'complex_layout'``, currently supports ``'natural'``, ``'packed'``, and
-              ``'full'``.
-            - ``'real_mode'``, currently supports ``'normal'`` and ``'folded'``.
-
-        compiler: {compiler}
-
-            .. versionchanged:: 0.7.0
-                compiler is no longer needed and does not take effect. Use
-                :py:func:`nvmath.device.compile_fft_execute` to get device
-                function code.
-
-        code_type (CodeType): {code_type}
-
-            .. versionchanged:: 0.7.0
-                code_type should be used by
-                :py:func:`nvmath.device.compile_fft_execute` and no longer
-                needed for numba-cuda usage.
-
-        execute_api (str): {execute_api}
-
-            .. versionchanged:: 0.7.0
-                execute_api should be used by
-                :py:func:`nvmath.device.compile_fft_execute` and no longer
-                needed for numba-cuda usage.
-
-    .. seealso::
-        The attributes of :class:`FFT` provide a 1:1 mapping with the CUDA C++
-        cuFFTDx APIs. For further details, please refer to
-        :cufftdx_doc:`cuFFTDx documentation <index.html>`.
-
-    Examples:
-        Examples can be found in the `nvmath/examples/device
-        <https://github.com/NVIDIA/nvmath-python/tree/main/examples/device>`_ directory.
-    """
-    DeprecationWarning("fft is deprecated and will be removed in future releases. Please use FFT class directly.")
-    if code_type is not None:
-        DeprecationWarning("code_type is deprecated and will be removed in future releases. It is no longer needed.")
-    if compiler is not None:
-        DeprecationWarning("compiler is deprecated and will be removed in future releases. It is no longer needed.")
-    if execute_api is not None:
-        DeprecationWarning("execute_api is deprecated and will be removed in future releases. It is no longer needed.")
-    return FFT(**kwargs)

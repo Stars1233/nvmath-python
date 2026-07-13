@@ -48,7 +48,7 @@ amax = aux["result_amax"].item()
 d_scale = max_representable_value / amax
 print(f"d_scale = max_representable_value / amax = {max_representable_value} / {amax:.5f} = {d_scale:.5f}")
 
-# Repeat the computation, this time using the proper scale for D.
+# Repeat the computation, this time using the proper scale for 'd'.
 result2 = nvmath.linalg.advanced.matmul(a, b, quantization_scales={"a": 1, "b": 1, "d": d_scale})
-print(f"Result (with D scale set to {d_scale:.5f}) is:")
+print(f"Result (with 'd' scale set to {d_scale:.5f}) is:")
 print(result2)

@@ -13,7 +13,7 @@ on the same device as the inputs.
 Tensors residing on CPU memory are copied transparently to symmetric GPU memory to
 process them with cuBLASMp.
 
-The global operation performed in this example is: A.T @ B.T
+The global operation performed in this example is: a.T @ b.T
 
 $ mpiexec -n 4 python example01_torch.py
 """
@@ -47,40 +47,40 @@ m, n, k = 128, 512, 1024
 row_wise_distribution = BlockNonCyclic(ProcessGrid(shape=(nranks, 1)))  # partitioning on rows
 col_wise_distribution = BlockNonCyclic(ProcessGrid(shape=(1, nranks)))  # partitioning on columns
 
-a = torch.rand(m, k // nranks)  # a is partitioned on k
-b = torch.rand(k // nranks, n)  # b is partitioned on k
+a = torch.rand(m, k // nranks)  # 'a' is partitioned on k
+b = torch.rand(k // nranks, n)  # 'b' is partitioned on k
 
 # In Python, the memory layout of ndarrays and tensors by default uses row-major or C
 # ordering, while cuBLASMp requires column-major or Fortran ordering. To work with cuBLASMp,
 # you can follow these guidelines:
 # - The transpose of a C-ordered (row-major) matrix is a Fortran-ordered (column-major)
 #   matrix and vice-versa.
-# - In a distributed setting, a row-wise distributed matrix A is equivalent to a column-wise
-#   distributed matrix A.T, and vice-versa.
+# - In a distributed setting, a row-wise distributed matrix 'a' is equivalent to a
+#   column-wise distributed matrix 'a'.T, and vice-versa.
 
 # Note that numpy, cupy and torch also have functions to allocate tensors with Fortran order
 # or to convert to Fortran order (see example01_cupy.py for an example).
 
 # Get a transposed view (zero cost) of the matrices to obtain column-major ordering.
-a = a.T  # a is now (k, m) with row_wise_distribution
-b = b.T  # b is now (n, k) with col_wise_distribution
+a = a.T  # 'a' is now (k, m) with row_wise_distribution
+b = b.T  # 'b' is now (n, k) with col_wise_distribution
 
 # Specify distribution of input and output matrices.
 
-# Note: The choice of distribution for a, b and output as well as whether a and b are
-# transposed influences the distributed algorithm used by cuBLASMp and can have a
+# Note: The choice of distribution for 'a', 'b' and output as well as whether 'a' and 'b'
+# are transposed influences the distributed algorithm used by cuBLASMp and can have a
 # substantial impact on performance.
 # The following configuration will run GEMM+ReduceScatter.
 # Refer to https://docs.nvidia.com/cuda/cublasmp/usage/tp.html for more information.
 
-# Distribution of a, b and output (note how transposing a and b influences their
+# Distribution of 'a', 'b' and output (note how transposing 'a' and 'b' influences their
 # distribution):
 distributions = [row_wise_distribution, col_wise_distribution, col_wise_distribution]
 
 # Perform the distributed matrix multiplication.
 qualifiers = np.zeros((3,), dtype=matrix_qualifiers_dtype)
-qualifiers[0]["is_transpose"] = True  # a is transposed
-qualifiers[1]["is_transpose"] = True  # b is transposed
+qualifiers[0]["is_transpose"] = True  # 'a' is transposed
+qualifiers[1]["is_transpose"] = True  # 'b' is transposed
 if rank == 0:
     print("Running the distributed multiplication on CPU tensors...")
 result = nvmath.distributed.linalg.advanced.matmul(

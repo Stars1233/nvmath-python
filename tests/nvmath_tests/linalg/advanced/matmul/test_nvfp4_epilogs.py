@@ -209,7 +209,7 @@ def test_nvfp4_epilogs_with_no_extra_outputs(m, n, k, ctype, dtype, epilog_name,
         bias_type = bias_type_from_ctype_and_dtype(ctype, dtype)
         if bias_type is None:
             pytest.skip(f"Unsupported combination of ctype: {ctype} and dtype: {dtype}")
-        bias = sample_matrix("torch", bias_type, (m,), use_cuda=use_cuda, min=0, max=1)
+        bias = sample_matrix("torch", bias_type, (m,), use_cuda=use_cuda, min_val=0, max_val=1)
         epilog_inputs["bias"] = bias
 
     # Handle gaps in cuBLAS support. cuBLAS docs: "limited forward compatibility for narrow

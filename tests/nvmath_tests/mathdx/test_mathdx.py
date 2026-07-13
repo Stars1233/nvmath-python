@@ -7,7 +7,7 @@ import pytest
 from numba import cuda
 
 from nvmath.bindings import mathdx
-from nvmath.device import matmul
+from nvmath.device import Matmul
 from nvmath.device.common_cuda import get_default_code_type
 from nvmath.device.common_numba import NP_TYPES_TO_NUMBA_FE_TYPES
 from nvmath.device.types import REAL_NP_TYPES
@@ -117,16 +117,15 @@ def test_cublasdx_call(precision, data_type):
     ct = get_default_code_type()
     skip_nvbug_5218000(precision, sm=ct)
 
-    MM = matmul(
+    MM = Matmul(
         size=(m, n, k),
         precision=precision,
         data_type=data_type,
         transpose_mode=("non_transposed", "transposed"),
         execution="Block",
-        compiler="numba",
     )
 
-    value_type = MM.value_type
+    value_type = MM.a_value_type
 
     a_size = MM.a_size
     b_size = MM.b_size
@@ -138,7 +137,7 @@ def test_cublasdx_call(precision, data_type):
     lda, ldb, ldc = ld.a, ld.b, ld.c
     shared_memory_size = MM.get_shared_storage_size()
 
-    @cuda.jit(link=MM.files)
+    @cuda.jit()
     def f(a, b, c, alpha, beta, output):
         smem = cuda.shared.array(shape=(0,), dtype=value_type)
         smem_a = smem[0:]
@@ -151,7 +150,7 @@ def test_cublasdx_call(precision, data_type):
 
         cuda.syncthreads()
 
-        MM(alpha, smem_a, smem_b, beta, smem_c)
+        MM.execute(alpha, smem_a, smem_b, beta, smem_c)
 
         cuda.syncthreads()
 

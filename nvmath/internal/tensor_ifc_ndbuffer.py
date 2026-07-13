@@ -15,13 +15,13 @@ __all__ = ["NDBufferTensor"]
 
 from collections.abc import Sequence
 
-from . import typemaps, utils
-from .ndbuffer import ndbuffer
+from . import ndbuffer, typemaps, utils
+from .ndbuffer import NDBuffer, StridedLayout
 from .package_ifc import StreamHolder
 from .tensor_ifc import TensorHolder
 
 
-class NDBufferTensor(TensorHolder[ndbuffer.NDBuffer]):
+class NDBufferTensor(TensorHolder[NDBuffer]):
     """
     TensorHolder for ndbuffer ndarrays.
     """
@@ -76,15 +76,13 @@ class NDBufferTensor(TensorHolder[ndbuffer.NDBuffer]):
         Note, that the strides, if specified, MUST correspond to a dense (possibly permuted)
         tensor, otherwise the created tensor may be corrupted.
         """
-        itemsize = typemaps.NAME_TO_ITEM_SIZE[dtype]
+        layout = StridedLayout(shape, strides, typemaps.NAME_TO_ITEM_SIZE[dtype])
         if device_id == "cpu":
-            tensor = ndbuffer.empty(
-                shape, ndbuffer.CPU_DEVICE_ID, dtype, itemsize, strides=strides, stream=stream_holder, **context
-            )
+            tensor = NDBuffer.empty(layout, dtype, "cpu", stream=stream_holder, **context)
         else:
             assert isinstance(device_id, int), "Internal Error: Cuda tensors must be allocated with an integer device_id."
             with utils.device_ctx(device_id):
-                tensor = ndbuffer.empty(shape, device_id, dtype, itemsize, strides=strides, stream=stream_holder, **context)
+                tensor = NDBuffer.empty(layout, dtype, device_id, stream=stream_holder, **context)
         return cls(tensor)
 
     def asndbuffer(self):
@@ -100,12 +98,12 @@ class NDBufferTensor(TensorHolder[ndbuffer.NDBuffer]):
 
         if device_id == "cpu":
             with utils.device_ctx(src_device_id):
-                tensor = ndbuffer.empty_like(self.tensor, device_id=ndbuffer.CPU_DEVICE_ID, stream=stream_holder)
-                ndbuffer.copy_into(tensor, self.tensor, stream_holder)
+                tensor = NDBuffer.empty_like(self.tensor, device_id="cpu", stream=stream_holder)
+                tensor.copy_(self.tensor, stream=stream_holder)
         else:
             with utils.device_ctx(device_id):
-                tensor = ndbuffer.empty_like(self.tensor, device_id=device_id, stream=stream_holder)
-                ndbuffer.copy_into(tensor, self.tensor, stream_holder)
+                tensor = NDBuffer.empty_like(self.tensor, device_id=device_id, stream=stream_holder)
+                tensor.copy_(self.tensor, stream=stream_holder)
 
         return NDBufferTensor(tensor)
 
@@ -114,40 +112,36 @@ class NDBufferTensor(TensorHolder[ndbuffer.NDBuffer]):
         Inplace copy of src (copy the data from src into self).
         """
         device_id = self.tensor.device_id
-        src_nd = src._broadcast_to(self.shape).asndbuffer()
+        src_nd = src.asndbuffer()
         if device_id == "cpu":
             device_id = src_nd.device_id
         if device_id == "cpu":
-            ndbuffer.copy_into(self.tensor, src_nd, stream_holder)
+            self.tensor.copy_(src_nd, stream=stream_holder)
         else:
             with utils.device_ctx(device_id):
-                ndbuffer.copy_into(self.tensor, src_nd, stream_holder)
+                self.tensor.copy_(src_nd, stream=stream_holder)
 
     def istensor(self):
         """
         Check if the object is ndarray-like.
         """
-        return isinstance(self.tensor, ndbuffer.NDBuffer)
+        return isinstance(self.tensor, NDBuffer)
 
     def reshape(self, shape: Sequence[int], *, copy: bool | None = None):
         if copy:
             raise NotImplementedError("Reshape with copy is not supported for ndbuffer")
-        return self.__class__(ndbuffer.reshaped_view(self.tensor, shape))
+        return self.__class__(self.tensor.reshape(shape))
 
     def memory_buffer(self):
         """Creates a view of the memory buffer as a 1D tensor."""
-        raise NotImplementedError
+        layout = StridedLayout.dense(self.size, itemsize=self.itemsize)
+        return self.__class__(self.tensor.as_strided(layout))
 
     def memory_buffer_to_tensor(self, shape, strides):
         """
         Creates a N-D tensor view of the memory buffer according to the specified
         shape and strides.
         """
-        raise NotImplementedError
-
-    def _broadcast_to(self, shape):
-        if self.tensor.shape == shape:
-            return self
-        raise NotImplementedError(
-            f"_broadcast_to is not supported for ndbuffer. Current shape: {self.tensor.shape}, requested shape: {shape}."
-        )
+        assert len(self.shape) == 1, "Internal error."
+        layout = StridedLayout(shape, strides, itemsize=self.itemsize)
+        return self.__class__(self.tensor.as_strided(layout))

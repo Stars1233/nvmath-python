@@ -2,6 +2,8 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+from __future__ import annotations
+
 __all__ = [
     "initialize",
     "finalize",
@@ -14,18 +16,20 @@ __all__ = [
 
 import atexit
 import logging
+from typing import TYPE_CHECKING
 
 import numpy as np
-
-try:
-    from cuda.core import Buffer, Device, MemoryResource
-except ImportError:
-    from cuda.core.experimental import Buffer, Device, MemoryResource
+from cuda.core import Buffer, Device, MemoryResource, Stream
 
 from nvmath import memory
 from nvmath.bindings import nvshmem  # type: ignore
-from nvmath.distributed.process_group import ProcessGroup, ReductionOp
+from nvmath.distributed.process_group import ProcessGroup
 from nvmath.internal.utils import device_ctx
+
+from .symmetric_memory import calculate_symmetric_size
+
+if TYPE_CHECKING:
+    from nvmath.distributed import DistributedContext
 
 # Indicates if this module has initialized NVSHMEM
 _nvshmem_initialized_here = False
@@ -123,7 +127,7 @@ class _NvshmemResource(MemoryResource):
     def __init__(self, device):
         self.device = device
 
-    def allocate(self, size, stream=None) -> Buffer:
+    def allocate(self, size, *, stream=None) -> Buffer:
         # NOTE: setting the device is left to the caller
         ptr = nvshmem.malloc(size)
         if ptr == 0 and size != 0:
@@ -131,7 +135,9 @@ class _NvshmemResource(MemoryResource):
         self.freed = False
         return Buffer.from_handle(ptr=ptr, size=size, mr=self)
 
-    def deallocate(self, ptr, size, stream=None, manual=False):
+    def deallocate(self, ptr, size, stream=None, *, manual=False):
+        # `stream` must NOT be keyword-only: cuda.core < 1 calls deallocate with all
+        # arguments positionally (Buffer.close -> mr.deallocate(ptr, size, stream)).
         # NOTE: setting the device is left to the caller
         if not manual:
             if self.freed:
@@ -167,13 +173,33 @@ class _NvshmemResource(MemoryResource):
         return self.device.device_id
 
 
-def nvshmem_empty_dlpack(size, device_id, process_group, make_symmetric=False, skip_symmetric_check=False, logger=None):
+def nvshmem_empty_dlpack(
+    size: int,
+    device_id: int,
+    process_group: ProcessGroup,
+    make_symmetric: bool = False,
+    skip_symmetric_check: bool = False,
+    logger: logging.Logger | None = None,
+) -> Buffer:
     """Return uninitialized DLPack buffer of given size in bytes, allocated using
     nvshmem_malloc (which makes this a *collective* call). Note that the DLPack
     buffer currently does not include any shape, dtype, or stride information.
 
     IMPORTANT: device_id must be the one with which NVSHMEM was initialized, and
     setting the device is left to the caller.
+
+    Args:
+        size: Number of bytes to allocate.
+
+        device_id: Device on which to allocate.
+
+        process_group: nvmath.distributed process group.
+
+        make_symmetric: Use ``make_symmetric=True`` to allocate the same size on every
+            process (padding the buffer to the maximum size given by all processes).
+
+        skip_symmetric_check: True if buffer is already known to be of the same size
+            on every process.
     """
 
     _check_initialized()
@@ -182,28 +208,7 @@ def nvshmem_empty_dlpack(size, device_id, process_group, make_symmetric=False, s
 
     logger = logger if logger is not None else logging.getLogger()
 
-    if make_symmetric and skip_symmetric_check:
-        raise ValueError("skip_symmetric_check is incompatible with make_symmetric=True")
-
-    if not skip_symmetric_check:
-        max_size = np.array([-size, size], dtype=np.int64)
-        process_group.allreduce_buffer(max_size, op=ReductionOp.MAX)
-        if -max_size[0] != max_size[1]:
-            # The buffer size is not the same on all processes.
-            if make_symmetric:
-                logger.info(
-                    "Symmetric memory allocator: the buffer will be padded on some processes to "
-                    f"satisfy symmetric requirement (make_symmetric=True), size={size} max_size={max_size[1]}."
-                )
-            else:
-                raise ValueError(
-                    "The buffer size for symmetric memory allocation is not the same on all processes. "
-                    "Consider using make_symmetric=True if you have uneven data distribution."
-                )
-        else:
-            logger.info(f"Symmetric memory allocator: the requested buffer size ({size}) is the same on all processes.")
-        # Sizes are equal or make_symmetric=True.
-        size = max_size[1]
+    size = calculate_symmetric_size(size, process_group, make_symmetric, skip_symmetric_check, logger)
 
     mem = _NvshmemResource(Device(device_id))
     mem_buffer = mem.allocate(size)
@@ -272,7 +277,7 @@ class NvshmemMemoryManager(memory.BaseCUDAMemoryManager):
 class NvshmemNDBufferAllocator:
     __slots__ = ("ctx", "make_symmetric", "skip_symmetric_check")
 
-    def __init__(self, device_id, ctx, make_symmetric, skip_symmetric_check):
+    def __init__(self, device_id: int, ctx: DistributedContext, make_symmetric: bool, skip_symmetric_check: bool):
         assert ctx.device_id == device_id, (
             "Internal error: attempting to allocate symmetric memory on a device not used "
             "by the NVSHMEM runtime on this process"
@@ -281,7 +286,7 @@ class NvshmemNDBufferAllocator:
         self.make_symmetric = make_symmetric
         self.skip_symmetric_check = skip_symmetric_check
 
-    def allocate(self, size, stream, logger=None):
+    def allocate(self, size: int, stream: Stream, logger: logging.Logger | None = None) -> Buffer:
         return nvshmem_empty_dlpack(
             size,
             self.ctx.device_id,

@@ -12,11 +12,10 @@ from collections.abc import Sequence
 
 import cupy
 import numpy as np
-
-from nvmath.internal.memory import _MemoryPointer
+from cuda.core import Buffer
 
 from . import utils
-from .ndbuffer import ndbuffer, package_utils
+from .ndbuffer import NDBuffer
 from .package_ifc import StreamHolder
 from .tensor_ifc import TensorHolder
 from .tensor_ifc_ndbuffer import NDBufferTensor
@@ -29,7 +28,8 @@ class HostTensor(NDBufferTensor):
     """
 
     name = "cupy_host"
-    device_tensor_class: type["CupyTensor"]  # set once CupyTensor is defined
+    host_tensor_class: type["HostTensor"]  # set at the end of the file
+    device_tensor_class: type["CupyTensor"]  # set at the end of the file
 
     def __init__(self, tensor):
         super().__init__(tensor)
@@ -39,8 +39,8 @@ class HostTensor(NDBufferTensor):
         src_nd = tensor.asndbuffer()
         # empty_like (and not empty_numpy_like) is used as we don't need
         # full-fledged numpy array (with proper layout)
-        dst_nd = ndbuffer.empty_like(src_nd, device_id=ndbuffer.CPU_DEVICE_ID)
-        ndbuffer.copy_into(dst_nd, src_nd, stream_holder)
+        dst_nd = NDBuffer.empty_like(src_nd, device_id="cpu")
+        dst_nd.copy_(src_nd, stream=stream_holder)
         return cls(dst_nd)
 
     def to(self, device_id, stream_holder):
@@ -59,9 +59,7 @@ class _CupyAllocatorAdapter:
         # cupy.cuda.alloc does not accept the stream, we make sure to set
         # the correct current stream when calling ndbuffer.empty_like
         alloc = cupy.cuda.alloc(size)
-        # Once we require cuda.core >= 0.5.0,
-        # use Buffer.from_handle(alloc.ptr, owner=alloc)
-        return _MemoryPointer.from_handle(alloc.ptr, alloc)
+        return Buffer.from_handle(alloc.ptr, size, owner=alloc)
 
 
 _cupy_allocator = _CupyAllocatorAdapter()
@@ -77,7 +75,8 @@ class CupyTensor(TensorHolder[cupy.ndarray]):
     name_to_dtype = TensorHolder.create_name_dtype_map(
         conversion_function=lambda name: np.dtype(name), exception_type=TypeError
     )
-    host_tensor_class = HostTensor
+    host_tensor_class: type["HostTensor"]  # set at the end of the file
+    device_tensor_class: type["CupyTensor"]  # set at the end of the file
 
     def __init__(self, tensor):
         super().__init__(tensor)
@@ -161,18 +160,13 @@ class CupyTensor(TensorHolder[cupy.ndarray]):
     def create_from_host(cls, tensor: TensorHolder, device_id: int, stream_holder: StreamHolder):
         with utils.device_ctx(device_id), stream_holder.ctx:
             src_nd = tensor.asndbuffer()
-            dst_nd = ndbuffer.empty_like(
-                src_nd,
-                device_id=device_id,
-                stream=stream_holder,
-                device_memory_pool=_cupy_allocator,
-            )
-            ndbuffer.copy_into(dst_nd, src_nd, stream_holder)
+            dst_nd = NDBuffer.empty_like(src_nd, device_id=device_id, stream=stream_holder, memory_resource=_cupy_allocator)
+            dst_nd.copy_(src_nd, stream=stream_holder)
             dst = cupy.ndarray(dst_nd.shape, dtype=dst_nd.dtype_name, strides=dst_nd.strides_in_bytes, memptr=dst_nd.data.owner)
             return cls(dst)
 
     def asndbuffer(self):
-        return package_utils.wrap_cupy_array(self.tensor)
+        return NDBuffer.from_cupy(self.tensor)
 
     def to(self, device_id, stream_holder):
         if device_id == "cpu":
@@ -189,7 +183,7 @@ class CupyTensor(TensorHolder[cupy.ndarray]):
         Inplace copy of src (copy the data from src into self).
         """
         with utils.device_ctx(self.device_id):
-            ndbuffer.copy_into(self.asndbuffer(), src._broadcast_to(self.shape).asndbuffer(), stream_holder)
+            self.asndbuffer().copy_(src.asndbuffer(), stream=stream_holder)
 
     def istensor(self):
         """
@@ -233,9 +227,8 @@ class CupyTensor(TensorHolder[cupy.ndarray]):
         t = cupy.ndarray(shape=shape, dtype=self.dtype, memptr=p, strides=strides)
         return CupyTensor(t)
 
-    def _broadcast_to(self, shape):
-        reshaped_tensor = cupy.broadcast_to(self.tensor, shape)
-        return self.__class__(reshaped_tensor)
 
-
+CupyTensor.host_tensor_class = HostTensor
+HostTensor.host_tensor_class = HostTensor
+CupyTensor.device_tensor_class = CupyTensor
 HostTensor.device_tensor_class = CupyTensor

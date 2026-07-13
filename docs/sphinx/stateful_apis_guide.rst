@@ -50,15 +50,26 @@ nvmath-python's stateful APIs revolve around several key phases:
    .. note::
 
       When resetting operands, the new ones must be compatible with those
-      provided during initialization. Two sets of constraints apply. The
-      first is enforced across all modules: the new operands must come from
-      the same package and memory space as the originals (see
-      :ref:`package-compatibility` and :ref:`one-object-one-memory-space`).
-      The second is more relaxed: operands with the same shape, dtype, and
-      strides as the originals are always accepted, and some modules
-      additionally allow these to differ in some cases. Refer to each class's
-      ``reset_operand()`` or ``reset_operands()`` method for the
-      module-specific details.
+      provided during initialization. The following sets of constraints
+      apply:
+
+      #. **Package and memory space (all modules):** the new operands
+         must come from the same package and memory space as the
+         originals (see :ref:`package-compatibility` and
+         :ref:`one-object-one-memory-space`).
+      #. **Shape, dtype, and strides (all modules):** operands with the
+         same shape, dtype, and strides as the originals are always
+         accepted; some modules additionally allow these to differ in
+         some cases.
+      #. **Distribution (distributed host APIs only):** distributed host APIs
+         additionally constrain the operand ``distribution`` at reset
+         time (for example,
+         :meth:`nvmath.distributed.fft.FFT.reset_operand` only accepts
+         distributions that are compatible with the one used at plan
+         time).
+
+      Refer to each class's ``reset_operand()`` or ``reset_operands()``
+      method for the module-specific details.
 
    .. note::
 
@@ -195,6 +206,8 @@ below provide module-specific documentation and examples.
 - :class:`nvmath.fft.FFT`: FFT stateful API class documentation
 - :class:`nvmath.linalg.advanced.Matmul`:
   Advanced matrix multiplication stateful API class documentation
+- :class:`nvmath.linalg.DirectSolver`:
+  Dense direct linear solver stateful API class documentation
 - :class:`nvmath.sparse.advanced.DirectSolver`:
   Sparse direct solver stateful API class documentation
 - :class:`nvmath.distributed.fft.FFT`:
@@ -211,6 +224,7 @@ below provide module-specific documentation and examples.
 Basic stateful usage:
 - `FFT <fft-stateful-example_>`_
 - `Matrix multiplication <matmul-stateful-example_>`_
+- `Dense direct solver <dense-solver-stateful-example_>`_
 - `Sparse direct solver <solver-stateful-example_>`_
 - `Distributed matrix multiplication <distributed-matmul-stateful-example_>`_
 
@@ -220,6 +234,7 @@ In-place operand modification:
 
 Resetting operands:
 - `FFT <fft-reset-example_>`_
+- `Dense direct solver <dense-solver-reset-example_>`_
 - `Sparse direct solver <solver-reset-example_>`_
 - `Tensor contraction <tensor-reset-example_>`_
 
@@ -229,6 +244,8 @@ Resource management: `FFT <fft-resource-example_>`_
    https://github.com/NVIDIA/nvmath-python/tree/main/examples/fft/example02_stateful_cupy.py
 .. _matmul-stateful-example:
    https://github.com/NVIDIA/nvmath-python/tree/main/examples/linalg/advanced/matmul/example04_stateful_cupy.py
+.. _dense-solver-stateful-example:
+   https://github.com/NVIDIA/nvmath-python/tree/main/examples/linalg/generic/direct_solver/example03_stateful_cupy.py
 .. _solver-stateful-example:
    https://github.com/NVIDIA/nvmath-python/tree/main/examples/sparse/advanced/direct_solver/example04_stateful_cupy.py
 .. _distributed-matmul-stateful-example:
@@ -239,6 +256,8 @@ Resource management: `FFT <fft-resource-example_>`_
    https://github.com/NVIDIA/nvmath-python/tree/main/examples/linalg/advanced/matmul/example05_stateful_inplace.py
 .. _fft-reset-example:
    https://github.com/NVIDIA/nvmath-python/tree/main/examples/fft/example05_stateful_reset.py
+.. _dense-solver-reset-example:
+   https://github.com/NVIDIA/nvmath-python/tree/main/examples/linalg/generic/direct_solver/example04_reset_operands_cupy.py
 .. _solver-reset-example:
    https://github.com/NVIDIA/nvmath-python/tree/main/examples/sparse/advanced/direct_solver/example05_reset_operands.py
 .. _tensor-reset-example:

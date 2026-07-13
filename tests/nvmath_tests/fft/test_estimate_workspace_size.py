@@ -112,7 +112,7 @@ def test_estimate_workspace_size_cuda(
 
     with nvmath.fft.FFT(a, axes=axes, execution=exec_backend.nvname) as f:
         f.plan()
-        actual = f.workspace_size
+        actual = f.workspace.size
     assert estimated >= actual, (
         f"Estimated workspace ({estimated}) is smaller than actual "
         f"({actual}) for shape={shape}, axes={axes}, technique={technique}"
@@ -168,3 +168,37 @@ def test_estimate_workspace_size_refined_requires_handle(exec_backend):
     key = nvmath.fft.FFT.create_key(a, axes=(0,), execution=exec_backend.nvname)
     with pytest.raises(ValueError, match="handle is required"):
         nvmath.fft.estimate_workspace_size(key, technique="refined")
+
+
+@pytest.mark.parametrize(
+    ("exec_backend", "technique"),
+    [
+        (exec_backend, technique)
+        for exec_backend in [ExecBackend.cufft]
+        if exec_backend in supported_backends.exec
+        for technique in ["default", "refined"]
+    ],
+)
+def test_estimate_workspace_size_metadata_matches_operand(exec_backend, technique):
+    """Estimating from a metadata-derived key matches the operand-derived key."""
+    shape = (256, 256)
+    axes = (0, 1)
+    a = np.random.randn(*shape).astype(np.complex64)
+    k_array = nvmath.fft.FFT.create_key(a, axes=axes, execution=exec_backend.nvname)
+    # 'a' is a host (numpy) array, so its memory space is "cpu".
+    k_meta = nvmath.fft.FFT.create_key_from_metadata(
+        shape, "complex64", axes=axes, memory_space="cpu", execution=exec_backend.nvname
+    )
+    assert k_array == k_meta
+
+    if technique == "refined":
+        handle = cufft_bindings.create()
+        try:
+            est_array = nvmath.fft.estimate_workspace_size(k_array, technique=technique, handle=handle)
+            est_meta = nvmath.fft.estimate_workspace_size(k_meta, technique=technique, handle=handle)
+        finally:
+            cufft_bindings.destroy(handle)
+    else:
+        est_array = nvmath.fft.estimate_workspace_size(k_array, technique=technique)
+        est_meta = nvmath.fft.estimate_workspace_size(k_meta, technique=technique)
+    assert est_meta == est_array

@@ -3,9 +3,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """
-This example demonstrates how D_OUT quantization scale can be reused as input scale for
-subsequent matrix multiplications. In this example, we compute matrix exponentiation by
-chaining multiple matrix multiplications, while feeding D_OUT scale as A scale.
+Each MXFP8 block-scaled matrix multiplication produces both a result and the quantization
+scale that describes it. This example shows how that output scale can be fed straight back
+in as the input scale for the next multiplication. We use this to compute a matrix
+exponentiation by chaining multiplications, feeding each result back in as operand 'a'.
 
 FP8 is only supported with compute capability 10.0 or higher.
 
@@ -25,13 +26,13 @@ comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 nranks = comm.Get_size()
 device_id = rank % torch.cuda.device_count()
-# cuBLASMp requires NCCL communication backends.
+# cuBLASMp requires NCCL communication backend.
 nvmath.distributed.initialize(device_id, comm, backends=["nccl"])
 
-# A and B are square matrices of the given global size:
+# 'a' and 'b' are square matrices of the given global size:
 size = 256
 
-# We will compute B^p = A*B*B*...*B
+# We will compute b^p = a*b*b*...*b
 p = 4
 
 row_wise_distribution = Slab.X
@@ -44,20 +45,20 @@ with torch.cuda.device(device_id):
     b = torch.zeros(*row_wise_distribution.shape(rank, (size, size)), device="cuda").type(torch.float8_e4m3fn)
 
 # Get a transposed view to obtain column-major memory layout. Note that this
-# also changes the distribution of a and b (see example01 for more information).
-a = a.T  # a now uses col_wise_distribution
-b = b.T  # b now uses col_wise_distribution
+# also changes the distribution of 'a' and 'b' (see example01 for more information).
+a = a.T  # 'a' now uses col_wise_distribution
+b = b.T  # 'b' now uses col_wise_distribution
 
-# Distributions for A, B, and result matrix D
+# Distributions for 'a', 'b', and result matrix 'd'
 distributions = [col_wise_distribution, col_wise_distribution, row_wise_distribution]
 
-# Initialize A as global identity matrix.
+# Initialize 'a' as global identity matrix.
 with torch.cuda.device(device_id):
     i = rank * (size // nranks)
     j = i + (size // nranks)
     a[i:j, :] = torch.eye(size // nranks, device="cuda", dtype=torch.float8_e4m3fn)
 
-print("Initial value of A (identity matrix):")
+print("Initial value of 'a' (identity matrix):")
 print(a)
 print()
 
@@ -65,7 +66,7 @@ print()
 with torch.cuda.device(device_id):
     b[i:j, :] = (torch.eye(size // nranks, device="cuda") * (1 + torch.arange(i, j, device="cuda"))).type(torch.float8_e4m3fn)
 
-print("Initial value of B (diagonal matrix):")
+print("Initial value of 'b' (diagonal matrix):")
 print(b)
 print()
 
@@ -95,16 +96,16 @@ with nvmath.distributed.linalg.advanced.Matmul(
 
         torch.cuda.default_stream().synchronize()
 
-        # Replace A with A*B and use the D_OUT scale as input scale for the new A
+        # Replace 'a' with a*b and use the output scale as input scale for the new 'a'
         d_out_scale = aux["d_out_scale"]
         print(f"{d_out_scale=}")
-        # The result has row-wise distribution and A has column-wise distribution.
-        # To replace A we need to change the result's distribution. Since A*B is
+        # The result has row-wise distribution and 'a' has column-wise distribution.
+        # To replace 'a' we need to change the result's distribution. Since a*b is
         # symmetric, we can simply transpose to change the distribution.
         a[:] = d.T
         mm.reset_operands(quantization_scales={"a": d_out_scale})
 
         # Print the result with quantization scales applied
-        print(f"Result of B^{i} (with quantization scales applied):")
+        print(f"Result of b^{i} (with quantization scales applied):")
         print(nvmath.distributed.linalg.advanced.helpers.matmul.apply_mxfp8_scale(d, d_out_scale))
         print()

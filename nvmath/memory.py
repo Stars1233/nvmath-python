@@ -6,17 +6,14 @@
 
 __all__ = ["BaseCUDAMemoryManager", "MemoryPointer"]
 
-import logging
 import weakref
 from abc import abstractmethod
 from collections.abc import Callable
 from typing import Protocol, runtime_checkable
 
-try:
-    from cuda.core import Stream
-except ImportError:
-    from cuda.core.experimental import Stream
+from cuda.core import Stream
 
+from nvmath._internal.utils import LoggerLike
 from nvmath.internal import utils
 from nvmath.internal.memory import allocate_from_mr, get_device_memory_resource
 from nvmath.internal.package_ifc_cuda import CUDAPackage
@@ -92,7 +89,7 @@ class BaseCUDAMemoryManager(Protocol):
     """
 
     @abstractmethod
-    def __init__(self, device_id: int, logger: logging.Logger):
+    def __init__(self, device_id: int, logger: LoggerLike):
         raise NotImplementedError
 
     @abstractmethod
@@ -126,7 +123,7 @@ class BaseCUDAMemoryManagerAsync(Protocol):
     """
 
     @abstractmethod
-    def __init__(self, device_id: int, logger: logging.Logger):
+    def __init__(self, device_id: int, logger: LoggerLike):
         raise NotImplementedError
 
     @abstractmethod
@@ -161,7 +158,7 @@ class _RawCUDAMemoryManager(BaseCUDAMemoryManagerAsync):
         logger (logging.Logger): Python Logger object.
     """
 
-    def __init__(self, device_id: int, logger: logging.Logger):
+    def __init__(self, device_id: int, logger: LoggerLike):
         """
         __init__(device_id)
         """
@@ -197,17 +194,17 @@ def lazy_load_cupy():
             logger (logging.Logger): Python Logger object.
         """
 
-        def __init__(self, device_id: int, logger: logging.Logger):
+        def __init__(self, device_id: int, logger: LoggerLike):
             """
             __init__(device_id)
             """
             self.device_id = device_id
             self.logger = logger
 
-        def memalloc_async(self, size: int, stream) -> MemoryPointer:
-            stream_ctx = CupyPackage.to_stream_context(
-                CupyPackage.create_external_stream(self.device_id, CUDAPackage.to_stream_pointer(stream))
-            )
+        def memalloc_async(self, size: int, stream: Stream) -> MemoryPointer:
+            stream_ptr = CUDAPackage.to_stream_pointer(stream)
+            external = CupyPackage.create_external_stream(self.device_id, stream_ptr)
+            stream_ctx = CupyPackage.to_stream_context(external)
             with utils.device_ctx(self.device_id), stream_ctx:
                 cp_mem_ptr = cp.cuda.alloc(size)
                 device_ptr = cp_mem_ptr.ptr
@@ -248,7 +245,7 @@ def lazy_load_torch():
             logger (logging.Logger): Python Logger object.
         """
 
-        def __init__(self, device_id: int, logger: logging.Logger):
+        def __init__(self, device_id: int, logger: LoggerLike):
             """
             __init__(device_id)
             """

@@ -24,7 +24,7 @@ class SparseTensorHolder(ABC):
 
     @classmethod
     @abstractmethod
-    def create_from_tensor(cls, attr_name_map, tensor):
+    def create_from_tensor(cls, tensor, attr_name_map):
         raise NotImplementedError
 
     @property
@@ -83,7 +83,19 @@ class SparseTensorHolder(ABC):
 
         No copy is performed if the SparseTensor is already on the requested device.
         """
-        raise NotImplementedError
+        # This path is suitable only if `self.tensor` is a ust.Tensor instance.
+        # (Note, this can be the case for any known, named format holders, because
+        # user can wrap external sparse tensor into ust.Tensor that is then
+        # wrapped into SparseTensorHolder).
+        # Here, we ensure that the resulting copy also has a proper .tensor : ust.Tensor
+        # instance not just dense constituent tensors (extracted via attr_name_map)
+        # from the original tensor. Matmulmod impl relies on .tensor to be present
+        # for ust operands.
+        # If self.tensor may not be a ust.Tensor instance, the subclass is responsible
+        # for overriding this method to provide specialized implementation.
+        tensor = self.tensor  # type: ignore[attr-defined]
+        tensor = tensor._to(device_id=device_id, stream_holder=stream_holder)
+        return self.create_from_tensor(tensor, attr_name_map=self.attr_name_map)
 
     @abstractmethod
     def copy_(self, src: SparseTensorHolder, stream_holder: StreamHolder | None) -> None:

@@ -8,7 +8,10 @@ This example demonstrates nvmath-python's capability to execute batched multipli
 Executing multiple multiplications together (in a batch) yields better performance than
 executing them separately.
 
-In this example we will multiply each of our `a` matrices with the corresponding `b` matrix.
+In this example we will multiply each of our `a` matrices with the corresponding `b`
+matrix. The batch is encoded as the leading dimension of each input - this is *implicit*
+batching. See example09 for *explicit* batching, where the batch is provided as a
+sequence of matrices.
 """
 
 # Enable logging.

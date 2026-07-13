@@ -10,6 +10,7 @@ __all__ = [
     "BiasHandler",
     "BgradHandler",
     "ReluAuxHandler",
+    "DReluAuxHandler",
     "GeluAuxHandler",
     "DGeluAuxHandler",
     "EpilogInputHandler",
@@ -60,12 +61,28 @@ class EpilogInputHandler(Protocol):
     @abstractmethod
     def update(self, mm_desc_ifc, epilog_input):
         """
-        Update the provided epilog input.
+        Update the matmul descriptor attributes for this epilog from the given input.
 
         Args:
-            mm_desc_ifc: The MM descriptor to update, provided as a MatmulDescInterface
-                object. epilog_input: The epilog input to validate.
+            mm_desc_ifc: The MM descriptor to update, provided as
+                a MatmulDescInterface object.
+            epilog_input: The epilog input.
+        """
+        raise NotImplementedError
 
+    @abstractmethod
+    def update_pointer(self, mm_desc_ifc, data_ptr) -> None:
+        """
+        Update the matmul descriptor data pointer for this epilog.
+
+        Unlike ``update``, this only sets the pointer, assuming all other
+        descriptor attributes (batch stride, leading dimension, data type)
+        are already valid.
+
+        Args:
+            mm_desc_ifc: The MM descriptor to update, provided
+                as a MatmulDescInterface object.
+            data_ptr: The device pointer value to set.
         """
         raise NotImplementedError
 
@@ -109,7 +126,7 @@ class EpilogOutputHandler(Protocol):
         raise NotImplementedError
 
     @abstractmethod
-    def update_ptr(self, mm_desc_ifc, ptr):
+    def update_pointer(self, mm_desc_ifc, ptr):
         """
         Set the pointer for this epilog.
 
@@ -180,6 +197,9 @@ class BiasHandler(EpilogInputHandler):
                 f"which corresponds to the M dimension."
             )
 
+    def update_pointer(self, mm_desc_ifc, data_ptr):
+        mm_desc_ifc.bias_pointer = data_ptr
+
     def update(self, mm_desc_ifc, bias_tensor):
         # Set the bias pointer.
         mm_desc_ifc.bias_pointer = bias_tensor.data_ptr
@@ -247,7 +267,7 @@ class ReluAuxHandler(EpilogOutputHandler):
         # Set the pointer to 0x1 to bypass the cuBLAS check.
         mm_desc_ifc.epilogue_aux_pointer = 0x1
 
-    def update_ptr(self, mm_desc_ifc, ptr):
+    def update_pointer(self, mm_desc_ifc, ptr):
         # Set the aux pointer.
         mm_desc_ifc.epilogue_aux_pointer = ptr
 
@@ -294,7 +314,7 @@ class GeluAuxHandler(EpilogOutputHandler):
         if self.aux_dtype_name is not None:
             mm_desc_ifc.epilogue_aux_data_type = typemaps.NAME_TO_DATA_TYPE[self.aux_dtype_name]
 
-    def update_ptr(self, mm_desc_ifc, ptr):
+    def update_pointer(self, mm_desc_ifc, ptr):
         # Set the aux pointer.
         mm_desc_ifc.epilogue_aux_pointer = ptr
 
@@ -340,9 +360,70 @@ class BgradHandler(EpilogOutputHandler):
         # support.
         assert self.bgrad_dtype_name == self.d_dtype_name, "Internal error."
 
-    def update_ptr(self, mm_desc_ifc, ptr):
+    def update_pointer(self, mm_desc_ifc, ptr):
         # Set the bgrad pointer.
         mm_desc_ifc.bias_pointer = ptr
+
+
+class DReluAuxHandler(EpilogInputHandler):
+    def __init__(self, logger, mm_traits, enumerator, c_dtype_name, d_dtype_name, aux_dtype_name):
+        self.mm_traits = mm_traits
+
+        assert enumerator in [Epilog.DRELU, Epilog.DRELU_BGRAD], "Internal error."
+        self.enumerator = enumerator
+
+        self._name = "relu_aux"
+
+        # The bitmask int8 matrix local shape, including padding.
+        self.mm_m, self.mm_n = relu_aux_mm_shape(*mm_traits.d_layout.shape)
+
+        # We store bitmask using int8 dtype but the values below are in number of elements.
+        self.aux_ld = self.mm_m * 8  # should be consistent with order (currently COL).
+
+        # K=1 is not supported by cuBLAS
+        if mm_traits.K == 1:
+            raise ValueError("K=1 is not supported for DRELU epilogs")
+
+    @property
+    def name(self):
+        return self._name
+
+    def validate(self, relu_aux_tensor):
+        # The relu_aux_tensor must be of rank 2.
+        if len(relu_aux_tensor.shape) != 2:
+            raise ValueError(f"RELU auxiliary input must be of rank 2, its shape is {relu_aux_tensor.shape}")
+
+        # The dtype must be uint8.
+        if relu_aux_tensor.dtype != "uint8":
+            raise ValueError(
+                f"The dtype of the RELU auxiliary input for epilog {self.enumerator.name} must be 'uint8'. "
+                f"The epilog input's dtype is '{relu_aux_tensor.dtype}'."
+            )
+
+        # The MM shape must match, the MM must be in col order, and the batch order must
+        # match.
+        Ma, Na = relu_aux_tensor.shape
+        if Ma != self.mm_m or Na != self.mm_n:
+            raise ValueError(
+                f"The auxiliary epilog input for epilog {self.enumerator.name} must have the MM shape "
+                f"(..., {self.mm_m}, {self.mm_n}). The epilog input's MM shape is ({Ma}, {Na})."
+            )
+
+        if relu_aux_tensor.strides[0] != 1:
+            raise ValueError(
+                f"The stride of the RELU auxiliary input {relu_aux_tensor.strides} must be 1 "
+                f"along the dimension 0, which corresponds to the M dimension."
+            )
+
+    def update_pointer(self, mm_desc_ifc, data_ptr):
+        mm_desc_ifc.epilogue_aux_pointer = data_ptr
+
+    def update(self, mm_desc_ifc, relu_aux_tensor):
+        # Set the epilog aux pointer.
+        mm_desc_ifc.epilogue_aux_pointer = relu_aux_tensor.data_ptr
+        # Set the aux LD.
+        mm_desc_ifc.epilogue_aux_ld = self.aux_ld
+        # The relu aux data type is bitmask, don't set.
 
 
 class DGeluAuxHandler(EpilogInputHandler):
@@ -433,6 +514,9 @@ class DGeluAuxHandler(EpilogInputHandler):
         if self.batch_offset > 0:
             assert self.batch_offset >= self.mm_m * self.mm_n, "Tensor data must not overlap."
 
+    def update_pointer(self, mm_desc_ifc, data_ptr):
+        mm_desc_ifc.epilogue_aux_pointer = data_ptr
+
     def update(self, mm_desc_ifc, gelu_aux_tensor):
         # Set the epilog aux pointer.
         mm_desc_ifc.epilogue_aux_pointer = gelu_aux_tensor.data_ptr
@@ -454,6 +538,8 @@ EPILOG_INPUT_HANDLERS_MAP: dict[cublasMp.MatmulEpilogue, list[type[EpilogInputHa
     Epilog.RELU_AUX_BIAS: [BiasHandler],
     Epilog.GELU_BIAS: [BiasHandler],
     Epilog.GELU_AUX_BIAS: [BiasHandler],
+    Epilog.DRELU: [DReluAuxHandler],
+    Epilog.DRELU_BGRAD: [DReluAuxHandler],
     Epilog.DGELU: [DGeluAuxHandler],
     Epilog.DGELU_BGRAD: [DGeluAuxHandler],
     Epilog.BGRADA: [],
@@ -471,6 +557,8 @@ EPILOG_OUTPUT_HANDLERS_MAP: dict[cublasMp.MatmulEpilogue, list[type[EpilogOutput
     Epilog.RELU_AUX_BIAS: [ReluAuxHandler],
     Epilog.GELU_BIAS: [],
     Epilog.GELU_AUX_BIAS: [GeluAuxHandler],
+    Epilog.DRELU: [],
+    Epilog.DRELU_BGRAD: [BgradHandler],
     Epilog.DGELU: [],
     Epilog.DGELU_BGRAD: [BgradHandler],
     Epilog.BGRADA: [BgradHandler],
@@ -489,8 +577,10 @@ EPILOG_MINIMUM_VERSIONS_MAP: dict[cublasMp.MatmulEpilogue | None, dict[str, int]
     Epilog.RELU_AUX_BIAS: {"cublasMp": 800},
     Epilog.GELU_BIAS: {"cublasMp": 800},
     Epilog.GELU_AUX_BIAS: {"cublasMp": 800},
+    Epilog.DRELU: {"cublasMp": 801},
     Epilog.DGELU: {"cublasMp": 800},
     Epilog.BGRADA: {"cublasMp": 800},
     Epilog.BGRADB: {"cublasMp": 800},
+    Epilog.DRELU_BGRAD: {"cublasMp": 801},
     Epilog.DGELU_BGRAD: {"cublasMp": 800},
 }

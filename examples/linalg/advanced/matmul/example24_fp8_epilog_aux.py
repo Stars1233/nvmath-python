@@ -5,7 +5,7 @@
 """
 This example demonstrates using GELU_AUX epilog with FP8 outputs.
 
-For GELU_AUX epilog, when A and B are e4m3fn, you can request the auxiliary output to
+For GELU_AUX epilog, when 'a' and 'b' are e4m3fn, you can request the auxiliary output to
 be returned as FP8. To request FP8 auxiliary output, set epilog.aux_type to an FP8 type
 in MatmulPlanPreferences.
 

@@ -36,7 +36,7 @@ some key differences:
   :ref:`distribution-slab` and custom :ref:`distribution-box`.
 
 * GPU operands need to be allocated on NVSHMEM **symmetric memory**. Refer to
-  :doc:`Distributed API Utilities <../utils>` for examples and details of how to
+  :doc:`Distributed Host API Utilities <../utils>` for examples and details of how to
   manage symmetric memory GPU operands. The :func:`nvmath.distributed.fft.allocate_operand`
   helper described below can also be used to allocate on symmetric memory.
 
@@ -78,6 +78,7 @@ Here is an example of a distributed FFT using Slab distribution:
 
 .. code-block:: python
 
+    import numpy as np
     from nvmath.distributed.distribution import Slab
 
     # Get number of processes.
@@ -92,18 +93,19 @@ Here is an example of a distributed FFT using Slab distribution:
     a = np.random.rand(*shape) + 1j * np.random.rand(*shape)
 
     # Forward FFT.
-    # By default, the reshape option is True, which means that the output of the
+    # By default, the redistribute option is True, which means that the output of the
     # distributed FFT will be re-distributed to retain the same distribution as
     # the input (in this case Slab.Y).
     b = nvmath.distributed.fft.fft(a, distribution=Slab.Y)
 
-For the purposes of the transform with ``reshape=False``, ``Slab.X``
-and ``Slab.Y`` are considered complementary distributions. If ``reshape=False``, the
+For the purposes of the transform with ``redistribute=False``, ``Slab.X``
+and ``Slab.Y`` are considered complementary distributions. If ``redistribute=False``, the
 returned operand will use the complementary distribution. The following example illustrates
 this using GPU operands:
 
 .. code-block:: python
 
+    import cupy as cp
     from nvmath.distributed.distribution import Slab
 
     # The global 3-D FFT size is (512, 256, 512).
@@ -120,12 +122,12 @@ this using GPU operands:
 
     # Forward FFT.
     # Here, the forward FFT operand is distributed according to Slab.X distribution.
-    # With reshape=False, the FFT result will be distributed according to Slab.Y distribution.
-    b = nvmath.distributed.fft.fft(a, distribution=Slab.X, options={"reshape": False})
+    # With redistribute=False, the FFT result will be distributed according to Slab.Y distribution.
+    b = nvmath.distributed.fft.fft(a, distribution=Slab.X, options={"redistribute": False})
 
-    # Now we can perform an inverse FFT with reshape=False and get the
+    # Now we can perform an inverse FFT with redistribute=False and get the
     # result in Slab.X distribution (recall that `b` has Slab.Y distribution).
-    c = nvmath.distributed.fft.ifft(b, distribution=Slab.Y, options={"reshape": False})
+    c = nvmath.distributed.fft.ifft(b, distribution=Slab.Y, options={"redistribute": False})
 
     # Synchronize the default stream
     with cp.cuda.Device(device_id):
@@ -183,6 +185,7 @@ Here is an example of a distributed FFT across 4 GPUs using a custom pencil dist
         input_box = Box((32, 0, 0), (64, 128, 128))
     else:
         input_box = Box((32, 128, 0), (64, 256, 128))
+
     # Use the same pencil distribution for the output.
     output_box = input_box
     b = nvmath.distributed.fft.fft(a, distribution=[input_box, output_box])
@@ -199,7 +202,7 @@ NVSHMEM symmetric heap.
     Any memory on the symmetric heap that is owned by the user (including memory
     allocated with :func:`~nvmath.distributed.fft.allocate_operand`) must be deleted
     explicitly using :func:`~nvmath.distributed.free_symmetric_memory`. Refer to
-    :doc:`Distributed API Utilities <../utils>` for more information.
+    :doc:`Distributed Host API Utilities <../utils>` for more information.
 
 To allocate an operand, each process specifies the local shape of its input, the array
 package, dtype, distribution and FFT type. For example:
@@ -233,17 +236,17 @@ package, dtype, distribution and FFT type. For example:
 
     # R2C (forward) FFT.
     # In this example, the R2C operand is distributed according to Slab.X distribution.
-    # With reshape=False, the R2C result will be distributed according to Slab.Y distribution.
-    b = nvmath.distributed.fft.rfft(a, distribution=Slab.X, options={"reshape": False})
+    # With redistribute=False, the R2C result will be distributed according to Slab.Y distribution.
+    b = nvmath.distributed.fft.rfft(a, distribution=Slab.X, options={"redistribute": False})
 
     # Distributed FFT performs computations in-place. The result is stored in the same
     # buffer as operand a. Note, however, that operand b has a different dtype and shape
     # (because the output has complex dtype and Slab.Y distribution).
 
     # C2R (inverse) FFT.
-    # The inverse FFT operand is distributed according to Slab.Y. With reshape=False,
+    # The inverse FFT operand is distributed according to Slab.Y. With redistribute=False,
     # the C2R result will be distributed according to Slab.X distribution.
-    c = nvmath.distributed.fft.irfft(b, distribution=Slab.Y, options={"reshape": False})
+    c = nvmath.distributed.fft.irfft(b, distribution=Slab.Y, options={"redistribute": False})
 
     # Synchronize the default stream
     with cp.cuda.Device(device_id):

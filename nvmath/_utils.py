@@ -111,10 +111,7 @@ def module_init_force_cupy_lib_load():
 
 @cache
 def get_nvrtc_build_id(minimal=True) -> int:
-    try:
-        from cuda.core import ObjectCode, Program, ProgramOptions
-    except ImportError:
-        from cuda.core.experimental import ObjectCode, Program, ProgramOptions
+    from cuda.core import ObjectCode, Program, ProgramOptions
 
     code = r"""
     extern "C" __global__ void get_build_id(int* build_id) {

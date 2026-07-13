@@ -42,11 +42,11 @@ with cp.cuda.Device(device_id):
     b = cp.random.rand(*row_wise_distribution.shape(rank, (n, k)))
 
 # Get a transposed view to obtain column-major memory layout. Note that this
-# also changes the distribution of a and b (see example01 for more information).
-a = a.T  # a is now (m, k) with row_wise_distribution
-b = b.T  # b is now (k, n) with col_wise_distribution
+# also changes the distribution of 'a' and 'b' (see example01 for more information).
+a = a.T  # 'a' is now (m, k) with row_wise_distribution
+b = b.T  # 'b' is now (k, n) with col_wise_distribution
 
-# Distributions for A, B, and result matrix D
+# Distributions for 'a', 'b', and result matrix 'd'
 distributions = [row_wise_distribution, col_wise_distribution, row_wise_distribution]
 
 # Perform the multiplication with GELU_AUX epilog (forward pass).

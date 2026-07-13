@@ -32,6 +32,6 @@ result, aux = nvmath.linalg.advanced.matmul(
 )
 
 # Display the results
-print("Result after applying D_OUT scales:")
+print("Result after applying output scales:")
 print(nvmath.linalg.advanced.helpers.matmul.apply_mxfp8_scale(result, aux["d_out_scale"]))
 print("All values are non-negative due to the ReLU activation.")

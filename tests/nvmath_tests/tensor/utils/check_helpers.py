@@ -7,11 +7,7 @@ from collections.abc import Sequence
 from typing import Union
 
 import numpy as np
-
-try:
-    from cuda.core import Stream
-except ImportError:
-    from cuda.core.experimental import Stream
+from cuda.core import Stream
 
 try:
     import cupy

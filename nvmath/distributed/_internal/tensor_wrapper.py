@@ -39,7 +39,10 @@ def infer_tensor_package(tensor):
 def maybe_register_package(package, call_base=True):
     if call_base:
         base_maybe_register_package(package)
-    if package == "torch":
+
+    if package in _TENSOR_TYPES:
+        return
+    elif package == "torch":
         from .tensor_ifc_torch import TorchDistributedTensor
 
         _TENSOR_TYPES[package] = TorchDistributedTensor
@@ -48,7 +51,7 @@ def maybe_register_package(package, call_base=True):
 
         _TENSOR_TYPES["cupy"] = CupyDistributedTensor
         _TENSOR_TYPES["cupy_host"] = HostDistributedTensor
-    elif package != "numpy":
+    else:
         raise AssertionError(f"Internal error: unrecognized package {package}")
 
 

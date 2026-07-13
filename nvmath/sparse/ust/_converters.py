@@ -16,7 +16,7 @@ import numpy as np
 from nvmath.internal import utils
 from nvmath.internal.tensor_wrapper import wrap_operand
 
-from ._utils import LevelMap, np_enveloping_type
+from ._utils import LevelMap, np_enveloping_type, resolve_stream, stream_context
 from .tensor_format import Add, LevelExpr, LevelFormat, Subtract, is_unique
 
 
@@ -38,14 +38,19 @@ class TensorDecomposer:
         self._flist = list(tensor.tensor_format.levels.items())
         self._lvls = [0] * tensor.num_levels  # pre-populate
 
-    def run(self):
+    def run(self, stream=None):
+        # We're going to repeatedly access single items of the tensor, so it's
+        # more efficient to copy to CPU first.
+        if self._tensor.device_id != "cpu":
+            stream_holder = resolve_stream(stream, self._tensor)
+            self._tensor = self._tensor._to("cpu", stream_holder)
         self._iterate(0, 0, None)
 
     def _iterate(self, idx, p, lasta):
         # All levels exhausted?
         if idx == self._tensor.num_levels:
             assert lasta is None  # consumed add/sub in range
-            val = self._tensor.val.tensor
+            val = self._tensor._val.tensor
             self._functor(self._tensor.tensor_format.lvl2dim(self._lvls), val[p].item())
             return
         # Inspect level.
@@ -55,7 +60,7 @@ class TensorDecomposer:
         else:
             fmt, prop = v, None
         # Handle level format.
-        if fmt == LevelFormat.DENSE or fmt == LevelFormat.BATCH:
+        if fmt in (LevelFormat.DENSE, LevelFormat.BATCH):
             sz = self._tensor.levels[idx]
             for i in range(sz):
                 self._lvls[idx] = i
@@ -64,8 +69,8 @@ class TensorDecomposer:
             if isinstance(k, LevelExpr) and isinstance(k.operator, (Add, Subtract)):
                 assert lasta is None  # no add/sub nesting
                 lasta = idx  # record last add/sub
-            pos = self._tensor.pos(idx).tensor
-            crd = self._tensor.crd(idx).tensor
+            pos = self._tensor._pos[idx].tensor
+            crd = self._tensor._crd[idx].tensor
             assert pos.ndim == crd.ndim
             adjust = 0
             if pos.ndim > 1:
@@ -84,7 +89,7 @@ class TensorDecomposer:
                 self._lvls[idx] = crd[i].item()
                 self._iterate(idx + 1, i + adjust, lasta)
         elif fmt == LevelFormat.SINGLETON:
-            crd = self._tensor.crd(idx).tensor
+            crd = self._tensor._crd[idx].tensor
             assert crd.ndim == 1
             self._lvls[idx] = crd[p].item()
             self._iterate(idx + 1, p, lasta)
@@ -110,8 +115,8 @@ class TensorDecomposer:
                 self._iterate(idx + 1, p * szi + i, None)
         elif fmt == LevelFormat.DELTA:
             assert is_unique(prop)
-            pos = self._tensor.pos(idx).tensor
-            crd = self._tensor.crd(idx).tensor
+            pos = self._tensor._pos[idx].tensor
+            crd = self._tensor._crd[idx].tensor
             assert pos.ndim == 1 and crd.ndim == 1
             corig = 0
             lo = pos[p].item()
@@ -121,6 +126,15 @@ class TensorDecomposer:
                 self._lvls[idx] = corig
                 self._iterate(idx + 1, i, lasta)
                 corig += 1
+        elif fmt == LevelFormat.STRUCTURED:
+            assert isinstance(prop, int)  # n is the property
+            crd = self._tensor._crd[idx].tensor
+            assert crd.ndim == 1
+            lo = p * prop
+            hi = lo + prop
+            for i in range(lo, hi):
+                self._lvls[idx] = crd[i].item()
+                self._iterate(idx + 1, i, lasta)
         else:
             raise AssertionError(f"Unsupported: {fmt}")
 
@@ -181,9 +195,7 @@ class TensorComposer:
         # Pre-allocate and reset sizes.
         package = self._source._dense_tensorholder_type
         device_id = self._source.device_id  # no device migration in convert()
-        stream_holder = None
-        if device_id != "cpu":
-            stream_holder = utils.get_or_create_stream(device_id, stream, package.name)
+        stream_holder = resolve_stream(stream, self._source)
         self._pos = LevelMap()
         self._crd = LevelMap()
         for idx in range(self._lvl):
@@ -216,7 +228,8 @@ class TensorComposer:
         self._val_sz = 0
 
         # Scan to perform the actual insertion.
-        self._insert_builder(0, lo=0, hi=nse, is_insert=True)
+        with stream_context(stream_holder):
+            self._insert_builder(0, lo=0, hi=nse, is_insert=True)
         return (self._pos, self._crd, self._val)
 
     def _insert_builder(self, idx, lo, hi, is_insert):
@@ -226,6 +239,8 @@ class TensorComposer:
             self._append_val(self._values[lo].item(), 1, is_insert)
             return
         # Handle segments.
+        fmt = self._get_format(idx)
+        rng = hi - lo
         full = 0
         while lo < hi:
             # Find segment.
@@ -235,12 +250,11 @@ class TensorComposer:
                 while seg < hi and self._indices[idx][seg] == crd:
                     seg += 1
             # Handle level format.
-            fmt = self._get_format(idx)
-            if fmt == LevelFormat.DENSE or fmt == LevelFormat.RANGE:
+            if fmt in (LevelFormat.DENSE, LevelFormat.RANGE):
                 assert crd >= full
                 if crd > full:
                     self._segment_builder(idx + 1, 0, crd - full, is_insert)
-            elif fmt == LevelFormat.COMPRESSED or fmt == LevelFormat.SINGLETON:
+            elif fmt in (LevelFormat.COMPRESSED, LevelFormat.SINGLETON):
                 self._append_crd(idx, crd, 1, is_insert)
             elif fmt == LevelFormat.DELTA:
                 d = self._get_prop(idx)
@@ -252,12 +266,33 @@ class TensorComposer:
                     self._append_val(0, 1, is_insert)
                     delta -= mDelta + 1
                 self._append_crd(idx, delta, 1, is_insert)
+            elif fmt == LevelFormat.STRUCTURED:
+                # Pre-correction of N:M strip.
+                n = self._get_prop(idx)
+                if rng > n:
+                    raise AssertionError(f"Not structured: more than {n} nonzero elements in a strip")
+                while rng < n and full < crd:
+                    self._append_crd(idx, full, 1, is_insert)
+                    self._append_val(0, 1, is_insert)
+                    rng += 1
+                    full += 1
+                self._append_crd(idx, crd, 1, is_insert)  # strip insertion
             else:
                 # TODO: BATCH
                 raise NotImplementedError(f"Unsupported: {fmt}")
             full = crd + 1
             self._insert_builder(idx + 1, lo, seg, is_insert)
             lo = seg  # next segment
+        # Post-correction of N:M strip.
+        if fmt == LevelFormat.STRUCTURED:
+            n = self._get_prop(idx)
+            if rng > n:
+                raise AssertionError(f"Not structured: more than {n} nonzero elements in a strip")
+            while rng < n:
+                self._append_crd(idx, full, 1, is_insert)
+                self._append_val(0, 1, is_insert)
+                rng += 1
+                full += 1
         # Done with segments.
         self._segment_builder(idx, full, 1, is_insert)
 
@@ -268,14 +303,23 @@ class TensorComposer:
             return
         # Handle level format.
         fmt = self._get_format(idx)
-        if fmt == LevelFormat.DENSE or fmt == LevelFormat.RANGE:
+        if fmt in (LevelFormat.DENSE, LevelFormat.RANGE):
             sz = self._target.levels[idx]
             assert sz >= full
             self._segment_builder(idx + 1, 0, repeat * (sz - full), is_insert)
-        elif fmt == LevelFormat.COMPRESSED or fmt == LevelFormat.DELTA:
+        elif fmt in (LevelFormat.COMPRESSED, LevelFormat.DELTA):
             self._append_pos(idx, self._crd_sz[idx], repeat, is_insert)
         elif fmt == LevelFormat.SINGLETON:
+            # TODO: ELL
             pass  # nothing to do for singleton
+        elif fmt == LevelFormat.STRUCTURED:
+            # Correction for all N:M strips that were completely missed.
+            if full == 0:
+                n = self._get_prop(idx)
+                for _r in range(repeat):
+                    for c in range(n):
+                        self._append_crd(idx, c, 1, is_insert)
+                        self._append_val(0, 1, is_insert)
         else:
             # TODO: BATCH
             raise NotImplementedError(f"Unsupported: {fmt}")
@@ -350,7 +394,7 @@ class TensorConverter:
         is_sorted = sformat.is_ordered and sformat.is_identity
 
         # Run the decomposer and composer.
-        TensorDecomposer(self._source, self._visit).run()
+        TensorDecomposer(self._source, self._visit).run(stream=stream)
         pos, crd, val = TensorComposer(
             self._source,
             self._target,

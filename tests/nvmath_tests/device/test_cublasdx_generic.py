@@ -16,13 +16,15 @@ from nvmath.device import (
     Dim3,
     LeadingDimension,
     Matmul,
+    SharedStorageCalc,
     TransposeMode,
-    matmul,
+    compile_blas_execute,
+    complex32,
+    complex64,
+    complex128,
 )
 from nvmath.device.common_cuda import MAX_SUPPORTED_CC
-from nvmath.device.cublasdx import SharedStorageCalc, compile_blas_execute
 from nvmath.device.cublasdx_backend import MAX_ALIGNMENT, Alignment
-from nvmath.device.types import complex32, complex64, complex128
 
 from .helpers import (
     SM70,
@@ -45,19 +47,19 @@ from .helpers import (
 
 def test_files_closed():
     with AssertFilesClosed():
-        _ = matmul(
+        _ = Matmul(
             size=(16, 8, 16),
             data_type="real",
             precision=np.float32,
             transpose_mode=TransposeMode("non_transposed", "transposed"),
-            code_type=SM75,
+            sm=SM75.cc,
             execution="Block",
         )
 
 
 @pytest.mark.parametrize("execute_api", ["static_leading_dimensions", "dynamic_leading_dimensions"])
 def test_third_party_symbol(execute_api):
-    MM = matmul(
+    MM = Matmul(
         size=(24, 8, 48),
         data_type="real",
         precision=np.float64,
@@ -72,7 +74,7 @@ def test_third_party_symbol(execute_api):
 
 
 def test_third_party_code():
-    MM = matmul(
+    MM = Matmul(
         size=(16, 8, 16),
         data_type="real",
         precision=np.float32,
@@ -97,21 +99,21 @@ def test_third_party_code():
 
 @pytest.mark.parametrize("ta, tb", list(itertools.product(["non_transposed", "transposed", "conj_transposed"], repeat=2)))
 def test_transpose_mode(ta, tb):
-    MM1 = matmul(
+    MM1 = Matmul(
         size=(2, 2, 2),
         data_type="complex",
         precision=np.float32,
         transpose_mode=(ta, tb),
-        code_type=SM75,
+        sm=SM75.cc,
         execution="Block",
     )
 
-    MM2 = matmul(
+    MM2 = Matmul(
         size=(2, 2, 2),
         data_type="complex",
         precision=np.float32,
         transpose_mode=TransposeMode(ta, tb),
-        code_type=SM75,
+        sm=SM75.cc,
         execution="Block",
     )
 
@@ -165,51 +167,17 @@ def test_suggested_leading_dimension():
     assert BO.leading_dimension.b >= 1
     assert BO.leading_dimension.c >= 1
 
-    MM = BO.create()
-    assert isinstance(MM, Matmul)
-    assert isinstance(MM.leading_dimension, LeadingDimension)
-    assert isinstance(MM.block_dim, Dim3)
-
-    assert MM.leading_dimension.a == BO.leading_dimension.a
-    assert MM.leading_dimension.b == BO.leading_dimension.b
-    assert MM.leading_dimension.c == BO.leading_dimension.c
-
-
-def test_valid_finalize():
-    BO = Matmul(
-        size=(16, 8, 16),
-        data_type="real",
-        precision=np.float32,
-        transpose_mode=TransposeMode("non_transposed", "transposed"),
-        sm=SM75.cc,
-        execution="Block",
-    )
-
-    assert isinstance(BO, Matmul)
-    valids = BO.valid("block_dim")
-
-    count = 0
-    for (block_dim,) in valids:
-        count += 1
-        MM = BO.create(block_dim=block_dim)
-        assert isinstance(MM, Matmul)
-        assert MM.block_dim == block_dim
-        assert MM.size == (16, 8, 16)
-        assert MM.sm == SM75.cc
-    assert count > 0
-
 
 def test_cached():
     make_mm = functools.partial(
-        matmul,
+        Matmul,
         size=(32, 16, 32),
         data_type="real",
         precision=np.float32,
         transpose_mode=TransposeMode("transposed", "transposed"),
         block_dim=Dim3(2, 4, 8),
-        code_type=SM75,
+        sm=SM75.cc,
         execution="Block",
-        compiler=None,
     )
 
     t0 = time.time()
@@ -238,11 +206,8 @@ def test_cached():
         ("precision", None),
         ("precision", (np.float32,)),
         ("precision", (np.float32, np.float32)),
-        ("code_type", None),
-        ("code_type", CodeType("lto", ComputeCapability(-1, 0))),
-        ("code_type", CodeType("lto", ComputeCapability(5, 0))),
-        ("code_type", CodeType("sass", ComputeCapability(7, 0))),
-        ("code_type", CodeType("ptx", ComputeCapability(7, 0))),
+        ("sm", ComputeCapability(-1, 0)),
+        ("sm", ComputeCapability(5, 0)),
         ("block_dim", (1, 2)),
         ("block_dim", (1025, 1, 1)),
         ("transpose_mode", (3, 2)),
@@ -255,29 +220,53 @@ def test_cached():
     ],
 )
 def test_negative(opt, value):
-    opts = {"size": (24, 8, 48), "data_type": "real", "precision": np.float64, "code_type": SM75, "execution": "Block"}
+    opts = {"size": (24, 8, 48), "data_type": "real", "precision": np.float64, "sm": SM75.cc, "execution": "Block"}
     if value is None:
         del opts[opt]
     else:
         opts[opt] = value
     with pytest.raises(Exception):  # noqa: B017
-        MM = matmul(**opts)  # noqa: F841
+        MM = Matmul(**opts)  # noqa: F841
+
+
+@pytest.mark.parametrize(
+    "code_type",
+    [
+        None,
+        CodeType("lto", ComputeCapability(-1, 0)),
+        CodeType("lto", ComputeCapability(5, 0)),
+        CodeType("sass", ComputeCapability(7, 5)),
+        CodeType("ptx", ComputeCapability(7, 5)),
+    ],
+)
+def test_negative_compile(code_type):
+    MM = Matmul(
+        size=(24, 8, 48),
+        data_type="real",
+        precision=np.float64,
+        sm=ComputeCapability(7, 5),  # should be lower or equal to the code_type
+        arrangement=("col_major", "col_major", "col_major"),
+        execution="Block",
+    )
+    with pytest.raises(Exception):  # noqa: B017
+        compile_blas_execute(MM, code_type=code_type, execute_api="static_leading_dimensions")
 
 
 @pytest.mark.parametrize("code_type", [SM70, SM72, SM75, SM80, SM86, SM89, SM90, SM100, SM101, SM103, SM120, SM121])
 def test_sm(code_type):
     skip_unsupported_sm(code_type)
-    MM = matmul(
+    MM = Matmul(
         size=(24, 8, 48),
         data_type="real",
         arrangement=("col_major", "col_major", "col_major"),
         precision=np.float32,
-        code_type=code_type,
         execution="Block",
     )
-    assert all(isinstance(code.data, bytes) for code in MM.codes)
-    assert all(len(code.data) > 0 for code in MM.codes)
-    assert all(code.code_type == code_type for code in MM.codes)
+    code, symbol = compile_blas_execute(MM, code_type=code_type, execute_api="static_leading_dimensions")
+    assert isinstance(code.data, bytes)
+    assert len(code.data) > 0
+    assert len(symbol) > 0
+    assert code.code_type == code_type
 
 
 def test_unsupported_sm():
@@ -288,7 +277,7 @@ def test_unsupported_sm():
         RuntimeError,
         match="The maximum compute capability currently supported by device APIs is 12.1, got 13.0",
     ):
-        matmul(
+        Matmul(
             size=(24, 8, 48),
             data_type="real",
             arrangement=("col_major", "col_major", "col_major"),
@@ -300,19 +289,20 @@ def test_unsupported_sm():
 
 @pytest.mark.parametrize("code_type", [("lto", (7, 5)), ("lto", (8, 0))])
 def test_sm_type(code_type):
-    MM = matmul(
+    MM = Matmul(
         size=(24, 8, 48),
         data_type="real",
         arrangement=("col_major", "col_major", "col_major"),
         precision=np.float32,
-        code_type=code_type,
         execution="Block",
     )
-    assert all(isinstance(code.data, bytes) for code in MM.codes)
-    assert all(len(code.data) > 0 for code in MM.codes)
-    assert all(code.code_type.kind == code_type[0] for code in MM.codes)
-    assert all(code.code_type.cc.major == code_type[1][0] for code in MM.codes)
-    assert all(code.code_type.cc.minor == code_type[1][1] for code in MM.codes)
+    code, symbol = compile_blas_execute(MM, code_type=code_type, execute_api="static_leading_dimensions")
+    assert isinstance(code.data, bytes)
+    assert len(code.data) > 0
+    assert len(symbol) > 0
+    assert code.code_type.kind == code_type[0]
+    assert code.code_type.cc.major == code_type[1][0]
+    assert code.code_type.cc.minor == code_type[1][1]
 
 
 @pytest.mark.parametrize(
@@ -332,12 +322,12 @@ def test_sm_type(code_type):
 )
 def test_value_type(data_type, precision, value_type):
     skip_nvbug_5218000(precision, sm=SM90)
-    MM = matmul(
+    MM = Matmul(
         size=(24, 8, 48),
         data_type=data_type,
         precision=precision,
         arrangement=("col_major", "col_major", "col_major"),
-        code_type=SM90,
+        sm=SM90.cc,
         execution="Block",
     )
     assert MM.a_value_type == value_type
@@ -360,12 +350,12 @@ def test_value_type(data_type, precision, value_type):
 )
 def test_value_types(data_type, precision, value_types):
     skip_nvbug_5218000(precision, sm=SM90)
-    MM = matmul(
+    MM = Matmul(
         size=(24, 8, 48),
         data_type=data_type,
         precision=precision,
         arrangement=("col_major", "col_major", "col_major"),
-        code_type=SM90,
+        sm=SM90.cc,
         execution="Block",
     )
     assert MM.a_value_type == value_types[0]
@@ -624,13 +614,12 @@ def test_cublasdx_get_shared_storage_size_args(
 
 def test_static_block_dim():
     matmul_base = functools.partial(
-        matmul,
+        Matmul,
         size=(64, 64, 64),
         precision=(np.float16, np.float32, np.float64),
         data_type="real",
         arrangement=("col_major", "col_major", "col_major"),
         block_dim=(128, 1, 1),
-        compiler="numba",
     )
 
     MM1 = matmul_base()
@@ -650,9 +639,9 @@ def test_static_block_dim():
         ("real", (4, 8, 16), Alignment(4, 8, 16), None),
         ("real", (4, 8, 16), Alignment(4, 8, 16), None),
         ("real", MAX_ALIGNMENT, Alignment(16, 16, 16), None),
-        ("real", (8, 2, 8), None, "alignment.b must be a multiple of input value type 4. Got 2"),
-        ("real", (8, 8, 4), None, "alignment.c must be a multiple of input value type 8. Got 4"),
-        ("real", (32, 8, 8), None, "alignment.a must be less than maximum alignment 16. Got 32"),
+        ("real", (8, 2, 8), None, r"alignment.b must be a multiple of the input value type size \(4 bytes\). Got 2"),
+        ("real", (8, 8, 4), None, r"alignment.c must be a multiple of the input value type size \(8 bytes\). Got 4"),
+        ("real", (32, 8, 8), None, "alignment.a must not be greater than the maximum alignment 16. Got 32"),
         ("real", (-1, 8, 8), None, "alignment.a must be > 0. Got -1"),
         ("real", (8, 0, 8), None, "alignment.b must be > 0. Got 0"),
         ("real", None, Alignment(a=2, b=4, c=8), None),
@@ -660,7 +649,7 @@ def test_static_block_dim():
         ("real", (4, 8, 16), Alignment(4, 8, 16), None),
         ("complex", (4, 8, 16), Alignment(4, 8, 16), None),
         ("complex", (4, 8, 16), Alignment(4, 8, 16), None),
-        ("complex", (8, 8, 8), None, "alignment.c must be a multiple of input value type 16. Got 8"),
+        ("complex", (8, 8, 8), None, r"alignment.c must be a multiple of the input value type size \(16 bytes\). Got 8"),
     ],
 )
 def test_alignment(dtype, alignment, expected, expected_error):

@@ -7,7 +7,7 @@ This example demonstrates usage of epilogs.
 
 Epilogs allow you to execute extra computations after the matrix multiplication in a single
 fused kernel. In this example we'll use the BGRADB epilog, which generates an extra output
-"bgradb" corresponding to the reduction of the B matrix.
+"bgradb" corresponding to the reduction of the 'b' matrix.
 
 $ mpiexec -n 4 python example08_epilog_bgradb.py
 """
@@ -34,22 +34,22 @@ m, n, k = 128, 256, 512
 row_wise_distribution = Slab.X
 col_wise_distribution = Slab.Y
 
-# NOTE: cuBLAS requires transposed B for BGRADB epilogue.
+# NOTE: cuBLAS requires transposed 'b' for BGRADB epilogue.
 
 with cp.cuda.Device(device_id):
     a = cp.random.rand(*col_wise_distribution.shape(rank, (k, m)))
     b = cp.random.rand(*col_wise_distribution.shape(rank, (k, n)))
 
 # Get a transposed view to obtain column-major memory layout. Note that this
-# also changes the distribution of a and b (see example01 for more information).
-a = a.T  # a is now (m, k) with row_wise_distribution
-b = b.T  # b is now (n, k) with row_wise_distribution
+# also changes the distribution of 'a' and 'b' (see example01 for more information).
+a = a.T  # 'a' is now (m, k) with row_wise_distribution
+b = b.T  # 'b' is now (n, k) with row_wise_distribution
 
-# Distributions for A, B, and result matrix D
+# Distributions for 'a', 'b', and result matrix 'd'
 distributions = [row_wise_distribution] * 3
 
 qualifiers = np.zeros((3,), dtype=matrix_qualifiers_dtype)
-qualifiers[1]["is_transpose"] = True  # b is transposed
+qualifiers[1]["is_transpose"] = True  # 'b' is transposed
 
 # Perform the multiplication with BGRADB epilog. The auxiliary output "auxiliary" is a dict
 # containing the bias gradient with the key "bgradb".

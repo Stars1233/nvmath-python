@@ -10,22 +10,21 @@ import math
 from collections.abc import Sequence
 from dataclasses import dataclass
 from types import ModuleType
-from typing import Literal, cast
+from typing import Any, Literal, cast
 
 import numpy as np
 
 import nvmath.distributed
-import nvmath.internal.ndbuffer.ndbuffer as ndbuffer
 from nvmath import memory
 from nvmath._internal.layout import is_overlapping_layout
 from nvmath.bindings import cufftMp as cufft  # type: ignore
 from nvmath.bindings import nvshmem  # type: ignore
 from nvmath.distributed._internal import tensor_wrapper
-from nvmath.distributed._internal.nvshmem import NvshmemMemoryManager, NvshmemNDBufferAllocator
+from nvmath.distributed._internal.nvshmem import NvshmemMemoryManager
 from nvmath.distributed._internal.tensor_ifc import DistributedTensor
 from nvmath.distributed._internal.tensor_ifc_numpy import CudaDistributedTensor
 from nvmath.distributed.distribution import Box, Distribution, Slab
-from nvmath.internal import formatters, utils
+from nvmath.internal import formatters, ndbuffer, utils
 from nvmath.internal.package_wrapper import AnyStream, StreamHolder
 from nvmath.internal.typemaps import NAME_TO_DATA_TYPE, NAME_TO_ITEM_SIZE
 
@@ -56,11 +55,11 @@ class _ProblemSpec:
 
         def __init__(self, options: FFTOptions):
             self.fft_type = options.fft_type
-            self.reshape = options.reshape
+            self.redistribute = options.redistribute
             self.blocking = options.blocking
 
         fft_type: Literal["C2C", "C2R", "R2C"] | None
-        reshape: bool
+        redistribute: bool
         blocking: Literal[True, "auto"]
 
     shape: list[int]  # operand shape
@@ -69,6 +68,7 @@ class _ProblemSpec:
     package: Literal["numpy", "cupy", "torch"]  # operand package
     memory_space: Literal["cuda", "cpu"]  # operand memory space
     distribution: Slab | Sequence[Box]  # distribution of FFT input/output operands
+    rank: int
     options: Options  # FFT options
 
     # Global number of elements in the operand (calculated as part of the reduction).
@@ -126,7 +126,7 @@ operand,
 *,
 distribution: Distribution | Sequence[Box],
 sync_symmetric_memory: bool = True,
-options: FFTOptions | None = None,
+options: FFTOptions | dict[str, Any] | None = None,
 stream: AnyStream | None = None
 """.replace("\n", " "),
         #
@@ -326,17 +326,19 @@ def _allocate_with_padded_buffer(
     assert size <= capacity, f"Internal error: requested shape {shape} exceeds specified capacity {capacity}"
     if memory_space == "cuda":
         if package is ndbuffer:
+            # Mimics allocate_symmetric_memory, just with NDBuffer which is not
+            # included there, as allocate_symmetric_memory is user-facing
+            # and NDBuffer is internal.
             ctx = nvmath.distributed.get_context()
             assert ctx is not None
-            device_id = ctx.device_id
-            itemsize = NAME_TO_ITEM_SIZE[input_dtype]
-            allocator = NvshmemNDBufferAllocator(device_id, ctx, make_symmetric=False, skip_symmetric_check=True)
-            with utils.device_ctx(device_id):
-                buf = ndbuffer.empty((capacity,), device_id, input_dtype, itemsize, device_memory_pool=allocator)
-
-            strides = calculate_strides(shape, reversed(range(len(shape))))
-            view = ndbuffer.wrap_external(buf, buf.data_ptr, input_dtype, shape, strides, device_id, itemsize)
-            return CudaDistributedTensor(view)
+            a = CudaDistributedTensor.empty(
+                capacity,
+                dtype=input_dtype,
+                device_id=ctx.device_id,
+                symmetric_memory="nvshmem",
+                make_symmetric=False,
+                skip_symmetric_check=True,
+            ).tensor
         else:
             a = nvmath.distributed.allocate_symmetric_memory((capacity,), package, dtype=input_dtype, skip_symmetric_check=True)
     else:
@@ -422,11 +424,7 @@ def _allocate_for_fft(
         a = _allocate_with_padded_buffer(padded_shape, capacity, input_dtype, memory_space, package)
 
         # Return a view strided on the last axis.
-        if a.name == "cuda":
-            view = ndbuffer.wrap_external(a.tensor, a.data_ptr, a.dtype, shape, a.strides, a.device_id, a.itemsize)
-            return CudaDistributedTensor(view)
-        else:
-            return tensor_wrapper.wrap_operand(a.tensor[..., : shape[-1]])
+        return tensor_wrapper.wrap_operand(a.tensor[..., : shape[-1]])
     else:
         # These might not be the most efficient input strides for the R2C FFT (the whole
         # input is packed at the beginning of the buffer with no strides), but to support
@@ -543,6 +541,7 @@ def allocate_operand(
         package=package_name,
         memory_space=memory_space,
         global_size=math.prod(shape),
+        rank=rank,
     )
     if nranks > 1:
         problem_spec = process_group.allreduce_object(problem_spec, op=_problem_spec_reducer)
@@ -569,13 +568,10 @@ def allocate_operand(
     )
 
     # Infer global shape.
-    operand_dim = len(shape)
     if isinstance(distribution, Slab):
-        global_shape = tuple(problem_spec.shape)
+        global_shape = cast(Slab, problem_spec.distribution)._global_shape_reduction_epilogue()
     else:
-        global_boxes = cast(Sequence[Box], problem_spec.distribution)
-        lower, upper = global_boxes[0]
-        global_shape = tuple(int(upper[i] - lower[i]) for i in range(operand_dim))
+        global_shape = cast(Sequence[Box], problem_spec.distribution)[0]._global_shape_reduction_epilogue()
 
     # Calculate max capacity for this transform.
     capacity = _calculate_capacity(problem_spec, global_shape, fft_type, nranks)
@@ -616,53 +612,34 @@ def _get_view(
                     "for this FFT with nvmath.distributed.fft.allocate_operand()"
                 )
 
+            try:
+                base = array.tensor.base
+            except AttributeError:
+                base = array.tensor._base
+
+            if base is None:
+                base = array.tensor
+
+            dtype = array.name_to_dtype[desired_dtype]
+            itemsize = NAME_TO_ITEM_SIZE[desired_dtype]
+            nbytes_required = desired_size * itemsize
+
             if array.name == "cuda":
-                base: ndbuffer.NDBuffer = array.tensor
-                while True:
-                    if not hasattr(base, "data") or not isinstance(base.data, ndbuffer.NDBuffer):
-                        break
-                    base = base.data
-
-                itemsize = NAME_TO_ITEM_SIZE[desired_dtype]
-                nbytes_required = desired_size * itemsize
-                if base.size_in_bytes < nbytes_required:
-                    # Note: if this error occurs, it can easily happen on one process
-                    # but not others.
+                layout = base.layout
+                assert layout.is_contiguous_c
+                if layout.memory_range_size_in_bytes < nbytes_required:
                     raise RuntimeError(error_msg(base))
+            elif base.nbytes < nbytes_required:  # type: ignore
+                # Note: if this error occurs, it can easily happen on one process
+                # but not others.
+                raise RuntimeError(error_msg(base))
 
-                desired_strides = calculate_strides(desired_shape, reversed(range(len(desired_shape))))
-                view = ndbuffer.wrap_external(
-                    base,
-                    base.data_ptr,
-                    desired_dtype,
-                    desired_shape,
-                    desired_strides,
-                    base.device_id,
-                    itemsize,
-                )
-                result = CudaDistributedTensor(view)
-            else:
-                try:
-                    base = array.tensor.base
-                except AttributeError:
-                    base = array.tensor._base
+            if len(base.shape) > 1:
+                # Flatten the base array.
+                base = base.reshape(-1)  # type: ignore
 
-                if base is None:
-                    base = array.tensor
-
-                dtype = array.name_to_dtype[desired_dtype]
-                nbytes_required = desired_size * dtype.itemsize
-                if base.nbytes < nbytes_required:  # type: ignore
-                    # Note: if this error occurs, it can easily happen on one process
-                    # but not others.
-                    raise RuntimeError(error_msg(base))
-
-                if len(base.shape) > 1:
-                    # Flatten the base array.
-                    base = base.reshape(-1)  # type: ignore
-
-                v = base.view(dtype)[:desired_size]  # type: ignore
-                result = tensor_wrapper.wrap_operand(v).reshape(desired_shape, copy=False)
+            v = base.view(dtype)[:desired_size]  # type: ignore
+            result = array.__class__(v).reshape(desired_shape, copy=False)
     except Exception as e:
         error = e
 
@@ -825,78 +802,49 @@ def _problem_spec_reducer(p1: _ProblemSpec, p2: _ProblemSpec):
             elif fft_abstract_type == "C2R" and p1.distribution != Slab.Y:
                 return ValueError("2D FFT C2R only supports Y-slab input")
 
-        if not is_box_1:
-            if p1.distribution != p2.distribution:
-                raise ValueError("The slab distribution is inconsistent across processes")
+        for p_spec in (p1, p2):
+            if p_spec.is_leaf:
+                if not is_box_1:
+                    # Using cuFFTMp slab distribution.
+                    slab = cast(Slab, p_spec.distribution)
+                    if slab.partition_dim not in (0, 1):
+                        return ValueError("The Slab partition dimension must be X or Y")
 
-            slab = cast(Slab, p1.distribution)
+                    slab._global_shape_reduction_prologue(p_spec.rank, p_spec.shape)
+                else:
+                    # Custom distribution given by input and output boxes on each process.
+                    if not isinstance(p_spec.distribution, Sequence) or not all(
+                        isinstance(d, Box) for d in p_spec.distribution
+                    ):
+                        return ValueError("distribution must be a Slab or a Box pair")
 
-            if slab.ndim != len(p1.shape):
-                raise ValueError(
-                    f"The dimensionality of {p1.distribution} doesn't match the dimensionality "
-                    "of the FFT operand ({len(p1.shape)})"
-                )
+                    if len(p_spec.distribution) != 2:  # type: ignore
+                        return ValueError("Must provide a Box pair on every process")
 
-            # Using cuFFTMp slab distribution.
-            partitioned_dim = slab.partition_dim
+                    input_box, output_box = cast(Sequence[Box], p_spec.distribution)
 
-            if partitioned_dim not in (0, 1):
-                raise ValueError("The Slab partition dimension must be X or Y")
+                    p_spec.input_max_elements = math.prod(p_spec.shape)
+                    input_box._global_shape_reduction_prologue(p_spec.rank, p_spec.shape)
 
-            if any(p1.shape[i] != p2.shape[i] for i in range(len(p1.shape)) if i != partitioned_dim):
-                return ValueError("The problem size is inconsistent across processes")
-
-            if p1 is not p2:  # with nranks=1 p1 is p2
-                # Reduce the partitioned dimension to get the global size.
-                p1.shape[partitioned_dim] += p2.shape[partitioned_dim]
-        else:
-            # Custom distribution given by input and output boxes on each process.
-            for distribution in (p1.distribution, p2.distribution):
-                if not isinstance(distribution, Sequence) or not all(isinstance(d, Box) for d in distribution):
-                    return ValueError("distribution must be a Slab or a Box pair")
-
-            if len(p1.distribution) != 2 or len(p2.distribution) != 2:  # type: ignore
-                return ValueError("Must provide a Box pair on every process")
-            input_box1, output_box1 = cast(Sequence[Box], p1.distribution)
-            input_box2, output_box2 = cast(Sequence[Box], p2.distribution)
-            for box in (input_box1, output_box1, input_box2, output_box2):
-                if box.ndim != len(p1.shape):
-                    return ValueError(
-                        f"The dimensionality of {box} doesn't match the dimensionality of the FFT operand ({len(p1.shape)})"
-                    )
-
-            for p_spec in (p1, p2):
-                if p_spec.is_leaf:
-                    # Check that the input box shape of this process matches the shape of
-                    # the input operand.
-                    input_lower, input_upper = p_spec.distribution[0]  # type: ignore
-                    input_box_shape = tuple(input_upper[i] - input_lower[i] for i in range(len(p_spec.shape)))
-                    if input_box_shape != tuple(p_spec.shape):
-                        return ValueError(
-                            f"The operand shape {p_spec.shape} does not match the input box shape {input_box_shape}"
-                        )
-
-                    output_lower, output_upper = p_spec.distribution[1]  # type: ignore
-                    output_box_shape = tuple(output_upper[i] - output_lower[i] for i in range(len(p_spec.shape)))
-                    p_spec.input_max_elements = math.prod(input_box_shape)
+                    output_box_shape = output_box.box_shape
                     p_spec.output_max_elements = math.prod(output_box_shape)
+                    output_box._global_shape_reduction_prologue(p_spec.rank, output_box_shape)
+
+        if not is_box_1:
+            cast(Slab, p1.distribution)._global_shape_reduction(cast(Slab, p2.distribution))
+        else:
+            # Reduce input boxes.
+            p1_boxes = cast(Sequence[Box], p1.distribution)
+            p2_boxes = cast(Sequence[Box], p2.distribution)
+            p1_boxes[0]._global_shape_reduction(p2_boxes[0])
+            # Reduce output boxes.
+            p1_boxes[1]._global_shape_reduction(p2_boxes[1])
 
             if p1 is not p2:  # with nranks=1 p1 is p2
                 p1.global_size += p2.global_size
 
             p1.input_max_elements = max(p1.input_max_elements, p2.input_max_elements)
             p1.output_max_elements = max(p1.output_max_elements, p2.output_max_elements)
-
-            def reduce_boxes(box1, box2):
-                """This function returns the smallest box that encompasses `box1`
-                and `box2`"""
-                lower = np.minimum(np.array(box1.lower), np.array(box2.lower)).tolist()
-                upper = np.maximum(np.array(box1.upper), np.array(box2.upper)).tolist()
-                return Box(lower, upper)
-
-            # Merge the boxes to get the global operand shape. Note that this is applied
-            # progressively throughout the reduction, starting with the local boxes.
-            p1.distribution = (reduce_boxes(input_box1, input_box2), reduce_boxes(output_box1, output_box2))
 
     except Exception as e:
         return e
@@ -1085,7 +1033,7 @@ class FFT:
         /,
         *,
         distribution: Distribution | Sequence[Box],
-        options: FFTOptions | None = None,
+        options: FFTOptions | dict[str, Any] | None = None,
         stream: AnyStream | None = None,
     ):
         distributed_ctx = nvmath.distributed.get_context()
@@ -1127,6 +1075,7 @@ class FFT:
             package=self.package,
             memory_space=operand.device,
             global_size=math.prod(operand.shape),
+            rank=rank,
         )
         if nranks > 1:
             problem_spec = process_group.allreduce_object(problem_spec, op=_problem_spec_reducer)
@@ -1182,7 +1131,7 @@ class FFT:
 
         # Infer the global extents.
         if isinstance(distribution, Slab):
-            self.global_extents = tuple(problem_spec.shape)
+            self.global_extents = cast(Slab, problem_spec.distribution)._global_shape_reduction_epilogue()
             # Check that this process has the correct slab shape.
             error = None
             try:
@@ -1193,10 +1142,8 @@ class FFT:
             if error:
                 raise error
         else:
-            # Infer the global shape from the global input box. Note that cuFFTMp doesn't
-            # require lower coordinates for the merged (global) boxes to be 0.
-            lower, upper = problem_spec.distribution[0]  # type: ignore
-            self.global_extents = tuple(int(upper[i] - lower[i]) for i in range(self.operand_dim))
+            # Infer the global shape from the global input box.
+            self.global_extents = cast(Sequence[Box], problem_spec.distribution)[0]._global_shape_reduction_epilogue()
 
             # This can't throw error since the local operand shape was already checked
             # against the box shape in the ProblemSpec reducer.
@@ -1259,9 +1206,9 @@ class FFT:
             )
 
         if not isinstance(distribution, Slab):
-            # Reshape only applies to cuFFTMp's default slab distribution.
-            self.options.reshape = False
-            self.logger.info("Reshape option is ignored when using box distribution.")
+            # Redistribute only applies to cuFFTMp's default slab distribution.
+            self.options.redistribute = False
+            self.logger.info("Redistribute option is ignored when using box distribution.")
 
         # Set memory allocator.
         self.allocator = NvshmemMemoryManager(self.device_id, self.logger)
@@ -1279,13 +1226,13 @@ class FFT:
         if isinstance(distribution, Slab):
             self.distribution_layout[distribution] = self.operand_layout
 
-            if self.options.reshape:
+            if self.options.redistribute:
                 from_axis, to_axis = ("X", "X") if distribution == Slab.X else ("Y", "Y")
             else:
                 from_axis, to_axis = ("X", "Y") if distribution == Slab.X else ("Y", "X")
             self.logger.info(
                 f"The operand distribution is Slab, with input partitioned on {from_axis} axis "
-                f"and output on {to_axis} (reshape={self.options.reshape})."
+                f"and output on {to_axis} (redistribute={self.options.redistribute})."
             )
         else:
             input_box, output_box = distribution
@@ -1316,7 +1263,7 @@ class FFT:
                     f"global_input_box={problem_spec.distribution[0]}, global_output_box={problem_spec.distribution[1]}"  # type: ignore
                 )
 
-        if self.options.reshape:
+        if self.options.redistribute:
             partition_dim = distribution.partition_dim  # type: ignore
             if self.fft_abstract_type == "C2R":
                 self.result_shape_padded, _ = _calculate_slab_shape_strides(
@@ -1326,9 +1273,9 @@ class FFT:
                 self.global_result_extents, partition_dim, rank, nranks, global_result_extents_padded
             )
 
-            # The input of the reshape is the output of the FFT and will have these strides.
-            # Note the special strides of the C2R output based on the output's padded last
-            # axis.
+            # The input of the redistribute is the output of the FFT and will have these
+            # strides. Note the special strides of the C2R output based on the output's
+            # padded last axis.
             _, self.intermediate_strides = _calculate_slab_shape_strides(
                 self.global_result_extents, 1 - partition_dim, rank, nranks, global_result_extents_padded
             )
@@ -1364,7 +1311,7 @@ class FFT:
             # We'll reuse this descriptor to call cufft.xt_exec_descriptor, by
             # setting the data pointer and subformat in the descriptor.
             self.memory_desc_handle = cufft.create()
-            if self.options.reshape:
+            if self.options.redistribute:
                 self.reshape_handle = cufft.create_reshape()
 
         # Set stream for the FFT.
@@ -1427,9 +1374,9 @@ class FFT:
 
     def _allocate_reshape_operand(self, exec_stream_holder: StreamHolder | None, log_debug):
         if log_debug:
-            self.logger.debug("Beginning empty tensor creation to hold reshape value...")
+            self.logger.debug("Beginning empty tensor creation to hold redistribute value...")
             self.logger.debug(
-                f"The reshape tensor shape = {self.result_shape} with strides = "
+                f"The redistributed tensor shape = {self.result_shape} with strides = "
                 f"{self.result_strides} and data type '{self.result_data_type}'."
             )
 
@@ -1455,7 +1402,7 @@ class FFT:
             self.nranks,
         )
         if log_debug:
-            self.logger.debug("The reshape output (empty) tensor has been created.")
+            self.logger.debug("The redistributed output (empty) tensor has been created.")
         return result
 
     def _get_result_views(self, collective_error_checking):
@@ -1469,16 +1416,8 @@ class FFT:
         if isinstance(self.distribution, Slab) and self.fft_abstract_type == "C2R":
 
             def strided_view(x):
-                v = _get_view(
-                    x, self.result_shape_padded, self.result_data_type, self.process_group, collective_error_checking
-                ).tensor
-                if not isinstance(v, ndbuffer.NDBuffer):
-                    return tensor_wrapper.wrap_operand(v[..., : self.result_shape[-1]])
-                else:
-                    v = ndbuffer.wrap_external(
-                        v, v.data_ptr, self.result_data_type, self.result_shape, v.strides, v.device_id, v.itemsize
-                    )
-                    return CudaDistributedTensor(v)
+                v = _get_view(x, self.result_shape_padded, self.result_data_type, self.process_group, collective_error_checking)
+                return v.__class__(v.tensor[..., : self.result_shape[-1]])
 
             cpu_result = strided_view(self.operand_backup) if self.operand_backup is not None else None
             result = strided_view(self.operand)
@@ -1555,7 +1494,7 @@ class FFT:
         else:
             raise AssertionError("Internal error: unsupported dimensionality for distributed FFT in plan().")
 
-        if self.options.reshape:
+        if self.options.redistribute:
             # Plan a reshape of the FFT output back to the original slab distribution of the
             # FFT input.
             from_partition_dim, to_partition_dim = (1, 0) if self.distribution == Slab.X else (0, 1)
@@ -1625,7 +1564,7 @@ class FFT:
             _ = planner(self.memory_desc_handle, *[1] * self.operand_dim, fft_concrete_type)
             self.memory_desc = cufft.xt_malloc(self.memory_desc_handle, cufft.XtSubFormat.FORMAT_INPLACE)
 
-            if self.options.reshape:
+            if self.options.redistribute:
                 nullptr = 0
                 cufft.make_reshape(
                     self.reshape_handle,
@@ -1670,9 +1609,6 @@ class FFT:
         This method does **not** mutate ``self.distribution``,
         ``self.subformat``, or the distribution object.
         """
-        if operand is None:
-            raise ValueError("Resetting operand requires a valid operand. Use release_operand() to release the operand.")
-
         wrapped = tensor_wrapper.wrap_operand(operand)
 
         if self.package != wrapped.name:
@@ -1736,8 +1672,8 @@ class FFT:
         distribution_unchanged = self.distribution == distribution
 
         if distribution_type_old == "slab":
-            if self.options.reshape and not distribution_unchanged:
-                raise ValueError("Can't change distribution when using reshape=True")
+            if self.options.redistribute and not distribution_unchanged:
+                raise ValueError("Can't change distribution when using redistribute=True")
         else:
             distribution = cast(Sequence[Box], distribution)
             input_box, output_box = distribution
@@ -1782,13 +1718,13 @@ class FFT:
         (private) Log the current distribution axis / box information.
         """
         if isinstance(self.distribution, Slab):
-            if self.options.reshape:
+            if self.options.redistribute:
                 from_axis, to_axis = ("X", "X") if self.distribution == Slab.X else ("Y", "Y")
             else:
                 from_axis, to_axis = ("X", "Y") if self.distribution == Slab.X else ("Y", "X")
             self.logger.info(
                 f"The operand distribution is Slab, with input partitioned on {from_axis} axis "
-                f"and output on {to_axis} (reshape={self.options.reshape})."
+                f"and output on {to_axis} (redistribute={self.options.redistribute})."
             )
         else:
             self.logger.info("The operand distribution is based on custom input and output boxes given on each process.")
@@ -1963,13 +1899,13 @@ class FFT:
 
         # Determine result layout based on how cufftMp distributes the output:
         # - Box: result follows the output box's precomputed layout.
-        # - Slab without reshape: output is on the complementary axis.
-        # - Slab with reshape: output matches the input axis.
+        # - Slab without redistribution: output is on the complementary axis.
+        # - Slab with redistribution: output matches the input axis.
         if isinstance(self.distribution, tuple):
             output_box = self.distribution[1]
             result_layout = self.distribution_layout[output_box]
             output_box._bind(self.global_result_extents)
-        elif not self.options.reshape:
+        elif not self.options.redistribute:
             result_layout = self.distribution_layout[Slab.X if self.distribution == Slab.Y else Slab.Y]
         else:
             result_layout = self.operand_layout
@@ -2021,7 +1957,7 @@ class FFT:
                 - If the FFT was planned using a box distribution, the reset
                   distribution must use the same ``(input_box, output_box)`` pair
                   specified at plan time (the order may be swapped).
-                - If ``reshape=True`` was specified in the options, the distribution
+                - If ``redistribute=True`` was specified in the options, the distribution
                   cannot be changed.
 
             stream: {stream}
@@ -2084,6 +2020,10 @@ class FFT:
             :meth:`release_operand`
         """
         self.logger.info("Resetting operand...")
+
+        if operand is None:
+            raise ValueError("reset_operand() requires a valid operand.")
+
         distribution, distribution_unchanged = self._validate_reset_operand(operand, distribution, stream)
 
         # When the distribution is unchanged, we can skip a lot of boilerplate
@@ -2226,7 +2166,7 @@ class FFT:
         with utils.device_ctx(self.device_id), stream_holder.ctx:
             try:
                 self.workspace_ptr = self.allocator.memalloc(self.workspace_size)  # type: ignore[union-attr]
-                if self.options.reshape:
+                if self.options.redistribute:
                     self.reshaped_operand = self._allocate_reshape_operand(
                         stream_holder, self.logger.isEnabledFor(logging.DEBUG)
                     )
@@ -2327,17 +2267,17 @@ class FFT:
         Returns:
             The transformed operand, which remains on the same device and utilizes the same
             package as the input operand. The data type and shape of the transformed operand
-            depend on the type of input operand, and choice of distribution and reshape
+            depend on the type of input operand, and choice of distribution and redistribute
             option:
 
             - For C2C FFT, the data type remains identical to the input.
             - For R2C and C2R FFT, the data type differs from the input. The global output
               shape differs from the global input shape, which affects the shape of the
               result on every process.
-            - For slab distribution with reshape=True, the shape on this process is the slab
-              shape according to the same distribution as the input operand.
-            - For slab distribution with reshape=False, the shape on this process is the
-              complementary slab shape.
+            - For slab distribution with redistribute=True, the shape on this process is the
+              slab shape according to the same distribution as the input operand.
+            - For slab distribution with redistribute=False, the shape on this process is
+              the complementary slab shape.
             - For custom box distribution, the shape will depend on the output box of
               each process.
 
@@ -2388,7 +2328,7 @@ class FFT:
                 self.logger.info("sync_symmetric_memory is disabled")
             cufft.set_descriptor_data(self.memory_desc, result_ptr, self.subformat)
             cufft.xt_exec_descriptor(self.handle, self.memory_desc, self.memory_desc, direction)
-            if self.options.reshape:
+            if self.options.redistribute:
                 raw_workspace_ptr = utils.get_ptr_from_memory_pointer(self.workspace_ptr)
                 assert self.reshaped_operand is not None
                 cufft.exec_reshape_async(
@@ -2398,7 +2338,7 @@ class FFT:
                 self.result_operand.copy_(self.reshaped_operand, stream_holder=stream_holder)
 
         if log_info and elapsed.data is not None:
-            reshape_addendum = "along with output reshaping" if self.options.reshape else ""
+            reshape_addendum = "along with output redistribution" if self.options.redistribute else ""
             self.logger.info(f"The distributed FFT calculation {reshape_addendum} took {elapsed.data:.3f} ms to complete.")
 
         # Establish ordering wrt the computation and free workspace if it's more than the
@@ -2448,7 +2388,7 @@ class FFT:
 
                 if self.handle is not None:
                     cufft.destroy(self.handle)
-                    if self.options.reshape:
+                    if self.options.redistribute:
                         cufft.destroy_reshape(self.reshape_handle)
                     self.handle = None
                     self.reshape_handle = None
@@ -2487,7 +2427,7 @@ def _fft(
     distribution: Distribution | Sequence[Box],
     direction: FFTDirection | None = None,
     sync_symmetric_memory: bool = True,
-    options: FFTOptions | None = None,
+    options: FFTOptions | dict[str, Any] | None = None,
     stream: AnyStream | None = None,
     check_dtype: str | None = None,
 ):
@@ -2511,7 +2451,7 @@ def _fft(
 
     Returns:
         A transformed operand that retains the same data type as the input. The resulting
-        shape will depend on the choice of distribution and reshape option. The operand
+        shape will depend on the choice of distribution and redistribute option. The operand
         remains on the same device and uses the same package as the input operand.
 
     .. seealso::
@@ -2601,7 +2541,8 @@ def _fft(
 
 # Forward C2C FFT Function.
 fft = functools.wraps(_fft)(functools.partial(_fft, direction=FFTDirection.FORWARD, check_dtype="complex"))
-fft.__doc__ = fft.__doc__.format(**SHARED_FFT_DOCUMENTATION)  # type: ignore
+if fft.__doc__ is not None:
+    fft.__doc__ = fft.__doc__.format(**SHARED_FFT_DOCUMENTATION)  # type: ignore
 fft.__name__ = "fft"
 
 
@@ -2613,7 +2554,7 @@ def rfft(
     *,
     distribution: Distribution | Sequence[Box],
     sync_symmetric_memory: bool = True,
-    options: FFTOptions | None = None,
+    options: FFTOptions | dict[str, Any] | None = None,
     stream: AnyStream | None = None,
 ):
     r"""
@@ -2634,10 +2575,10 @@ def rfft(
         stream: {stream}
 
     Returns:
-        A complex tensor whose shape will depend on the choice of distribution and reshape
-        option. The operand remains on the same device and belongs to the same package as
-        the input operand. The global extent of the last transformed axis in the result will
-        be ``global_extent[-1] // 2 + 1``.
+        A complex tensor whose shape will depend on the choice of distribution and
+        redistribute option. The operand remains on the same device and belongs to the
+        same package as the input operand. The global extent of the last transformed axis
+        in the result will be ``global_extent[-1] // 2 + 1``.
 
     .. seealso::
         :func:`fft`, :func:`irfft`, :class:`FFT`.
@@ -2679,7 +2620,7 @@ ifft.__doc__ = """
 
     Returns:
         A transformed operand that retains the same data type as the input. The resulting
-        shape will depend on the choice of distribution and reshape option. The operand
+        shape will depend on the choice of distribution and redistribute option. The operand
         remains on the same device and uses the same package as the input operand.
 
     .. seealso::
@@ -2705,7 +2646,7 @@ def irfft(
     *,
     distribution: Distribution | Sequence[Box],
     sync_symmetric_memory: bool = True,
-    options: FFTOptions | None = None,
+    options: FFTOptions | dict[str, Any] | None = None,
     stream: AnyStream | None = None,
 ):
     """
@@ -2727,7 +2668,7 @@ def irfft(
         stream: {stream}
 
     Returns:
-        A real tensor whose shape will depend on the choice of distribution and reshape
+        A real tensor whose shape will depend on the choice of distribution and redistribute
         option. The operand remains on the same device and belongs to the same package as
         the input operand. The global extent of the last transformed axis in the result
         will be ``(global_extent[-1] - 1) * 2`` if :attr:`FFTOptions.last_axis_parity` is

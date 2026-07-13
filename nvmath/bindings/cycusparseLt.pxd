@@ -2,12 +2,13 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 #
-# This code was automatically generated across versions from 0.7.1 to 0.8.1, generator version 0.3.1.dev1565+g7fa82f8eb. Do not modify it directly.
+# This code was automatically generated across versions from 0.7.1 to 0.8.1, generator version 0.3.1.dev1471+g7122059e9. Do not modify it directly.
 # This layer exposes the C header to Cython as-is.
 
 from libc.stdint cimport int64_t, uint8_t, uint32_t, int32_t
 from libc.stdio cimport FILE
-from .cycusparse cimport cusparseStatus_t, _CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR, cusparseOrder_t, cusparseOperation_t, cudaDataType, cudaDataType_t, cudaStream_t, libraryPropertyType, libraryPropertyType_t
+from .cycusparse cimport cusparseStatus_t, _CUSPARSESTATUS_T_INTERNAL_LOADING_ERROR, cusparseOrder_t, cusparseOperation_t
+from ._internal.common_types cimport cudaDataType, cudaDataType_t, cudaStream_t, libraryPropertyType, libraryPropertyType_t, cuComplex, cuDoubleComplex
 
 
 ###############################################################################
@@ -81,21 +82,6 @@ ctypedef enum cusparseLtPruneAlg_t "cusparseLtPruneAlg_t":
 
 
 # types
-cdef extern from *:
-    """
-    #include <driver_types.h>
-    #include <library_types.h>
-    #include <cuComplex.h>
-    """
-
-    ctypedef struct cuComplex:
-        float x
-        float y
-    ctypedef struct cuDoubleComplex:
-        double x
-        double y
-
-
 ctypedef struct cusparseLtHandle_t 'cusparseLtHandle_t':
     uint8_t data[512]
 
@@ -110,7 +96,6 @@ ctypedef struct cusparseLtMatmulAlgSelection_t 'cusparseLtMatmulAlgSelection_t':
 
 ctypedef struct cusparseLtMatmulPlan_t 'cusparseLtMatmulPlan_t':
     uint8_t data[512]
-
 
 
 ###############################################################################

@@ -36,7 +36,7 @@ def microscaling_quantization(
         * Use ``to_block_scale`` to copy the block scales to the cuBLAS-compatible
           interleaved layout.
     """
-    print(f"\tQuantize and microscale `{operand_name}` with shape {x.shape} along axis {axis}")
+    print(f"\tQuantize and microscale '{operand_name}' with shape {x.shape} along axis {axis}")
     assert x.dtype == torch.float32
     if axis >= 0:
         axis = axis - len(x.shape)
@@ -44,7 +44,7 @@ def microscaling_quantization(
     x_shape = x.shape
     # Group elements along the axis into blocks of size block_size
     x = x.reshape(split_extent(x_shape, axis, block_size))
-    print(f"\tReshaped `{operand_name}` to group elements into blocks of size {block_size}: {x_shape} -> {x.shape}")
+    print(f"\tReshaped '{operand_name}' to group elements into blocks of size {block_size}: {x_shape} -> {x.shape}")
     x_amax = x.abs().max(dim=axis).values
     # Block scale = (block max absolute value) / max fp8 representable value
     x_scale = x_amax / torch.finfo(fp8_dtype).max
@@ -57,7 +57,7 @@ def microscaling_quantization(
         block_scaling_format="MXFP8",
     )
     print(
-        f"\tConverted block scales for `{operand_name}` to "
+        f"\tConverted block scales for '{operand_name}' to "
         f"flat interleaved layout: {x_exponent.shape} -> {quantization_scale.shape}"
     )
     # Quantization scales are ready; inversely scale x.
@@ -69,10 +69,10 @@ def microscaling_quantization(
     scale_reciprocal = scale_reciprocal.unsqueeze(axis)
     x_scaled = x * scale_reciprocal
     print(
-        f"\tMultiplied `{operand_name}` by inverse quantization scale: {x.shape} x {scale_reciprocal.shape} -> {x_scaled.shape}"
+        f"\tMultiplied '{operand_name}' by inverse quantization scale: {x.shape} x {scale_reciprocal.shape} -> {x_scaled.shape}"
     )
     x_scaled = convert_to_fp8(x_scaled, fp8_dtype)
-    print(f"\tReshaped scaled `{operand_name}` back to original shape: {x_scaled.shape} -> {x_shape}")
+    print(f"\tReshaped scaled '{operand_name}' back to original shape: {x_scaled.shape} -> {x_shape}")
     x_scaled = x_scaled.reshape(x_shape)
     return x_scaled, quantization_scale
 
@@ -176,7 +176,7 @@ a_fp8 = convert_to_fp8(a_scaled, a_fp8_dtype)
 b_fp8 = convert_to_fp8(b_scaled, b_fp8_dtype)
 
 # Now, we managed to eliminate overflows completely, but at the cost of
-# a huge number of underflows (zeros) in b.
+# a huge number of underflows (zeros) in 'b'.
 count_fp8_clamped_values(a_fp8, "a_fp8", "with a single scale")
 count_fp8_clamped_values(b_fp8, "b_fp8", "with a single scale")
 
@@ -214,9 +214,9 @@ b_dequantized = apply_mxfp8_scale(b_fp8, b_scale).to(torch.float32)
 # Compute the result in fp32.
 ref = a_dequantized @ b_dequantized
 # Quantize the result back to MXFP8.
-# Note, in this case (no c operand, no epilogue),
+# Note, in this case (no 'c' operand, no epilogue),
 # the result is quantized along the last axis,
-# which is the same as the grouping axis for a.
+# which is the same as the grouping axis for 'a'.
 result_2, d_out_scale_2 = microscaling_quantization(ref, axis=-1, fp8_dtype=a_fp8_dtype, operand_name="result")
 
 assert result_2.dtype == result.dtype == a_fp8_dtype

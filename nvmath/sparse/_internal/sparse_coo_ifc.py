@@ -139,6 +139,8 @@ class COOTensorHolder(SparseTensorHolder):
 
         No copy is performed if the COOTensor is already on the requested device.
         """
+        if self.tensor_package == "nvmath":
+            return super().to(device_id=device_id, stream_holder=stream_holder)
 
         target_indices = [i.to(device_id=device_id, stream_holder=stream_holder) for i in self.indices]
         target_values = self.values.to(device_id=device_id, stream_holder=stream_holder)

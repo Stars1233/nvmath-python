@@ -2,8 +2,10 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+from collections.abc import Callable
+from types import ModuleType
+
 import numpy as np
-from numba import cuda
 
 from nvmath.device import (
     CholeskySolver,
@@ -17,6 +19,7 @@ from nvmath.device import (
     Solver,
     TriangularSolver,
 )
+from nvmath.device.common import _HAS_NUMBA, _HAS_NUMBA_CUDA_MLIR
 from nvmath.device.cusolverdx import _OrthogonalFactorizerProperties, _SolverProperties
 from nvmath.device.cusolverdx_backend import ALLOWED_CUSOLVERDX_FUNCTIONS
 
@@ -212,26 +215,59 @@ def prepare_random_matrix(
 
 
 # ======================================
-# Device functions
+# Device function stubs
 # ======================================
 
 
-@cuda.jit(device=True, forceinline=True)
-def load_to_shared_strided(matrix, smem, shape, strides):
-    start = cuda.threadIdx.x
-    step = cuda.blockDim.x
+def load_strided_2d(matrix: np.ndarray, smem: np.ndarray, shape: tuple, strides: tuple) -> None:
+    raise RuntimeError("load_strided_2d must be called inside a cuda.jit kernel.")
 
-    if len(shape) == 2:
+
+def load_strided_3d(matrix: np.ndarray, smem: np.ndarray, shape: tuple, strides: tuple) -> None:
+    raise RuntimeError("load_strided_3d must be called inside a cuda.jit kernel.")
+
+
+def store_strided_2d(smem: np.ndarray, matrix: np.ndarray, shape: tuple, strides: tuple) -> None:
+    raise RuntimeError("store_strided_2d must be called inside a cuda.jit kernel.")
+
+
+def store_strided_3d(smem: np.ndarray, matrix: np.ndarray, shape: tuple, strides: tuple) -> None:
+    raise RuntimeError("store_strided_3d must be called inside a cuda.jit kernel.")
+
+
+# ======================================
+# Shared implementations
+# ======================================
+
+# TODO(numba-cuda-mlir): numba-cuda-mlir does not currently prune dead branches,
+# so it attempts to compile unreachable code paths. This can cause compilation
+# failures in unrelated dead code. And thus we had to split the functions to 2d/3d specific.
+# See:
+#    https://github.com/NVIDIA/numba-cuda-mlir/issues/108
+#    https://github.com/NVIDIA/numba-cuda-mlir/issues/109
+
+
+def _load_strided_2d_impl(cuda: ModuleType) -> Callable:
+    def impl(matrix, smem, shape, strides):
+        start = cuda.threadIdx.x
+        step = cuda.blockDim.x
+
         stop = shape[0] * shape[1]
-
         for index in range(start, stop, step):
             col = index % shape[1]
             row = index // shape[1]
 
             smem[row * strides[0] + col * strides[1]] = matrix[row, col]
-    else:
-        stop = shape[0] * shape[1] * shape[2]
 
+    return impl
+
+
+def _load_strided_3d_impl(cuda: ModuleType) -> Callable:
+    def impl(matrix, smem, shape, strides):
+        start = cuda.threadIdx.x
+        step = cuda.blockDim.x
+
+        stop = shape[0] * shape[1] * shape[2]
         for index in range(start, stop, step):
             col = index % shape[2]
             temp = index // shape[2]
@@ -240,23 +276,30 @@ def load_to_shared_strided(matrix, smem, shape, strides):
 
             smem[sample_idx * strides[0] + row * strides[1] + col * strides[2]] = matrix[sample_idx, row, col]
 
+    return impl
 
-@cuda.jit(device=True, forceinline=True)
-def store_from_shared_strided(smem, matrix, shape, strides):
-    start = cuda.threadIdx.x
-    step = cuda.blockDim.x
 
-    if len(shape) == 2:
+def _store_strided_2d_impl(cuda: ModuleType) -> Callable:
+    def impl(smem, matrix, shape, strides):
+        start = cuda.threadIdx.x
+        step = cuda.blockDim.x
+
         stop = shape[0] * shape[1]
-
         for index in range(start, stop, step):
             col = index % shape[1]
             row = index // shape[1]
 
             matrix[row, col] = smem[row * strides[0] + col * strides[1]]
-    else:
-        stop = shape[0] * shape[1] * shape[2]
 
+    return impl
+
+
+def _store_strided_3d_impl(cuda: ModuleType) -> Callable:
+    def impl(smem, matrix, shape, strides):
+        start = cuda.threadIdx.x
+        step = cuda.blockDim.x
+
+        stop = shape[0] * shape[1] * shape[2]
         for index in range(start, stop, step):
             col = index % shape[2]
             temp = index // shape[2]
@@ -264,3 +307,56 @@ def store_from_shared_strided(smem, matrix, shape, strides):
             sample_idx = temp // shape[1]
 
             matrix[sample_idx, row, col] = smem[sample_idx * strides[0] + row * strides[1] + col * strides[2]]
+
+    return impl
+
+
+# ======================================
+# numba-cuda overloads
+# ======================================
+
+if _HAS_NUMBA:
+    from numba import cuda as _numba_cuda
+    from numba.cuda.extending import overload as _numba_overload
+
+    @_numba_overload(load_strided_2d, jit_options={"forceinline": True}, strict=False)
+    def _ol_load_strided_2d(matrix, smem, shape, strides):
+        return _load_strided_2d_impl(_numba_cuda)
+
+    @_numba_overload(load_strided_3d, jit_options={"forceinline": True}, strict=False)
+    def _ol_load_strided_3d(matrix, smem, shape, strides):
+        return _load_strided_3d_impl(_numba_cuda)
+
+    @_numba_overload(store_strided_2d, jit_options={"forceinline": True}, strict=False)
+    def _ol_store_strided_2d(smem, matrix, shape, strides):
+        return _store_strided_2d_impl(_numba_cuda)
+
+    @_numba_overload(store_strided_3d, jit_options={"forceinline": True}, strict=False)
+    def _ol_store_strided_3d(smem, matrix, shape, strides):
+        return _store_strided_3d_impl(_numba_cuda)
+
+
+# ======================================
+# numba-cuda-mlir overloads
+# ======================================
+
+if _HAS_NUMBA_CUDA_MLIR:
+    from numba_cuda_mlir import cuda as _mlir_cuda
+    from numba_cuda_mlir.extending import overload as _mlir_overload
+    from numba_cuda_mlir.extending import typing_registry as _mlir_typing_registry
+
+    @_mlir_overload(load_strided_2d, strict=False, inline="always", typing_registry=_mlir_typing_registry)
+    def _ol_load_strided_2d_mlir(matrix, smem, shape, strides):
+        return _load_strided_2d_impl(_mlir_cuda)
+
+    @_mlir_overload(load_strided_3d, strict=False, inline="always", typing_registry=_mlir_typing_registry)
+    def _ol_load_strided_3d_mlir(matrix, smem, shape, strides):
+        return _load_strided_3d_impl(_mlir_cuda)
+
+    @_mlir_overload(store_strided_2d, strict=False, inline="always", typing_registry=_mlir_typing_registry)
+    def _ol_store_strided_2d_mlir(smem, matrix, shape, strides):
+        return _store_strided_2d_impl(_mlir_cuda)
+
+    @_mlir_overload(store_strided_3d, strict=False, inline="always", typing_registry=_mlir_typing_registry)
+    def _ol_store_strided_3d_mlir(smem, matrix, shape, strides):
+        return _store_strided_3d_impl(_mlir_cuda)

@@ -4,10 +4,10 @@
 
 """
 This example demonstrates automatic output scaling in MXFP8 mode.
-When using MXFP8, D is automatically scaled during the matmul operation and the scale used
-is returned as "d_out_scale". This scale can be used as input for subsequent matrix
-multiplications (see mxfp8_chaining example) or applied to the result using a helper
-function.
+When using MXFP8, the output is automatically scaled during the matmul, and the scale
+factors that were applied are returned in the auxiliary output under the `d_out_scale`
+key. These scales can be used as input for subsequent matrix multiplications (see the
+mxfp8_chaining example) or applied to the result using a helper function.
 
 To use MXFP8, set the `block_scaling` option to True.
 
@@ -26,23 +26,23 @@ import nvmath
 # Prepare sample input data. Note that N, M and K must be divisible by 128 for MXFP8.
 m, n, k = 256, 256, 512
 
-# Create matrix A with values increasing by row to demonstrate scaling with different
+# Create matrix 'a' with values increasing by row to demonstrate scaling with different
 # magnitudes
 a = torch.zeros(m, k, device="cuda", dtype=torch.float8_e4m3fn)
 a[:] = torch.arange(m)[:, None]  # Each row will have progressively larger values
-print("Matrix A:")
+print("Matrix 'a':")
 print(a)
 print()
 
-# cuBLAS requires B to be column-major, so we first create a row-major tensor and then
+# cuBLAS requires 'b' to be column-major, so we first create a row-major tensor and then
 # transpose it.
 b = torch.rand(m, k, device="cuda").type(torch.float8_e4m3fn).T
-print("Matrix B:")
+print("Matrix 'b':")
 print(b)
 print()
 
-# Prepare quantization scales for A and B using the create_mxfp8_scale helper.
-# Note: We don't set a scale for D since MXFP8 automatically scales the result to fit
+# Prepare quantization scales for 'a' and 'b' using the create_mxfp8_scale helper.
+# Note: We don't set a scale for 'd' since MXFP8 automatically scales the result to fit
 # within the output type's dynamic range.
 scales = {
     "a": nvmath.linalg.advanced.helpers.matmul.create_mxfp8_scale(a, -6),  # 2^-6 = 0.015625
@@ -63,10 +63,10 @@ print("Result (each block scaled to fit within float8_e4m3fn range):")
 print(result)
 print()
 
-# Examine the D_OUT quantization scales
+# Examine the output quantization scales
 print(f"Auxiliary output contains these keys: {list(aux.keys())}")
 print(
-    f"D scale tensor shape: {aux['d_out_scale'].shape}, type: {aux['d_out_scale'].dtype}. "
+    f"'d' scale tensor shape: {aux['d_out_scale'].shape}, type: {aux['d_out_scale'].dtype}. "
     f"Contains {len(aux['d_out_scale'].unique())} unique scale factors."
 )
 

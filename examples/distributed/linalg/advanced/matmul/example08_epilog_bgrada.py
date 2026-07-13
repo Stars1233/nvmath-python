@@ -7,7 +7,7 @@ This example demonstrates usage of epilogs.
 
 Epilogs allow you to execute extra computations after the matrix multiplication in a single
 fused kernel. In this example we'll use the BGRADA epilog, which generates an extra output
-"bgrada" corresponding to the reduction of the A matrix.
+"bgrada" corresponding to the reduction of the 'a' matrix.
 
 $ mpiexec -n 4 python example08_epilog_bgrada.py
 """
@@ -37,11 +37,11 @@ with cp.cuda.Device(device_id):
     b = cp.random.rand(*row_wise_distribution.shape(rank, (n, k)))
 
 # Get a transposed view to obtain column-major memory layout. Note that this
-# also changes the distribution of a and b (see example01 for more information).
-a = a.T  # a is now (m, k) with row_wise_distribution
-b = b.T  # b is now (k, n) with col_wise_distribution
+# also changes the distribution of 'a' and 'b' (see example01 for more information).
+a = a.T  # 'a' is now (m, k) with row_wise_distribution
+b = b.T  # 'b' is now (k, n) with col_wise_distribution
 
-# Distributions for A, B, and result matrix D
+# Distributions for 'a', 'b', and result matrix 'd'
 distributions = [row_wise_distribution, col_wise_distribution, row_wise_distribution]
 
 # Perform the multiplication with BGRADA epilog. The auxiliary output "auxiliary" is a dict
@@ -54,7 +54,7 @@ result, auxiliary = nvmath.distributed.linalg.advanced.matmul(
     epilog=epilog,
 )
 
-# Note: BGRADA output follows the same distribution as A and the result matrix.
+# Note: BGRADA output follows the same distribution as 'a' and the result matrix.
 # In this example, this means that the bias gradient vector (which is of length m)
 # is partitioned.
 assert auxiliary["bgrada"].shape == (m // nranks,)

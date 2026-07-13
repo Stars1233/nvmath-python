@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 #
-# This code was automatically generated with version 25.5, generator version 0.3.1.dev1303+g031f1197f. Do not modify it directly.
+# This code was automatically generated across versions from 25.5 to 26.5, generator version 0.3.1.dev1723+geb5f29ab4. Do not modify it directly.
 
 cimport cython
 
@@ -566,3 +566,563 @@ cdef void cblas_cgemm_batch_strided(const CBLAS_ORDER Order, const CBLAS_TRANSPO
 @cython.show_performance_hints(False)
 cdef void cblas_zgemm_batch_strided(const CBLAS_ORDER Order, const CBLAS_TRANSPOSE TransA, const CBLAS_TRANSPOSE TransB, const nvpl_int_t M, const nvpl_int_t N, const nvpl_int_t K, const void* alpha, const void* A, const nvpl_int_t lda, const nvpl_int_t stridea, const void* B, const nvpl_int_t ldb, const nvpl_int_t strideb, const void* beta, void* C, const nvpl_int_t ldc, const nvpl_int_t stridec, const nvpl_int_t batch_size) except* nogil:
     _nvpl_blas._cblas_zgemm_batch_strided(Order, TransA, TransB, M, N, K, alpha, A, lda, stridea, B, ldb, strideb, beta, C, ldc, stridec, batch_size)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_sgemmt(const CBLAS_ORDER Order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_TRANSPOSE TransB, const nvpl_int_t N, const nvpl_int_t K, const float alpha, const float* A, const nvpl_int_t lda, const float* B, const nvpl_int_t ldb, const float beta, float* C, const nvpl_int_t ldc) except* nogil:
+    _nvpl_blas._cblas_sgemmt(Order, Uplo, TransA, TransB, N, K, alpha, A, lda, B, ldb, beta, C, ldc)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_dgemmt(const CBLAS_ORDER Order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_TRANSPOSE TransB, const nvpl_int_t N, const nvpl_int_t K, const double alpha, const double* A, const nvpl_int_t lda, const double* B, const nvpl_int_t ldb, const double beta, double* C, const nvpl_int_t ldc) except* nogil:
+    _nvpl_blas._cblas_dgemmt(Order, Uplo, TransA, TransB, N, K, alpha, A, lda, B, ldb, beta, C, ldc)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_cgemmt(const CBLAS_ORDER Order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_TRANSPOSE TransB, const nvpl_int_t N, const nvpl_int_t K, const void* alpha, const void* A, const nvpl_int_t lda, const void* B, const nvpl_int_t ldb, const void* beta, void* C, const nvpl_int_t ldc) except* nogil:
+    _nvpl_blas._cblas_cgemmt(Order, Uplo, TransA, TransB, N, K, alpha, A, lda, B, ldb, beta, C, ldc)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_zgemmt(const CBLAS_ORDER Order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_TRANSPOSE TransB, const nvpl_int_t N, const nvpl_int_t K, const void* alpha, const void* A, const nvpl_int_t lda, const void* B, const nvpl_int_t ldb, const void* beta, void* C, const nvpl_int_t ldc) except* nogil:
+    _nvpl_blas._cblas_zgemmt(Order, Uplo, TransA, TransB, N, K, alpha, A, lda, B, ldb, beta, C, ldc)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_sgemv_64(const CBLAS_ORDER order, const CBLAS_TRANSPOSE TransA, const nvpl_int64_t M, const nvpl_int64_t N, const float alpha, const float* A, const nvpl_int64_t lda, const float* X, const nvpl_int64_t incX, const float beta, float* Y, const nvpl_int64_t incY) except* nogil:
+    _nvpl_blas._cblas_sgemv_64(order, TransA, M, N, alpha, A, lda, X, incX, beta, Y, incY)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_sgbmv_64(const CBLAS_ORDER order, const CBLAS_TRANSPOSE TransA, const nvpl_int64_t M, const nvpl_int64_t N, const nvpl_int64_t KL, const nvpl_int64_t KU, const float alpha, const float* A, const nvpl_int64_t lda, const float* X, const nvpl_int64_t incX, const float beta, float* Y, const nvpl_int64_t incY) except* nogil:
+    _nvpl_blas._cblas_sgbmv_64(order, TransA, M, N, KL, KU, alpha, A, lda, X, incX, beta, Y, incY)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_strmv_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_DIAG Diag, const nvpl_int64_t N, const float* A, const nvpl_int64_t lda, float* X, const nvpl_int64_t incX) except* nogil:
+    _nvpl_blas._cblas_strmv_64(order, Uplo, TransA, Diag, N, A, lda, X, incX)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_stbmv_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_DIAG Diag, const nvpl_int64_t N, const nvpl_int64_t K, const float* A, const nvpl_int64_t lda, float* X, const nvpl_int64_t incX) except* nogil:
+    _nvpl_blas._cblas_stbmv_64(order, Uplo, TransA, Diag, N, K, A, lda, X, incX)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_stpmv_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_DIAG Diag, const nvpl_int64_t N, const float* Ap, float* X, const nvpl_int64_t incX) except* nogil:
+    _nvpl_blas._cblas_stpmv_64(order, Uplo, TransA, Diag, N, Ap, X, incX)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_strsv_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_DIAG Diag, const nvpl_int64_t N, const float* A, const nvpl_int64_t lda, float* X, const nvpl_int64_t incX) except* nogil:
+    _nvpl_blas._cblas_strsv_64(order, Uplo, TransA, Diag, N, A, lda, X, incX)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_stbsv_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_DIAG Diag, const nvpl_int64_t N, const nvpl_int64_t K, const float* A, const nvpl_int64_t lda, float* X, const nvpl_int64_t incX) except* nogil:
+    _nvpl_blas._cblas_stbsv_64(order, Uplo, TransA, Diag, N, K, A, lda, X, incX)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_stpsv_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_DIAG Diag, const nvpl_int64_t N, const float* Ap, float* X, const nvpl_int64_t incX) except* nogil:
+    _nvpl_blas._cblas_stpsv_64(order, Uplo, TransA, Diag, N, Ap, X, incX)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_dgemv_64(const CBLAS_ORDER order, const CBLAS_TRANSPOSE TransA, const nvpl_int64_t M, const nvpl_int64_t N, const double alpha, const double* A, const nvpl_int64_t lda, const double* X, const nvpl_int64_t incX, const double beta, double* Y, const nvpl_int64_t incY) except* nogil:
+    _nvpl_blas._cblas_dgemv_64(order, TransA, M, N, alpha, A, lda, X, incX, beta, Y, incY)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_dgbmv_64(const CBLAS_ORDER order, const CBLAS_TRANSPOSE TransA, const nvpl_int64_t M, const nvpl_int64_t N, const nvpl_int64_t KL, const nvpl_int64_t KU, const double alpha, const double* A, const nvpl_int64_t lda, const double* X, const nvpl_int64_t incX, const double beta, double* Y, const nvpl_int64_t incY) except* nogil:
+    _nvpl_blas._cblas_dgbmv_64(order, TransA, M, N, KL, KU, alpha, A, lda, X, incX, beta, Y, incY)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_dtrmv_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_DIAG Diag, const nvpl_int64_t N, const double* A, const nvpl_int64_t lda, double* X, const nvpl_int64_t incX) except* nogil:
+    _nvpl_blas._cblas_dtrmv_64(order, Uplo, TransA, Diag, N, A, lda, X, incX)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_dtbmv_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_DIAG Diag, const nvpl_int64_t N, const nvpl_int64_t K, const double* A, const nvpl_int64_t lda, double* X, const nvpl_int64_t incX) except* nogil:
+    _nvpl_blas._cblas_dtbmv_64(order, Uplo, TransA, Diag, N, K, A, lda, X, incX)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_dtpmv_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_DIAG Diag, const nvpl_int64_t N, const double* Ap, double* X, const nvpl_int64_t incX) except* nogil:
+    _nvpl_blas._cblas_dtpmv_64(order, Uplo, TransA, Diag, N, Ap, X, incX)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_dtrsv_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_DIAG Diag, const nvpl_int64_t N, const double* A, const nvpl_int64_t lda, double* X, const nvpl_int64_t incX) except* nogil:
+    _nvpl_blas._cblas_dtrsv_64(order, Uplo, TransA, Diag, N, A, lda, X, incX)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_dtbsv_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_DIAG Diag, const nvpl_int64_t N, const nvpl_int64_t K, const double* A, const nvpl_int64_t lda, double* X, const nvpl_int64_t incX) except* nogil:
+    _nvpl_blas._cblas_dtbsv_64(order, Uplo, TransA, Diag, N, K, A, lda, X, incX)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_dtpsv_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_DIAG Diag, const nvpl_int64_t N, const double* Ap, double* X, const nvpl_int64_t incX) except* nogil:
+    _nvpl_blas._cblas_dtpsv_64(order, Uplo, TransA, Diag, N, Ap, X, incX)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_cgemv_64(const CBLAS_ORDER order, const CBLAS_TRANSPOSE TransA, const nvpl_int64_t M, const nvpl_int64_t N, const void* alpha, const void* A, const nvpl_int64_t lda, const void* X, const nvpl_int64_t incX, const void* beta, void* Y, const nvpl_int64_t incY) except* nogil:
+    _nvpl_blas._cblas_cgemv_64(order, TransA, M, N, alpha, A, lda, X, incX, beta, Y, incY)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_cgbmv_64(const CBLAS_ORDER order, const CBLAS_TRANSPOSE TransA, const nvpl_int64_t M, const nvpl_int64_t N, const nvpl_int64_t KL, const nvpl_int64_t KU, const void* alpha, const void* A, const nvpl_int64_t lda, const void* X, const nvpl_int64_t incX, const void* beta, void* Y, const nvpl_int64_t incY) except* nogil:
+    _nvpl_blas._cblas_cgbmv_64(order, TransA, M, N, KL, KU, alpha, A, lda, X, incX, beta, Y, incY)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_ctrmv_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_DIAG Diag, const nvpl_int64_t N, const void* A, const nvpl_int64_t lda, void* X, const nvpl_int64_t incX) except* nogil:
+    _nvpl_blas._cblas_ctrmv_64(order, Uplo, TransA, Diag, N, A, lda, X, incX)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_ctbmv_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_DIAG Diag, const nvpl_int64_t N, const nvpl_int64_t K, const void* A, const nvpl_int64_t lda, void* X, const nvpl_int64_t incX) except* nogil:
+    _nvpl_blas._cblas_ctbmv_64(order, Uplo, TransA, Diag, N, K, A, lda, X, incX)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_ctpmv_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_DIAG Diag, const nvpl_int64_t N, const void* Ap, void* X, const nvpl_int64_t incX) except* nogil:
+    _nvpl_blas._cblas_ctpmv_64(order, Uplo, TransA, Diag, N, Ap, X, incX)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_ctrsv_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_DIAG Diag, const nvpl_int64_t N, const void* A, const nvpl_int64_t lda, void* X, const nvpl_int64_t incX) except* nogil:
+    _nvpl_blas._cblas_ctrsv_64(order, Uplo, TransA, Diag, N, A, lda, X, incX)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_ctbsv_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_DIAG Diag, const nvpl_int64_t N, const nvpl_int64_t K, const void* A, const nvpl_int64_t lda, void* X, const nvpl_int64_t incX) except* nogil:
+    _nvpl_blas._cblas_ctbsv_64(order, Uplo, TransA, Diag, N, K, A, lda, X, incX)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_ctpsv_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_DIAG Diag, const nvpl_int64_t N, const void* Ap, void* X, const nvpl_int64_t incX) except* nogil:
+    _nvpl_blas._cblas_ctpsv_64(order, Uplo, TransA, Diag, N, Ap, X, incX)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_zgemv_64(const CBLAS_ORDER order, const CBLAS_TRANSPOSE TransA, const nvpl_int64_t M, const nvpl_int64_t N, const void* alpha, const void* A, const nvpl_int64_t lda, const void* X, const nvpl_int64_t incX, const void* beta, void* Y, const nvpl_int64_t incY) except* nogil:
+    _nvpl_blas._cblas_zgemv_64(order, TransA, M, N, alpha, A, lda, X, incX, beta, Y, incY)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_zgbmv_64(const CBLAS_ORDER order, const CBLAS_TRANSPOSE TransA, const nvpl_int64_t M, const nvpl_int64_t N, const nvpl_int64_t KL, const nvpl_int64_t KU, const void* alpha, const void* A, const nvpl_int64_t lda, const void* X, const nvpl_int64_t incX, const void* beta, void* Y, const nvpl_int64_t incY) except* nogil:
+    _nvpl_blas._cblas_zgbmv_64(order, TransA, M, N, KL, KU, alpha, A, lda, X, incX, beta, Y, incY)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_ztrmv_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_DIAG Diag, const nvpl_int64_t N, const void* A, const nvpl_int64_t lda, void* X, const nvpl_int64_t incX) except* nogil:
+    _nvpl_blas._cblas_ztrmv_64(order, Uplo, TransA, Diag, N, A, lda, X, incX)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_ztbmv_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_DIAG Diag, const nvpl_int64_t N, const nvpl_int64_t K, const void* A, const nvpl_int64_t lda, void* X, const nvpl_int64_t incX) except* nogil:
+    _nvpl_blas._cblas_ztbmv_64(order, Uplo, TransA, Diag, N, K, A, lda, X, incX)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_ztpmv_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_DIAG Diag, const nvpl_int64_t N, const void* Ap, void* X, const nvpl_int64_t incX) except* nogil:
+    _nvpl_blas._cblas_ztpmv_64(order, Uplo, TransA, Diag, N, Ap, X, incX)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_ztrsv_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_DIAG Diag, const nvpl_int64_t N, const void* A, const nvpl_int64_t lda, void* X, const nvpl_int64_t incX) except* nogil:
+    _nvpl_blas._cblas_ztrsv_64(order, Uplo, TransA, Diag, N, A, lda, X, incX)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_ztbsv_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_DIAG Diag, const nvpl_int64_t N, const nvpl_int64_t K, const void* A, const nvpl_int64_t lda, void* X, const nvpl_int64_t incX) except* nogil:
+    _nvpl_blas._cblas_ztbsv_64(order, Uplo, TransA, Diag, N, K, A, lda, X, incX)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_ztpsv_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_DIAG Diag, const nvpl_int64_t N, const void* Ap, void* X, const nvpl_int64_t incX) except* nogil:
+    _nvpl_blas._cblas_ztpsv_64(order, Uplo, TransA, Diag, N, Ap, X, incX)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_ssymv_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const nvpl_int64_t N, const float alpha, const float* A, const nvpl_int64_t lda, const float* X, const nvpl_int64_t incX, const float beta, float* Y, const nvpl_int64_t incY) except* nogil:
+    _nvpl_blas._cblas_ssymv_64(order, Uplo, N, alpha, A, lda, X, incX, beta, Y, incY)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_ssbmv_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const nvpl_int64_t N, const nvpl_int64_t K, const float alpha, const float* A, const nvpl_int64_t lda, const float* X, const nvpl_int64_t incX, const float beta, float* Y, const nvpl_int64_t incY) except* nogil:
+    _nvpl_blas._cblas_ssbmv_64(order, Uplo, N, K, alpha, A, lda, X, incX, beta, Y, incY)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_sspmv_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const nvpl_int64_t N, const float alpha, const float* Ap, const float* X, const nvpl_int64_t incX, const float beta, float* Y, const nvpl_int64_t incY) except* nogil:
+    _nvpl_blas._cblas_sspmv_64(order, Uplo, N, alpha, Ap, X, incX, beta, Y, incY)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_sger_64(const CBLAS_ORDER order, const nvpl_int64_t M, const nvpl_int64_t N, const float alpha, const float* X, const nvpl_int64_t incX, const float* Y, const nvpl_int64_t incY, float* A, const nvpl_int64_t lda) except* nogil:
+    _nvpl_blas._cblas_sger_64(order, M, N, alpha, X, incX, Y, incY, A, lda)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_ssyr_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const nvpl_int64_t N, const float alpha, const float* X, const nvpl_int64_t incX, float* A, const nvpl_int64_t lda) except* nogil:
+    _nvpl_blas._cblas_ssyr_64(order, Uplo, N, alpha, X, incX, A, lda)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_sspr_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const nvpl_int64_t N, const float alpha, const float* X, const nvpl_int64_t incX, float* Ap) except* nogil:
+    _nvpl_blas._cblas_sspr_64(order, Uplo, N, alpha, X, incX, Ap)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_ssyr2_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const nvpl_int64_t N, const float alpha, const float* X, const nvpl_int64_t incX, const float* Y, const nvpl_int64_t incY, float* A, const nvpl_int64_t lda) except* nogil:
+    _nvpl_blas._cblas_ssyr2_64(order, Uplo, N, alpha, X, incX, Y, incY, A, lda)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_sspr2_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const nvpl_int64_t N, const float alpha, const float* X, const nvpl_int64_t incX, const float* Y, const nvpl_int64_t incY, float* A) except* nogil:
+    _nvpl_blas._cblas_sspr2_64(order, Uplo, N, alpha, X, incX, Y, incY, A)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_dsymv_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const nvpl_int64_t N, const double alpha, const double* A, const nvpl_int64_t lda, const double* X, const nvpl_int64_t incX, const double beta, double* Y, const nvpl_int64_t incY) except* nogil:
+    _nvpl_blas._cblas_dsymv_64(order, Uplo, N, alpha, A, lda, X, incX, beta, Y, incY)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_dsbmv_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const nvpl_int64_t N, const nvpl_int64_t K, const double alpha, const double* A, const nvpl_int64_t lda, const double* X, const nvpl_int64_t incX, const double beta, double* Y, const nvpl_int64_t incY) except* nogil:
+    _nvpl_blas._cblas_dsbmv_64(order, Uplo, N, K, alpha, A, lda, X, incX, beta, Y, incY)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_dspmv_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const nvpl_int64_t N, const double alpha, const double* Ap, const double* X, const nvpl_int64_t incX, const double beta, double* Y, const nvpl_int64_t incY) except* nogil:
+    _nvpl_blas._cblas_dspmv_64(order, Uplo, N, alpha, Ap, X, incX, beta, Y, incY)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_dger_64(const CBLAS_ORDER order, const nvpl_int64_t M, const nvpl_int64_t N, const double alpha, const double* X, const nvpl_int64_t incX, const double* Y, const nvpl_int64_t incY, double* A, const nvpl_int64_t lda) except* nogil:
+    _nvpl_blas._cblas_dger_64(order, M, N, alpha, X, incX, Y, incY, A, lda)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_dsyr_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const nvpl_int64_t N, const double alpha, const double* X, const nvpl_int64_t incX, double* A, const nvpl_int64_t lda) except* nogil:
+    _nvpl_blas._cblas_dsyr_64(order, Uplo, N, alpha, X, incX, A, lda)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_dspr_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const nvpl_int64_t N, const double alpha, const double* X, const nvpl_int64_t incX, double* Ap) except* nogil:
+    _nvpl_blas._cblas_dspr_64(order, Uplo, N, alpha, X, incX, Ap)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_dsyr2_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const nvpl_int64_t N, const double alpha, const double* X, const nvpl_int64_t incX, const double* Y, const nvpl_int64_t incY, double* A, const nvpl_int64_t lda) except* nogil:
+    _nvpl_blas._cblas_dsyr2_64(order, Uplo, N, alpha, X, incX, Y, incY, A, lda)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_dspr2_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const nvpl_int64_t N, const double alpha, const double* X, const nvpl_int64_t incX, const double* Y, const nvpl_int64_t incY, double* A) except* nogil:
+    _nvpl_blas._cblas_dspr2_64(order, Uplo, N, alpha, X, incX, Y, incY, A)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_chemv_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const nvpl_int64_t N, const void* alpha, const void* A, const nvpl_int64_t lda, const void* X, const nvpl_int64_t incX, const void* beta, void* Y, const nvpl_int64_t incY) except* nogil:
+    _nvpl_blas._cblas_chemv_64(order, Uplo, N, alpha, A, lda, X, incX, beta, Y, incY)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_chbmv_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const nvpl_int64_t N, const nvpl_int64_t K, const void* alpha, const void* A, const nvpl_int64_t lda, const void* X, const nvpl_int64_t incX, const void* beta, void* Y, const nvpl_int64_t incY) except* nogil:
+    _nvpl_blas._cblas_chbmv_64(order, Uplo, N, K, alpha, A, lda, X, incX, beta, Y, incY)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_chpmv_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const nvpl_int64_t N, const void* alpha, const void* Ap, const void* X, const nvpl_int64_t incX, const void* beta, void* Y, const nvpl_int64_t incY) except* nogil:
+    _nvpl_blas._cblas_chpmv_64(order, Uplo, N, alpha, Ap, X, incX, beta, Y, incY)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_cgeru_64(const CBLAS_ORDER order, const nvpl_int64_t M, const nvpl_int64_t N, const void* alpha, const void* X, const nvpl_int64_t incX, const void* Y, const nvpl_int64_t incY, void* A, const nvpl_int64_t lda) except* nogil:
+    _nvpl_blas._cblas_cgeru_64(order, M, N, alpha, X, incX, Y, incY, A, lda)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_cgerc_64(const CBLAS_ORDER order, const nvpl_int64_t M, const nvpl_int64_t N, const void* alpha, const void* X, const nvpl_int64_t incX, const void* Y, const nvpl_int64_t incY, void* A, const nvpl_int64_t lda) except* nogil:
+    _nvpl_blas._cblas_cgerc_64(order, M, N, alpha, X, incX, Y, incY, A, lda)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_cher_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const nvpl_int64_t N, const float alpha, const void* X, const nvpl_int64_t incX, void* A, const nvpl_int64_t lda) except* nogil:
+    _nvpl_blas._cblas_cher_64(order, Uplo, N, alpha, X, incX, A, lda)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_chpr_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const nvpl_int64_t N, const float alpha, const void* X, const nvpl_int64_t incX, void* A) except* nogil:
+    _nvpl_blas._cblas_chpr_64(order, Uplo, N, alpha, X, incX, A)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_cher2_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const nvpl_int64_t N, const void* alpha, const void* X, const nvpl_int64_t incX, const void* Y, const nvpl_int64_t incY, void* A, const nvpl_int64_t lda) except* nogil:
+    _nvpl_blas._cblas_cher2_64(order, Uplo, N, alpha, X, incX, Y, incY, A, lda)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_chpr2_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const nvpl_int64_t N, const void* alpha, const void* X, const nvpl_int64_t incX, const void* Y, const nvpl_int64_t incY, void* Ap) except* nogil:
+    _nvpl_blas._cblas_chpr2_64(order, Uplo, N, alpha, X, incX, Y, incY, Ap)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_zhemv_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const nvpl_int64_t N, const void* alpha, const void* A, const nvpl_int64_t lda, const void* X, const nvpl_int64_t incX, const void* beta, void* Y, const nvpl_int64_t incY) except* nogil:
+    _nvpl_blas._cblas_zhemv_64(order, Uplo, N, alpha, A, lda, X, incX, beta, Y, incY)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_zhbmv_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const nvpl_int64_t N, const nvpl_int64_t K, const void* alpha, const void* A, const nvpl_int64_t lda, const void* X, const nvpl_int64_t incX, const void* beta, void* Y, const nvpl_int64_t incY) except* nogil:
+    _nvpl_blas._cblas_zhbmv_64(order, Uplo, N, K, alpha, A, lda, X, incX, beta, Y, incY)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_zhpmv_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const nvpl_int64_t N, const void* alpha, const void* Ap, const void* X, const nvpl_int64_t incX, const void* beta, void* Y, const nvpl_int64_t incY) except* nogil:
+    _nvpl_blas._cblas_zhpmv_64(order, Uplo, N, alpha, Ap, X, incX, beta, Y, incY)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_zgeru_64(const CBLAS_ORDER order, const nvpl_int64_t M, const nvpl_int64_t N, const void* alpha, const void* X, const nvpl_int64_t incX, const void* Y, const nvpl_int64_t incY, void* A, const nvpl_int64_t lda) except* nogil:
+    _nvpl_blas._cblas_zgeru_64(order, M, N, alpha, X, incX, Y, incY, A, lda)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_zgerc_64(const CBLAS_ORDER order, const nvpl_int64_t M, const nvpl_int64_t N, const void* alpha, const void* X, const nvpl_int64_t incX, const void* Y, const nvpl_int64_t incY, void* A, const nvpl_int64_t lda) except* nogil:
+    _nvpl_blas._cblas_zgerc_64(order, M, N, alpha, X, incX, Y, incY, A, lda)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_zher_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const nvpl_int64_t N, const double alpha, const void* X, const nvpl_int64_t incX, void* A, const nvpl_int64_t lda) except* nogil:
+    _nvpl_blas._cblas_zher_64(order, Uplo, N, alpha, X, incX, A, lda)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_zhpr_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const nvpl_int64_t N, const double alpha, const void* X, const nvpl_int64_t incX, void* A) except* nogil:
+    _nvpl_blas._cblas_zhpr_64(order, Uplo, N, alpha, X, incX, A)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_zher2_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const nvpl_int64_t N, const void* alpha, const void* X, const nvpl_int64_t incX, const void* Y, const nvpl_int64_t incY, void* A, const nvpl_int64_t lda) except* nogil:
+    _nvpl_blas._cblas_zher2_64(order, Uplo, N, alpha, X, incX, Y, incY, A, lda)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_zhpr2_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const nvpl_int64_t N, const void* alpha, const void* X, const nvpl_int64_t incX, const void* Y, const nvpl_int64_t incY, void* Ap) except* nogil:
+    _nvpl_blas._cblas_zhpr2_64(order, Uplo, N, alpha, X, incX, Y, incY, Ap)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_sgemm_64(const CBLAS_ORDER Order, const CBLAS_TRANSPOSE TransA, const CBLAS_TRANSPOSE TransB, const nvpl_int64_t M, const nvpl_int64_t N, const nvpl_int64_t K, const float alpha, const float* A, const nvpl_int64_t lda, const float* B, const nvpl_int64_t ldb, const float beta, float* C, const nvpl_int64_t ldc) except* nogil:
+    _nvpl_blas._cblas_sgemm_64(Order, TransA, TransB, M, N, K, alpha, A, lda, B, ldb, beta, C, ldc)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_ssymm_64(const CBLAS_ORDER Order, const CBLAS_SIDE Side, const CBLAS_UPLO Uplo, const nvpl_int64_t M, const nvpl_int64_t N, const float alpha, const float* A, const nvpl_int64_t lda, const float* B, const nvpl_int64_t ldb, const float beta, float* C, const nvpl_int64_t ldc) except* nogil:
+    _nvpl_blas._cblas_ssymm_64(Order, Side, Uplo, M, N, alpha, A, lda, B, ldb, beta, C, ldc)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_ssyrk_64(const CBLAS_ORDER Order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE Trans, const nvpl_int64_t N, const nvpl_int64_t K, const float alpha, const float* A, const nvpl_int64_t lda, const float beta, float* C, const nvpl_int64_t ldc) except* nogil:
+    _nvpl_blas._cblas_ssyrk_64(Order, Uplo, Trans, N, K, alpha, A, lda, beta, C, ldc)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_ssyr2k_64(const CBLAS_ORDER Order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE Trans, const nvpl_int64_t N, const nvpl_int64_t K, const float alpha, const float* A, const nvpl_int64_t lda, const float* B, const nvpl_int64_t ldb, const float beta, float* C, const nvpl_int64_t ldc) except* nogil:
+    _nvpl_blas._cblas_ssyr2k_64(Order, Uplo, Trans, N, K, alpha, A, lda, B, ldb, beta, C, ldc)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_strmm_64(const CBLAS_ORDER Order, const CBLAS_SIDE Side, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_DIAG Diag, const nvpl_int64_t M, const nvpl_int64_t N, const float alpha, const float* A, const nvpl_int64_t lda, float* B, const nvpl_int64_t ldb) except* nogil:
+    _nvpl_blas._cblas_strmm_64(Order, Side, Uplo, TransA, Diag, M, N, alpha, A, lda, B, ldb)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_strsm_64(const CBLAS_ORDER Order, const CBLAS_SIDE Side, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_DIAG Diag, const nvpl_int64_t M, const nvpl_int64_t N, const float alpha, const float* A, const nvpl_int64_t lda, float* B, const nvpl_int64_t ldb) except* nogil:
+    _nvpl_blas._cblas_strsm_64(Order, Side, Uplo, TransA, Diag, M, N, alpha, A, lda, B, ldb)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_dgemm_64(const CBLAS_ORDER Order, const CBLAS_TRANSPOSE TransA, const CBLAS_TRANSPOSE TransB, const nvpl_int64_t M, const nvpl_int64_t N, const nvpl_int64_t K, const double alpha, const double* A, const nvpl_int64_t lda, const double* B, const nvpl_int64_t ldb, const double beta, double* C, const nvpl_int64_t ldc) except* nogil:
+    _nvpl_blas._cblas_dgemm_64(Order, TransA, TransB, M, N, K, alpha, A, lda, B, ldb, beta, C, ldc)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_dsymm_64(const CBLAS_ORDER Order, const CBLAS_SIDE Side, const CBLAS_UPLO Uplo, const nvpl_int64_t M, const nvpl_int64_t N, const double alpha, const double* A, const nvpl_int64_t lda, const double* B, const nvpl_int64_t ldb, const double beta, double* C, const nvpl_int64_t ldc) except* nogil:
+    _nvpl_blas._cblas_dsymm_64(Order, Side, Uplo, M, N, alpha, A, lda, B, ldb, beta, C, ldc)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_dsyrk_64(const CBLAS_ORDER Order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE Trans, const nvpl_int64_t N, const nvpl_int64_t K, const double alpha, const double* A, const nvpl_int64_t lda, const double beta, double* C, const nvpl_int64_t ldc) except* nogil:
+    _nvpl_blas._cblas_dsyrk_64(Order, Uplo, Trans, N, K, alpha, A, lda, beta, C, ldc)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_dsyr2k_64(const CBLAS_ORDER Order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE Trans, const nvpl_int64_t N, const nvpl_int64_t K, const double alpha, const double* A, const nvpl_int64_t lda, const double* B, const nvpl_int64_t ldb, const double beta, double* C, const nvpl_int64_t ldc) except* nogil:
+    _nvpl_blas._cblas_dsyr2k_64(Order, Uplo, Trans, N, K, alpha, A, lda, B, ldb, beta, C, ldc)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_dtrmm_64(const CBLAS_ORDER Order, const CBLAS_SIDE Side, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_DIAG Diag, const nvpl_int64_t M, const nvpl_int64_t N, const double alpha, const double* A, const nvpl_int64_t lda, double* B, const nvpl_int64_t ldb) except* nogil:
+    _nvpl_blas._cblas_dtrmm_64(Order, Side, Uplo, TransA, Diag, M, N, alpha, A, lda, B, ldb)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_dtrsm_64(const CBLAS_ORDER Order, const CBLAS_SIDE Side, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_DIAG Diag, const nvpl_int64_t M, const nvpl_int64_t N, const double alpha, const double* A, const nvpl_int64_t lda, double* B, const nvpl_int64_t ldb) except* nogil:
+    _nvpl_blas._cblas_dtrsm_64(Order, Side, Uplo, TransA, Diag, M, N, alpha, A, lda, B, ldb)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_cgemm_64(const CBLAS_ORDER Order, const CBLAS_TRANSPOSE TransA, const CBLAS_TRANSPOSE TransB, const nvpl_int64_t M, const nvpl_int64_t N, const nvpl_int64_t K, const void* alpha, const void* A, const nvpl_int64_t lda, const void* B, const nvpl_int64_t ldb, const void* beta, void* C, const nvpl_int64_t ldc) except* nogil:
+    _nvpl_blas._cblas_cgemm_64(Order, TransA, TransB, M, N, K, alpha, A, lda, B, ldb, beta, C, ldc)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_csymm_64(const CBLAS_ORDER Order, const CBLAS_SIDE Side, const CBLAS_UPLO Uplo, const nvpl_int64_t M, const nvpl_int64_t N, const void* alpha, const void* A, const nvpl_int64_t lda, const void* B, const nvpl_int64_t ldb, const void* beta, void* C, const nvpl_int64_t ldc) except* nogil:
+    _nvpl_blas._cblas_csymm_64(Order, Side, Uplo, M, N, alpha, A, lda, B, ldb, beta, C, ldc)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_csyrk_64(const CBLAS_ORDER Order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE Trans, const nvpl_int64_t N, const nvpl_int64_t K, const void* alpha, const void* A, const nvpl_int64_t lda, const void* beta, void* C, const nvpl_int64_t ldc) except* nogil:
+    _nvpl_blas._cblas_csyrk_64(Order, Uplo, Trans, N, K, alpha, A, lda, beta, C, ldc)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_csyr2k_64(const CBLAS_ORDER Order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE Trans, const nvpl_int64_t N, const nvpl_int64_t K, const void* alpha, const void* A, const nvpl_int64_t lda, const void* B, const nvpl_int64_t ldb, const void* beta, void* C, const nvpl_int64_t ldc) except* nogil:
+    _nvpl_blas._cblas_csyr2k_64(Order, Uplo, Trans, N, K, alpha, A, lda, B, ldb, beta, C, ldc)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_ctrmm_64(const CBLAS_ORDER Order, const CBLAS_SIDE Side, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_DIAG Diag, const nvpl_int64_t M, const nvpl_int64_t N, const void* alpha, const void* A, const nvpl_int64_t lda, void* B, const nvpl_int64_t ldb) except* nogil:
+    _nvpl_blas._cblas_ctrmm_64(Order, Side, Uplo, TransA, Diag, M, N, alpha, A, lda, B, ldb)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_ctrsm_64(const CBLAS_ORDER Order, const CBLAS_SIDE Side, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_DIAG Diag, const nvpl_int64_t M, const nvpl_int64_t N, const void* alpha, const void* A, const nvpl_int64_t lda, void* B, const nvpl_int64_t ldb) except* nogil:
+    _nvpl_blas._cblas_ctrsm_64(Order, Side, Uplo, TransA, Diag, M, N, alpha, A, lda, B, ldb)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_zgemm_64(const CBLAS_ORDER Order, const CBLAS_TRANSPOSE TransA, const CBLAS_TRANSPOSE TransB, const nvpl_int64_t M, const nvpl_int64_t N, const nvpl_int64_t K, const void* alpha, const void* A, const nvpl_int64_t lda, const void* B, const nvpl_int64_t ldb, const void* beta, void* C, const nvpl_int64_t ldc) except* nogil:
+    _nvpl_blas._cblas_zgemm_64(Order, TransA, TransB, M, N, K, alpha, A, lda, B, ldb, beta, C, ldc)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_zsymm_64(const CBLAS_ORDER Order, const CBLAS_SIDE Side, const CBLAS_UPLO Uplo, const nvpl_int64_t M, const nvpl_int64_t N, const void* alpha, const void* A, const nvpl_int64_t lda, const void* B, const nvpl_int64_t ldb, const void* beta, void* C, const nvpl_int64_t ldc) except* nogil:
+    _nvpl_blas._cblas_zsymm_64(Order, Side, Uplo, M, N, alpha, A, lda, B, ldb, beta, C, ldc)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_zsyrk_64(const CBLAS_ORDER Order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE Trans, const nvpl_int64_t N, const nvpl_int64_t K, const void* alpha, const void* A, const nvpl_int64_t lda, const void* beta, void* C, const nvpl_int64_t ldc) except* nogil:
+    _nvpl_blas._cblas_zsyrk_64(Order, Uplo, Trans, N, K, alpha, A, lda, beta, C, ldc)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_zsyr2k_64(const CBLAS_ORDER Order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE Trans, const nvpl_int64_t N, const nvpl_int64_t K, const void* alpha, const void* A, const nvpl_int64_t lda, const void* B, const nvpl_int64_t ldb, const void* beta, void* C, const nvpl_int64_t ldc) except* nogil:
+    _nvpl_blas._cblas_zsyr2k_64(Order, Uplo, Trans, N, K, alpha, A, lda, B, ldb, beta, C, ldc)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_ztrmm_64(const CBLAS_ORDER Order, const CBLAS_SIDE Side, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_DIAG Diag, const nvpl_int64_t M, const nvpl_int64_t N, const void* alpha, const void* A, const nvpl_int64_t lda, void* B, const nvpl_int64_t ldb) except* nogil:
+    _nvpl_blas._cblas_ztrmm_64(Order, Side, Uplo, TransA, Diag, M, N, alpha, A, lda, B, ldb)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_ztrsm_64(const CBLAS_ORDER Order, const CBLAS_SIDE Side, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_DIAG Diag, const nvpl_int64_t M, const nvpl_int64_t N, const void* alpha, const void* A, const nvpl_int64_t lda, void* B, const nvpl_int64_t ldb) except* nogil:
+    _nvpl_blas._cblas_ztrsm_64(Order, Side, Uplo, TransA, Diag, M, N, alpha, A, lda, B, ldb)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_chemm_64(const CBLAS_ORDER Order, const CBLAS_SIDE Side, const CBLAS_UPLO Uplo, const nvpl_int64_t M, const nvpl_int64_t N, const void* alpha, const void* A, const nvpl_int64_t lda, const void* B, const nvpl_int64_t ldb, const void* beta, void* C, const nvpl_int64_t ldc) except* nogil:
+    _nvpl_blas._cblas_chemm_64(Order, Side, Uplo, M, N, alpha, A, lda, B, ldb, beta, C, ldc)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_cherk_64(const CBLAS_ORDER Order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE Trans, const nvpl_int64_t N, const nvpl_int64_t K, const float alpha, const void* A, const nvpl_int64_t lda, const float beta, void* C, const nvpl_int64_t ldc) except* nogil:
+    _nvpl_blas._cblas_cherk_64(Order, Uplo, Trans, N, K, alpha, A, lda, beta, C, ldc)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_cher2k_64(const CBLAS_ORDER Order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE Trans, const nvpl_int64_t N, const nvpl_int64_t K, const void* alpha, const void* A, const nvpl_int64_t lda, const void* B, const nvpl_int64_t ldb, const float beta, void* C, const nvpl_int64_t ldc) except* nogil:
+    _nvpl_blas._cblas_cher2k_64(Order, Uplo, Trans, N, K, alpha, A, lda, B, ldb, beta, C, ldc)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_zhemm_64(const CBLAS_ORDER Order, const CBLAS_SIDE Side, const CBLAS_UPLO Uplo, const nvpl_int64_t M, const nvpl_int64_t N, const void* alpha, const void* A, const nvpl_int64_t lda, const void* B, const nvpl_int64_t ldb, const void* beta, void* C, const nvpl_int64_t ldc) except* nogil:
+    _nvpl_blas._cblas_zhemm_64(Order, Side, Uplo, M, N, alpha, A, lda, B, ldb, beta, C, ldc)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_zherk_64(const CBLAS_ORDER Order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE Trans, const nvpl_int64_t N, const nvpl_int64_t K, const double alpha, const void* A, const nvpl_int64_t lda, const double beta, void* C, const nvpl_int64_t ldc) except* nogil:
+    _nvpl_blas._cblas_zherk_64(Order, Uplo, Trans, N, K, alpha, A, lda, beta, C, ldc)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_zher2k_64(const CBLAS_ORDER Order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE Trans, const nvpl_int64_t N, const nvpl_int64_t K, const void* alpha, const void* A, const nvpl_int64_t lda, const void* B, const nvpl_int64_t ldb, const double beta, void* C, const nvpl_int64_t ldc) except* nogil:
+    _nvpl_blas._cblas_zher2k_64(Order, Uplo, Trans, N, K, alpha, A, lda, B, ldb, beta, C, ldc)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_sgemmt_64(const CBLAS_ORDER Order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_TRANSPOSE TransB, const nvpl_int64_t N, const nvpl_int64_t K, const float alpha, const float* A, const nvpl_int64_t lda, const float* B, const nvpl_int64_t ldb, const float beta, float* C, const nvpl_int64_t ldc) except* nogil:
+    _nvpl_blas._cblas_sgemmt_64(Order, Uplo, TransA, TransB, N, K, alpha, A, lda, B, ldb, beta, C, ldc)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_dgemmt_64(const CBLAS_ORDER Order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_TRANSPOSE TransB, const nvpl_int64_t N, const nvpl_int64_t K, const double alpha, const double* A, const nvpl_int64_t lda, const double* B, const nvpl_int64_t ldb, const double beta, double* C, const nvpl_int64_t ldc) except* nogil:
+    _nvpl_blas._cblas_dgemmt_64(Order, Uplo, TransA, TransB, N, K, alpha, A, lda, B, ldb, beta, C, ldc)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_cgemmt_64(const CBLAS_ORDER Order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_TRANSPOSE TransB, const nvpl_int64_t N, const nvpl_int64_t K, const void* alpha, const void* A, const nvpl_int64_t lda, const void* B, const nvpl_int64_t ldb, const void* beta, void* C, const nvpl_int64_t ldc) except* nogil:
+    _nvpl_blas._cblas_cgemmt_64(Order, Uplo, TransA, TransB, N, K, alpha, A, lda, B, ldb, beta, C, ldc)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_zgemmt_64(const CBLAS_ORDER Order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_TRANSPOSE TransB, const nvpl_int64_t N, const nvpl_int64_t K, const void* alpha, const void* A, const nvpl_int64_t lda, const void* B, const nvpl_int64_t ldb, const void* beta, void* C, const nvpl_int64_t ldc) except* nogil:
+    _nvpl_blas._cblas_zgemmt_64(Order, Uplo, TransA, TransB, N, K, alpha, A, lda, B, ldb, beta, C, ldc)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_sgemm_batch_64(CBLAS_ORDER Order, CBLAS_TRANSPOSE* TransA_array, CBLAS_TRANSPOSE* TransB_array, nvpl_int64_t* M_array, nvpl_int64_t* N_array, nvpl_int64_t* K_array, const float* alpha_array, const float** A_array, nvpl_int64_t* lda_array, const float** B_array, nvpl_int64_t* ldb_array, const float* beta_array, float** C_array, nvpl_int64_t* ldc_array, nvpl_int64_t group_count, nvpl_int64_t* group_size) except* nogil:
+    _nvpl_blas._cblas_sgemm_batch_64(Order, TransA_array, TransB_array, M_array, N_array, K_array, alpha_array, A_array, lda_array, B_array, ldb_array, beta_array, C_array, ldc_array, group_count, group_size)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_dgemm_batch_64(CBLAS_ORDER Order, CBLAS_TRANSPOSE* TransA_array, CBLAS_TRANSPOSE* TransB_array, nvpl_int64_t* M_array, nvpl_int64_t* N_array, nvpl_int64_t* K_array, const double* alpha_array, const double** A_array, nvpl_int64_t* lda_array, const double** B_array, nvpl_int64_t* ldb_array, const double* beta_array, double** C_array, nvpl_int64_t* ldc_array, nvpl_int64_t group_count, nvpl_int64_t* group_size) except* nogil:
+    _nvpl_blas._cblas_dgemm_batch_64(Order, TransA_array, TransB_array, M_array, N_array, K_array, alpha_array, A_array, lda_array, B_array, ldb_array, beta_array, C_array, ldc_array, group_count, group_size)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_cgemm_batch_64(CBLAS_ORDER Order, CBLAS_TRANSPOSE* TransA_array, CBLAS_TRANSPOSE* TransB_array, nvpl_int64_t* M_array, nvpl_int64_t* N_array, nvpl_int64_t* K_array, const void* alpha_array, const void** A_array, nvpl_int64_t* lda_array, const void** B_array, nvpl_int64_t* ldb_array, const void* beta_array, void** C_array, nvpl_int64_t* ldc_array, nvpl_int64_t group_count, nvpl_int64_t* group_size) except* nogil:
+    _nvpl_blas._cblas_cgemm_batch_64(Order, TransA_array, TransB_array, M_array, N_array, K_array, alpha_array, A_array, lda_array, B_array, ldb_array, beta_array, C_array, ldc_array, group_count, group_size)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_zgemm_batch_64(CBLAS_ORDER Order, CBLAS_TRANSPOSE* TransA_array, CBLAS_TRANSPOSE* TransB_array, nvpl_int64_t* M_array, nvpl_int64_t* N_array, nvpl_int64_t* K_array, const void* alpha_array, const void** A_array, nvpl_int64_t* lda_array, const void** B_array, nvpl_int64_t* ldb_array, const void* beta_array, void** C_array, nvpl_int64_t* ldc_array, nvpl_int64_t group_count, nvpl_int64_t* group_size) except* nogil:
+    _nvpl_blas._cblas_zgemm_batch_64(Order, TransA_array, TransB_array, M_array, N_array, K_array, alpha_array, A_array, lda_array, B_array, ldb_array, beta_array, C_array, ldc_array, group_count, group_size)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_sgemm_batch_strided_64(const CBLAS_ORDER Order, const CBLAS_TRANSPOSE TransA, const CBLAS_TRANSPOSE TransB, const nvpl_int64_t M, const nvpl_int64_t N, const nvpl_int64_t K, const float alpha, const float* A, const nvpl_int64_t lda, const nvpl_int64_t stridea, const float* B, const nvpl_int64_t ldb, const nvpl_int64_t strideb, const float beta, float* C, const nvpl_int64_t ldc, const nvpl_int64_t stridec, const nvpl_int64_t batch_size) except* nogil:
+    _nvpl_blas._cblas_sgemm_batch_strided_64(Order, TransA, TransB, M, N, K, alpha, A, lda, stridea, B, ldb, strideb, beta, C, ldc, stridec, batch_size)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_dgemm_batch_strided_64(const CBLAS_ORDER Order, const CBLAS_TRANSPOSE TransA, const CBLAS_TRANSPOSE TransB, const nvpl_int64_t M, const nvpl_int64_t N, const nvpl_int64_t K, const double alpha, const double* A, const nvpl_int64_t lda, const nvpl_int64_t stridea, const double* B, const nvpl_int64_t ldb, const nvpl_int64_t strideb, const double beta, double* C, const nvpl_int64_t ldc, const nvpl_int64_t stridec, const nvpl_int64_t batch_size) except* nogil:
+    _nvpl_blas._cblas_dgemm_batch_strided_64(Order, TransA, TransB, M, N, K, alpha, A, lda, stridea, B, ldb, strideb, beta, C, ldc, stridec, batch_size)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_cgemm_batch_strided_64(const CBLAS_ORDER Order, const CBLAS_TRANSPOSE TransA, const CBLAS_TRANSPOSE TransB, const nvpl_int64_t M, const nvpl_int64_t N, const nvpl_int64_t K, const void* alpha, const void* A, const nvpl_int64_t lda, const nvpl_int64_t stridea, const void* B, const nvpl_int64_t ldb, const nvpl_int64_t strideb, const void* beta, void* C, const nvpl_int64_t ldc, const nvpl_int64_t stridec, const nvpl_int64_t batch_size) except* nogil:
+    _nvpl_blas._cblas_cgemm_batch_strided_64(Order, TransA, TransB, M, N, K, alpha, A, lda, stridea, B, ldb, strideb, beta, C, ldc, stridec, batch_size)
+
+
+@cython.show_performance_hints(False)
+cdef void cblas_zgemm_batch_strided_64(const CBLAS_ORDER Order, const CBLAS_TRANSPOSE TransA, const CBLAS_TRANSPOSE TransB, const nvpl_int64_t M, const nvpl_int64_t N, const nvpl_int64_t K, const void* alpha, const void* A, const nvpl_int64_t lda, const nvpl_int64_t stridea, const void* B, const nvpl_int64_t ldb, const nvpl_int64_t strideb, const void* beta, void* C, const nvpl_int64_t ldc, const nvpl_int64_t stridec, const nvpl_int64_t batch_size) except* nogil:
+    _nvpl_blas._cblas_zgemm_batch_strided_64(Order, TransA, TransB, M, N, K, alpha, A, lda, stridea, B, ldb, strideb, beta, C, ldc, stridec, batch_size)

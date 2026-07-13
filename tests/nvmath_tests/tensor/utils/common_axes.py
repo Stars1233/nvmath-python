@@ -14,10 +14,7 @@ try:
 except ImportError:
     torch = None
 
-try:
-    from cuda.core import Device
-except ImportError:
-    from cuda.core.experimental import Device
+from cuda.core import Device
 
 from nvmath.tensor import (
     ComputeDesc,
@@ -118,3 +115,9 @@ class AlgoOption(Enum):
 class KernelRankOption(Enum):
     zero = 0
     one = 1
+
+
+class GpuArchOption(Enum):
+    ampere = 80
+    hopper = 90
+    blackwell = 100

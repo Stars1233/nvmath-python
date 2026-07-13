@@ -50,11 +50,11 @@ with torch.cuda.device(device_id):
     b = (torch.rand(*row_wise_distribution.shape(rank, (n, k)), device="cuda") * 30).type(torch.float8_e4m3fn)
 
 # Get a transposed view to obtain column-major memory layout. Note that this
-# also changes the distribution of a and b (see example01 for more information).
-a = a.T  # a is now (k, m) with col_wise_distribution
-b = b.T  # b is now (k, n) with col_wise_distribution
+# also changes the distribution of 'a' and 'b' (see example01 for more information).
+a = a.T  # 'a' is now (k, m) with col_wise_distribution
+b = b.T  # 'b' is now (k, n) with col_wise_distribution
 
-# Distributions for A, B, and result matrix D
+# Distributions for 'a', 'b', and result matrix 'd'
 distributions = [col_wise_distribution, col_wise_distribution, row_wise_distribution]
 
 # To request amax, set `result_amax` option to True.
@@ -96,7 +96,7 @@ d_scale = max_representable_value / amax
 if rank == 0:
     print(f"d_scale = max_representable_value / amax = {max_representable_value} / {amax:.5f} = {d_scale:.5f}")
 
-# Repeat the computation, this time using the proper scale for D.
+# Repeat the computation, this time using the proper scale for 'd'.
 result2 = nvmath.distributed.linalg.advanced.matmul(
     a,
     b,
@@ -105,6 +105,6 @@ result2 = nvmath.distributed.linalg.advanced.matmul(
     quantization_scales={"a": 1, "b": 1, "d": d_scale},
 )
 if rank == 0:
-    print(f"Result (with D scale set to {d_scale:.5f}) is:")
+    print(f"Result (with 'd' scale set to {d_scale:.5f}) is:")
     # Printing the tensor synchronizes on the default CUDA stream.
     print(result2)

@@ -14,6 +14,13 @@ Detailed documentation of cuBLASDx can be found in the
 
 .. note::
 
+   The matmul device APIs support both the ``numba-cuda`` and the ``numba-cuda-mlir``
+   compilers. Currently, some advanced APIs such as opaque tensors,
+   accumulators, and pipelines are not supported with ``numba-cuda-mlir``.
+   See :ref:`device-api-supported-compilers` for details.
+
+.. note::
+
    The :class:`~nvmath.device.Matmul` device API in module
    :mod:`nvmath.device` currently supports cuBLASDx |cublasdx_version|, also available
    as part of MathDx |mathdx_version|.
@@ -181,8 +188,8 @@ API Reference
    :toctree: generated/
 
    Matmul
-   matmul
    make_tensor
+   make_fragment_like
    axpby
    copy
    copy_fragment

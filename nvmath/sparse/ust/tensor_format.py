@@ -52,6 +52,7 @@ class LevelFormat(IntEnum):
     SINGLETON = 3
     RANGE = 4
     DELTA = 5
+    STRUCTURED = 6
 
     def __repr__(self):
         """Returns representation without index."""
@@ -522,7 +523,7 @@ class TensorFormat:
         Examples:
           CSR:           [0,4] -> [0,4]
           CSC:           [0,4] -> [4,0]
-          BSRRight(2,2): [1,2] -> [0,1,0]
+          BSRRight(2,2): [2,1] -> [1,0,0,1]
         """
         return [ls.evaluate(self.dimensions, dim_indices, as_size) for ls in self.levels]
 
@@ -533,9 +534,9 @@ class TensorFormat:
         passed validation.
 
         Examples:
-          CSR:           [0,4]   -> [0,4]
-          CSC:           [4,0]   -> [0,4]
-          BSRRight(2,2): [0,1,0] -> [1,2]
+          CSR:           [0,4]     -> [0,4]
+          CSC:           [4,0]     -> [0,4]
+          BSRRight(2,2): [1,0,0,1] -> [2,1]
         """
         dim_indices = [0] * self.num_dimensions  # pre-populate
         for idx, ls in enumerate(self.levels):
@@ -761,11 +762,32 @@ class NamedFormats:
         Args:
             delta: number of bits for delta
         """
+        if delta <= 0:
+            raise ValueError(f"Invalid DELTA parameter: delta={delta}. Require 0 < delta.")
         i, j = NamedFormats.i, NamedFormats.j
         name = f"Delta{delta}"
         return TensorFormat(
             [i, j],
             {i: LevelFormat.DENSE, j: (LevelFormat.DELTA, delta)},
+            name=name,
+        )
+
+    @staticmethod
+    def Structured(N, M):
+        """
+        N:M Matrices (structured sparsity), e.g. 2:4
+
+        Args:
+            N: number of nonzeros per strip
+            M: number of elements in a strip
+        """
+        if not (0 < N <= M):
+            raise ValueError(f"Invalid N:M parameters: N={N}, M={M}. Require 0 < N <= M.")
+        i, j = NamedFormats.i, NamedFormats.j
+        name = f"Structured{N}:{M}"
+        return TensorFormat(
+            [i, j],
+            {i: LevelFormat.DENSE, j // M: LevelFormat.DENSE, j % M: (LevelFormat.STRUCTURED, N)},
             name=name,
         )
 

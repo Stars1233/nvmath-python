@@ -59,7 +59,7 @@ with nvmath.distributed.fft.FFT(a, distribution=Slab.X, options={"blocking": "au
     # Execute the inverse FFT on stream s1.
     # Since cuFFTMp issued a symmetric memory synchronization on stream s1 after
     # the execution of the previous transform, we can avoid the synchronization here.
-    c = f.execute(direction="forward", stream=s1, sync_symmetric_memory=False)
+    c = f.execute(direction="inverse", stream=s1, sync_symmetric_memory=False)
 
     with cp.cuda.Device(device_id):
         # Record an event on s1 for use later.

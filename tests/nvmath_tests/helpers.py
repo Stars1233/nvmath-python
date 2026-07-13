@@ -2,6 +2,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 import contextlib
+import functools
 import gc
 import os
 import weakref
@@ -45,11 +46,10 @@ import math
 import hypothesis
 import numpy as np
 import pytest
+from cuda.core import Device, Stream
 
-try:
-    from cuda.core import Device, Stream
-except ImportError:
-    from cuda.core.experimental import Device, Stream
+requires_cupy = pytest.mark.skipif(cupy is None, reason="cupy is required for this test")
+requires_torch = pytest.mark.skipif(torch is None, reason="torch is required for this test")
 
 
 def nvmath_seed():
@@ -189,7 +189,7 @@ def time_cupy(fun, ncycles, *args):
 
     args = [(cupy.array(arg) if isinstance(arg, np.ndarray | np.generic) else arg) for arg in args]
     start, stop = cupy.cuda.Event(), cupy.cuda.Event()
-    out = fun(*args)
+    out = fun(*args)  # noqa: F841
 
     start.record(None)
     for _ in range(ncycles):
@@ -676,3 +676,92 @@ def check_freed_after(obj, msg=""):
     del obj
     yield
     assert ref() is None, msg or "Object was not destroyed; extra references likely exist"
+
+
+def _is_sequence_argument(obj):
+    return isinstance(obj, (list, tuple))
+
+
+def sequence_aware(reducer=None):
+    """
+    Decorate a helper so it transparently handles scalar operands and explicit
+    list / tuple batches.
+
+    When the first argument is not a list or tuple, the wrapped function is called
+    normally. When the first argument is a list or tuple, the wrapped function is
+    applied element-wise. Any other list / tuple positional arguments are indexed
+    in lockstep with the first argument, while non-list / tuple arguments are
+    passed through unchanged. If ``reducer`` is provided, it is called on the list
+    of per-item results.
+
+    Examples:
+        Copy either one operand or each operand in an explicit batch::
+
+            @sequence_aware()
+            def copy_operand(operand):
+                return operand.copy()
+
+        Check pairwise predicates across two explicit batches and reduce to one bool::
+
+            @sequence_aware(all)
+            def operand_was_overwritten(operand, reference):
+                return not arrays_equal(operand, reference)
+    """
+
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(first_arg, *args, **kwargs):
+            if not _is_sequence_argument(first_arg):
+                return func(first_arg, *args, **kwargs)
+
+            results = []
+            for i, item in enumerate(first_arg):
+                item_args = []
+                for arg in args:
+                    if _is_sequence_argument(arg):
+                        assert len(arg) == len(first_arg), "Sequence arguments must have matching lengths."
+                        item_args.append(arg[i])
+                    else:
+                        item_args.append(arg)
+                results.append(wrapper(item, *item_args, **kwargs))
+
+            return reducer(results) if reducer is not None else results
+
+        return wrapper
+
+    return decorator
+
+
+def assert_reset_to_none_behavior(*, with_release, single_operand, obj, **reset_kwargs):
+    """Shared skeleton for the ``reset_operand(s)`` all-``None`` behavior tests.
+
+    Calling ``reset_operand(s)`` with every operand set to ``None`` always raises
+    ``ValueError`` since there would be nothing to update. The exact case checked is:
+
+    - Single-operand APIs: ``reset_operand(None)`` is always rejected.
+    - Multi-operand APIs, not released: rejected because at least one operand must be
+      provided.
+    - Multi-operand APIs, after ``release_operands()``: rejected with the stricter
+      message that all required operands must be provided to restore a valid state.
+
+    Args:
+        with_release: Whether to release the operands before the reset.
+        single_operand: ``True`` for single-operand APIs, ``False`` for
+            multi-operand APIs.
+        obj: The stateful object under test (e.g. the FFT/Matmul/solver instance).
+        **reset_kwargs: Extra keyword arguments forwarded to ``reset_operand(s)``.
+    """
+    if single_operand:
+        release = obj.release_operand
+        reset_to_none = lambda: obj.reset_operand(None, **reset_kwargs)  # noqa: E731
+        # A single-operand reset rejects ``None`` regardless of the release state.
+        error_match = "requires a valid operand"
+    else:
+        release = obj.release_operands
+        reset_to_none = lambda: obj.reset_operands(**reset_kwargs)  # noqa: E731
+        error_match = "After release_operands" if with_release else "at least one operand"
+
+    if with_release:
+        release()
+    with pytest.raises(ValueError, match=error_match):
+        reset_to_none()

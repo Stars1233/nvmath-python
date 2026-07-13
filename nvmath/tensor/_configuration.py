@@ -14,8 +14,9 @@ __all__ = [
 
 from dataclasses import dataclass
 from logging import Logger
-from typing import ClassVar, Literal
+from typing import Literal
 
+from nvmath._internal import templates
 from nvmath.bindings import cutensor
 from nvmath.memory import BaseCUDAMemoryManager
 
@@ -58,6 +59,28 @@ class ContractionOptions:
             It can be specified as a value (with optional suffix like K[iB], M[iB],
             G[iB]) or as a percentage. The default is 80% of the device memory.
 
+        result_layout: The layout policy to use for the result: ``"auto"`` (default),
+            ``"C"`` (row-major), ``"F"`` (column-major), or ``"optimized"``.
+            With ``"auto"``, cuTENSOR execution requirements take precedence. When
+            those requirements permit, an optimized layout is chosen for this
+            contraction; otherwise, a compatible fallback layout is used. With
+            ``"optimized"``, strides are chosen directly from the contraction
+            expression and operand shapes to improve performance for this operation.
+            The chosen layout is local to this contraction and may not be optimal for
+            later operations that consume the result. This option is ignored if the
+            output operand is explicitly provided.
+
+    .. note::
+
+        - optimized ``result_layout`` currently only supports binary contraction via
+          :func:`binary_contraction` and :class:`BinaryContraction` when the addend
+          ``c`` is not specified.
+        - For both binary and ternary contractions, cuTENSOR may require the addend
+          and output operands to have the same strides. When an addend operand is
+          provided, explicitly specifying ``result_layout`` to ``"C"`` or ``"F"`` may
+          therefore fail at runtime if that layout is incompatible with the addend.
+          This constraint depends on the cuTENSOR library version.
+
     .. seealso::
         For supported compute types by data type, refer to the cuTENSOR documentation:
 
@@ -72,14 +95,17 @@ class ContractionOptions:
     handle: int | None = None
     allocator: BaseCUDAMemoryManager | None = None
     memory_limit: int | str | None = r"80%"
+    result_layout: Literal["auto", "C", "F", "optimized"] = "auto"
 
     def __post_init__(self):
         if self.blocking not in (True, "auto"):
             raise ValueError("The value specified for 'blocking' must be either True or 'auto'.")
+        if self.result_layout not in ("auto", "C", "F", "optimized"):
+            raise ValueError("The value specified for 'result_layout' must be either 'auto', 'C', 'F', or 'optimized'.")
 
 
-@dataclass
-class ExecutionCUDA:
+@dataclass(frozen=True, slots=True, kw_only=True)
+class ExecutionCUDA(templates.ExecutionCUDA):
     """
     A data class for providing GPU execution options to the :class:`BinaryContraction` and
     :class:`TernaryContraction` objects, or the wrapper functions
@@ -91,5 +117,4 @@ class ExecutionCUDA:
 
     """
 
-    name: ClassVar[Literal["cuda"]] = "cuda"
-    device_id: int = 0
+    pass

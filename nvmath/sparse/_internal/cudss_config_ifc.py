@@ -72,7 +72,6 @@ class PlanConfig:
         "_pivot_type",
         "_pivot_threshold",
         "_max_lu_nnz",
-        "_use_matching",
         "_matching_alg",
         "_nd_nlevels",
         "_use_superpanels",
@@ -93,7 +92,6 @@ class PlanConfig:
         self._pivot_type = np.zeros((1,), dtype=get_dtype(ConfigParamEnum.PIVOT_TYPE))
         self._pivot_threshold = np.zeros((1,), dtype=get_dtype(ConfigParamEnum.PIVOT_THRESHOLD))
         self._max_lu_nnz = np.zeros((1,), dtype=get_dtype(ConfigParamEnum.MAX_LU_NNZ))
-        self._use_matching = np.zeros((1,), dtype=get_dtype(ConfigParamEnum.USE_MATCHING))
         self._matching_alg = np.zeros((1,), dtype=get_dtype(ConfigParamEnum.MATCHING_ALG))
         self._nd_nlevels = np.zeros((1,), dtype=get_dtype(ConfigParamEnum.ND_NLEVELS))
         self._use_superpanels = np.zeros((1,), dtype=get_dtype(ConfigParamEnum.USE_SUPERPANELS))
@@ -139,29 +137,29 @@ specification."
     def reordering_algorithm(self):
         """
         Query or set the reordering algorithm used. See
-        :class:`nvmath.bindings.cudss.AlgType` and the `cuDSS documentation
+        :class:`nvmath.bindings.cudss.ReorderingAlg` and the `cuDSS documentation
         <https://docs.nvidia.com/cuda/cudss/types.html#cudssconfigparam-t>`_ for more
         information.
         """
         _get_scalar_attribute(self._config_ptr, ConfigParamEnum.REORDERING_ALG, self._reordering_alg)
 
-        return cudss.AlgType(self._reordering_alg.item())
+        return cudss.ReorderingAlg(self._reordering_alg.item())
 
     @reordering_algorithm.setter
     @utils.precondition(_check_valid_solver_wrapper)
     def reordering_algorithm(self, algorithm):
         """
-        Set the reordering algorithm to use. See :class:`nvmath.bindings.cudss.AlgType` and
-        the `cuDSS documentation
+        Set the reordering algorithm to use. See
+        :class:`nvmath.bindings.cudss.ReorderingAlg` and the `cuDSS documentation
         <https://docs.nvidia.com/cuda/cudss/types.html#cudssconfigparam-t>`_ for more
         information.
 
         Args:
             algorithm: The reordering algorithm of type
-            :class:`nvmath.bindings.cudss.AlgType` or Python `int`.
+            :class:`nvmath.bindings.cudss.ReorderingAlg` or Python `int`.
 
         """
-        algorithm = cudss.AlgType(algorithm)
+        algorithm = cudss.ReorderingAlg(algorithm)
         _set_scalar_attribute(self._config_ptr, ConfigParamEnum.REORDERING_ALG, self._reordering_alg, algorithm)
 
     @property
@@ -169,29 +167,29 @@ specification."
     def matching_algorithm(self):
         """
         Query or set the matching algorithm used. See
-        :class:`nvmath.bindings.cudss.AlgType` and the `cuDSS documentation
+        :class:`nvmath.bindings.cudss.MatchingAlg` and the `cuDSS documentation
         <https://docs.nvidia.com/cuda/cudss/types.html#cudssconfigparam-t>`_ for more
         information.
         """
         _get_scalar_attribute(self._config_ptr, ConfigParamEnum.MATCHING_ALG, self._matching_alg)
 
-        return cudss.AlgType(self._matching_alg.item())
+        return cudss.MatchingAlg(self._matching_alg.item())
 
     @matching_algorithm.setter
     @utils.precondition(_check_valid_solver_wrapper)
     def matching_algorithm(self, algorithm):
         """
-        Set the matching algorithm to use. See :class:`nvmath.bindings.cudss.AlgType` and
-        the `cuDSS documentation
+        Set the matching algorithm to use. See
+        :class:`nvmath.bindings.cudss.MatchingAlg` and the `cuDSS documentation
         <https://docs.nvidia.com/cuda/cudss/types.html#cudssconfigparam-t>`_ for more
         information.
 
         Args:
             algorithm: The matching algorithm of type
-            :class:`nvmath.bindings.cudss.AlgType` or Python `int`.
+            :class:`nvmath.bindings.cudss.MatchingAlg` or Python `int`.
 
         """
-        algorithm = cudss.AlgType(algorithm)
+        algorithm = cudss.MatchingAlg(algorithm)
         _set_scalar_attribute(self._config_ptr, ConfigParamEnum.MATCHING_ALG, self._matching_alg, algorithm)
 
     @property
@@ -280,43 +278,6 @@ specification."
 
         """
         _set_scalar_attribute(self._config_ptr, ConfigParamEnum.MAX_LU_NNZ, self._max_lu_nnz, max_nnz)
-
-    @property
-    @utils.precondition(_check_valid_solver_wrapper)
-    def use_matching(self):
-        """
-        Query or set the option to enable or disable matching. See the
-        `cuDSS documentation
-        <https://docs.nvidia.com/cuda/cudss/types.html#cudssconfigparam-t>`_
-        for more information.
-
-        .. note::
-            Matching is recommended for general sparse matrices as it typically
-            reduces pivot perturbations and improves solution accuracy with
-            minimal performance impact.
-            For symmetric positive definite (SPD) matrices, matching is unnecessary.
-            For symmetric indefinite matrices, the benefits of matching is unknown.
-
-        """
-        _get_scalar_attribute(self._config_ptr, ConfigParamEnum.USE_MATCHING, self._use_matching)
-
-        return self._use_matching.item()
-
-    @use_matching.setter
-    @utils.precondition(_check_valid_solver_wrapper)
-    def use_matching(self, matching_flag):
-        """
-        Set the option to enable or disable matching. See the
-        `cuDSS documentation
-        <https://docs.nvidia.com/cuda/cudss/types.html#cudssconfigparam-t>`_
-        for more information.
-
-        Args:
-            matching_flag: The flag to enable or disable matching (Python `int`
-                or `bool`, 0 to disable).
-
-        """
-        _set_scalar_attribute(self._config_ptr, ConfigParamEnum.USE_MATCHING, self._use_matching, matching_flag)
 
     @property
     @utils.precondition(_check_valid_solver_wrapper)
@@ -413,29 +374,29 @@ class FactorizationConfig:
     def factorization_algorithm(self):
         """
         Query or set the factorization algorithm used. See
-        :class:`nvmath.bindings.cudss.AlgType` and the `cuDSS documentation
+        :class:`nvmath.bindings.cudss.FactorizationAlg` and the `cuDSS documentation
         <https://docs.nvidia.com/cuda/cudss/types.html#cudssconfigparam-t>`_ for more
         information.
         """
         _get_scalar_attribute(self._config_ptr, ConfigParamEnum.FACTORIZATION_ALG, self._factorization_alg)
 
-        return cudss.AlgType(self._factorization_alg.item())
+        return cudss.FactorizationAlg(self._factorization_alg.item())
 
     @factorization_algorithm.setter
     @utils.precondition(_check_valid_solver_wrapper)
     def factorization_algorithm(self, algorithm):
         """
-        Set the factorization algorithm to use. See :class:`nvmath.bindings.cudss.AlgType`
-        and the `cuDSS documentation
+        Set the factorization algorithm to use. See
+        :class:`nvmath.bindings.cudss.FactorizationAlg` and the `cuDSS documentation
         <https://docs.nvidia.com/cuda/cudss/types.html#cudssconfigparam-t>`_ for more
         information.
 
         Args:
             algorithm: The factorization algorithm of type
-            :class:`nvmath.bindings.cudss.AlgType` or Python `int`.
+            :class:`nvmath.bindings.cudss.FactorizationAlg` or Python `int`.
 
         """
-        algorithm = cudss.AlgType(algorithm)
+        algorithm = cudss.FactorizationAlg(algorithm)
         _set_scalar_attribute(self._config_ptr, ConfigParamEnum.FACTORIZATION_ALG, self._factorization_alg, algorithm)
 
     @property
@@ -443,29 +404,29 @@ class FactorizationConfig:
     def pivot_eps_algorithm(self):
         """
         Query or set the algorithm used for pivot epsilon calculation. See
-        :class:`nvmath.bindings.cudss.AlgType` and the `cuDSS documentation
+        :class:`nvmath.bindings.cudss.PivotEpsilonAlg` and the `cuDSS documentation
         <https://docs.nvidia.com/cuda/cudss/types.html#cudssconfigparam-t>`_ for more
         information.
         """
         _get_scalar_attribute(self._config_ptr, ConfigParamEnum.PIVOT_EPSILON_ALG, self._pivot_epsilon_alg)
 
-        return cudss.AlgType(self._pivot_epsilon_alg.item())
+        return cudss.PivotEpsilonAlg(self._pivot_epsilon_alg.item())
 
     @pivot_eps_algorithm.setter
     @utils.precondition(_check_valid_solver_wrapper)
     def pivot_eps_algorithm(self, algorithm):
         """
         Set the algorithm to use for pivot epsilon calculation. See
-        :class:`nvmath.bindings.cudss.AlgType` and the `cuDSS documentation
+        :class:`nvmath.bindings.cudss.PivotEpsilonAlg` and the `cuDSS documentation
         <https://docs.nvidia.com/cuda/cudss/types.html#cudssconfigparam-t>`_ for more
         information.
 
         Args:
             algorithm: The pivot epsilon algorithm of type
-            :class:`nvmath.bindings.cudss.AlgType` or Python `int`.
+            :class:`nvmath.bindings.cudss.PivotEpsilonAlg` or Python `int`.
 
         """
-        algorithm = cudss.AlgType(algorithm)
+        algorithm = cudss.PivotEpsilonAlg(algorithm)
         _set_scalar_attribute(self._config_ptr, ConfigParamEnum.PIVOT_EPSILON_ALG, self._pivot_epsilon_alg, algorithm)
 
     @property
@@ -531,29 +492,29 @@ class SolutionConfig:
     def solution_algorithm(self):
         """
         Query or set the solution algorithm used. See
-        :class:`nvmath.bindings.cudss.AlgType` and the `cuDSS documentation
+        :class:`nvmath.bindings.cudss.SolveAlg` and the `cuDSS documentation
         <https://docs.nvidia.com/cuda/cudss/types.html#cudssconfigparam-t>`_ for more
         information.
         """
         _get_scalar_attribute(self._config_ptr, ConfigParamEnum.SOLVE_ALG, self._solve_alg)
 
-        return cudss.AlgType(self._solve_alg.item())
+        return cudss.SolveAlg(self._solve_alg.item())
 
     @solution_algorithm.setter
     @utils.precondition(_check_valid_solver_wrapper)
     def solution_algorithm(self, algorithm):
         """
-        Set the algorithm to use for solving. See :class:`nvmath.bindings.cudss.AlgType` and
-        the `cuDSS documentation
+        Set the algorithm to use for solving. See :class:`nvmath.bindings.cudss.SolveAlg`
+        and the `cuDSS documentation
         <https://docs.nvidia.com/cuda/cudss/types.html#cudssconfigparam-t>`_ for more
         information.
 
         Args:
-            algorithm: The solution algorithm of type :class:`nvmath.bindings.cudss.AlgType`
-            or Python `int`.
+            algorithm: The solution algorithm of type
+            :class:`nvmath.bindings.cudss.SolveAlg` or Python `int`.
 
         """
-        algorithm = cudss.AlgType(algorithm)
+        algorithm = cudss.SolveAlg(algorithm)
         _set_scalar_attribute(self._config_ptr, ConfigParamEnum.SOLVE_ALG, self._solve_alg, algorithm)
 
     @property
@@ -602,26 +563,26 @@ class InternalConfig:
 
         get_dtype = cudss.get_config_param_dtype
 
-        self._hybrid_mode = np.zeros((1,), dtype=get_dtype(ConfigParamEnum.HYBRID_MODE))
+        self._hybrid_memory_mode = np.zeros((1,), dtype=get_dtype(ConfigParamEnum.HYBRID_MEMORY_MODE))
         self._hybrid_device_memory_limit = np.zeros((1,), dtype=get_dtype(ConfigParamEnum.HYBRID_DEVICE_MEMORY_LIMIT))
         self._use_cuda_register_memory = np.zeros((1,), dtype=get_dtype(ConfigParamEnum.USE_CUDA_REGISTER_MEMORY))
         self._host_nthreads = np.zeros((1,), dtype=get_dtype(ConfigParamEnum.HOST_NTHREADS))
         self._hybrid_execute_mode = np.zeros((1,), dtype=get_dtype(ConfigParamEnum.HYBRID_EXECUTE_MODE))
 
     @property
-    def hybrid_mode(self):
+    def hybrid_memory_mode(self):
         """
         Query or set the hybrid memory mode. See the
         `cuDSS documentation
         <https://docs.nvidia.com/cuda/cudss/types.html#cudssconfigparam-t>`_
         for more information.
         """
-        _get_scalar_attribute(self._config_ptr, ConfigParamEnum.HYBRID_MODE, self._hybrid_mode)
+        _get_scalar_attribute(self._config_ptr, ConfigParamEnum.HYBRID_MEMORY_MODE, self._hybrid_memory_mode)
 
-        return self._hybrid_mode.item()
+        return self._hybrid_memory_mode.item()
 
-    @hybrid_mode.setter
-    def hybrid_mode(self, mode):
+    @hybrid_memory_mode.setter
+    def hybrid_memory_mode(self, mode):
         """
         Set the hybrid memory mode. See the
         `cuDSS documentation
@@ -632,7 +593,7 @@ class InternalConfig:
             mode: The hybrid memory mode as Python `int` (0=device or 1=hybrid).
 
         """
-        _set_scalar_attribute(self._config_ptr, ConfigParamEnum.HYBRID_MODE, self._hybrid_mode, mode)
+        _set_scalar_attribute(self._config_ptr, ConfigParamEnum.HYBRID_MEMORY_MODE, self._hybrid_memory_mode, mode)
 
     @property
     def hybrid_device_memory_limit(self):

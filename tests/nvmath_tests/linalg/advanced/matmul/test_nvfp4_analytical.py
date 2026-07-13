@@ -788,9 +788,14 @@ def test_nvfp4_matmul_sparse_analytic_batched(use_cuda):
 
 
 @pytest.mark.parametrize("use_cuda", [True, False])
-def test_nvfp4_matmul_reset_operands(use_cuda):
+@pytest.mark.parametrize("release_before_reset", [False, True], ids=["no_release", "release"])
+@pytest.mark.parametrize("reset_kind", ["checked", "unchecked"])
+def test_nvfp4_matmul_reset_operands(use_cuda, release_before_reset, reset_kind):
     """
-    Test that reset_operands correctly swaps A, B, and their scales for NVFP4.
+    Test that reset_operands / reset_operands_unchecked correctly swap A, B,
+    and their scales for NVFP4, both with operands still attached and after a
+    prior release_operands().
+
     This test's goal is to verify that reset_operands works correctly,
     so it does not really matter what data we are using. We can use any data we want.
     To make the test simpler, we use a fixed set of configurations
@@ -845,7 +850,11 @@ def test_nvfp4_matmul_reset_operands(use_cuda):
             new_b_scale = create_nvfp4_zero_scale(outer_dim=n, inner_dim=k, device=device)
             set_nvfp4_scale_value(new_b_scale, b_col, b_kg, b_sv, inner_dim=k, axis=-2)
 
-            mm.reset_operands(
+            if release_before_reset:
+                mm.release_operands()
+
+            reset = mm.reset_operands if reset_kind == "checked" else mm.reset_operands_unchecked
+            reset(
                 a=new_a,
                 b=new_b,
                 quantization_scales={"a": new_a_scale, "b": new_b_scale},

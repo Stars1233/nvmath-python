@@ -13,16 +13,12 @@ import re
 import sys
 import weakref
 
+from cuda import pathfinder
+from cuda.core import ObjectCode, Program, ProgramOptions
+
 import nvmath.device
 from nvmath.device import curand_kernel, random_helpers
 from nvmath.device import random_states as states
-
-try:
-    from cuda.core import ObjectCode, Program, ProgramOptions
-except ImportError:
-    from cuda.core.experimental import ObjectCode, Program, ProgramOptions
-
-from cuda import pathfinder
 
 # Common APIs (initialization, bit generation).
 _COMMON_APIS = ["init", "rand", "rand4"]

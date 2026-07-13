@@ -46,15 +46,15 @@ print(f"\nThe scale factor modification affected {(result2 != 1).sum().item()} e
 # It is also possible to prepare unique scale factors as ND tensor
 # and copy them to the required layout.
 
-# Every consecutive 32 elements in B column have the same scale factor,
+# Every consecutive 32 elements in 'b' column have the same scale factor,
 # so the scale matrix is 32x smaller in the first dimension.
 b_scale_matrix = nvmath.linalg.advanced.helpers.matmul.create_mxfp8_scale(b, 0)
 b_scale_matrix = b_scale_matrix.reshape(size // 32, size)
 # Let's modify the same block as before.
-# The [0, 1] block scale is applied to B[0:32, 1].
+# The [0, 1] block scale is applied to b[0:32, 1].
 b_scale_matrix[0, 1] += 6
 # And last block in the next column:
-# The [-1, 2] block scale is applied to B[-32:, 2]
+# The [-1, 2] block scale is applied to b[-32:, 2]
 b_scale_matrix[-1, 2] += 5
 
 # Copy the scale matrix to the required layout.

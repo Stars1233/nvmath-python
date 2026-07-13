@@ -36,7 +36,7 @@ with nvmath.linalg.advanced.Matmul(a, b) as mm:
     # Execute the matrix multiplication.
     result = mm.execute()
 
-    # Update the operand A in-place.
+    # Update the operand 'a' in-place.
     print("Updating 'a' in-place.")
     a[:] = cp.random.rand(m, k)
 

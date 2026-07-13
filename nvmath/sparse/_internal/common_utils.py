@@ -9,6 +9,7 @@ A collection of sparse utilities.
 import importlib
 from collections.abc import Sequence
 
+from nvmath.internal.ndbuffer import NDBuffer
 from nvmath.internal.utils import infer_object_package
 from nvmath.sparse._internal.sparse_format_helpers import PACKAGE_HELPER_MAP
 
@@ -77,9 +78,9 @@ def wrap_sparse_operands(native_operands):
     # The sparse format should be a recognized named format or an UST.
     if sparse_format not in RECOGNIZED_NAMED_FORMATS:
         if package == "nvmath":
-            from nvmath.sparse._internal.sparse_ust_ifc import USTensor
+            from nvmath.sparse._internal.sparse_ust_ifc import USTensorHolder
 
-            return [USTensor(o) for o in native_operands]
+            return [USTensorHolder(o) for o in native_operands]
 
         raise TypeError(f"The sparse format {sparse_format} is not currently supported.")
 
@@ -128,6 +129,8 @@ def sparse_or_dense(operand):
 
     # TODO: use the level spec instead of format name to infer if dense.
     if module == "nvmath":
+        if type(operand) is NDBuffer:
+            return "dense"
         name = operand.tensor_format.name
         if name == "Scalar" or "Dense" in name:
             return "dense"

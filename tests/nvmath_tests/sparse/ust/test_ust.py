@@ -7,6 +7,7 @@ from io import StringIO
 import numpy as np
 import pytest
 import scipy.sparse as sps
+from packaging.version import Version
 
 from nvmath.sparse.ust import (
     Dimension,
@@ -33,6 +34,23 @@ def _assert_same_numpy(a, b):
 
 def _assert_same_cupy(a, b):
     assert a.data.ptr == b.data.ptr
+
+
+def _cupy_dia_offsets_copy_regression():
+    """Whether cupy copies dia_matrix offsets even when ``copy=False`` is requested.
+
+    cupy 14.1.0 and 14.1.1 build the offsets array in
+    ``cupyx.scipy.sparse.dia_matrix.__init__`` via ``cupy.array(offsets, dtype=off_dtype)``
+    (cupy/cupy ``cupyx/scipy/sparse/_dia.py``), dropping the ``copy=copy`` argument that
+    was present in 13.x. Since ``cupy.array`` defaults to ``copy=True``, the offsets are
+    always reallocated, so the DIA zero-copy round-trip can no longer preserve the
+    offsets pointer. The other formats still thread ``copy`` through ``.astype``.
+    """
+    try:
+        import cupy
+    except ImportError:
+        return False
+    return Version(cupy.__version__) in {Version("14.1.0"), Version("14.1.1")}
 
 
 def _assert_same_torch(a, b):
@@ -188,6 +206,8 @@ def test_dim2lvl_2d():
     assert NamedFormats.BSRLeft((2, 2)).dim2lvl([2, 1]) == [1, 0, 1, 0]
     assert NamedFormats.BSCRight((2, 2)).dim2lvl([2, 1]) == [0, 1, 0, 1]
     assert NamedFormats.BSCLeft((2, 2)).dim2lvl([2, 1]) == [0, 1, 1, 0]
+    assert NamedFormats.DELTA(2).dim2lvl([2, 1]) == [2, 1]
+    assert NamedFormats.Structured(2, 4).dim2lvl([2, 1]) == [2, 0, 1]
     # As size
     assert NamedFormats.COO.dim2lvl([8, 4], True) == [8, 4]
     assert NamedFormats.CSR.dim2lvl([8, 4], True) == [8, 4]
@@ -214,6 +234,8 @@ def test_lvl2dim_2d():
     assert NamedFormats.BSRLeft((2, 2)).lvl2dim([1, 0, 1, 0]) == [2, 1]
     assert NamedFormats.BSCRight((2, 2)).lvl2dim([0, 1, 0, 1]) == [2, 1]
     assert NamedFormats.BSCLeft((2, 2)).lvl2dim([0, 1, 1, 0]) == [2, 1]
+    assert NamedFormats.DELTA(2).lvl2dim([2, 1]) == [2, 1]
+    assert NamedFormats.Structured(2, 4).lvl2dim([2, 0, 1]) == [2, 1]
 
 
 def test_dim2lvl2dim_2d():
@@ -227,6 +249,7 @@ def test_dim2lvl2dim_2d():
             assert NamedFormats.SkewDIAI.lvl2dim(NamedFormats.SkewDIAI.dim2lvl(crd)) == crd
             assert NamedFormats.SkewDIAJ.lvl2dim(NamedFormats.SkewDIAJ.dim2lvl(crd)) == crd
             assert NamedFormats.DELTA(2).lvl2dim(NamedFormats.DELTA(2).dim2lvl(crd)) == crd
+            assert NamedFormats.Structured(2, 4).lvl2dim(NamedFormats.Structured(2, 4).dim2lvl(crd)) == crd
 
 
 def test_dim2lvl2dim_3d():
@@ -949,16 +972,20 @@ def test_from_torch_basic_2d():
     )
 
 
-def test_from_torch_basic_2d_cuda():
+@pytest.mark.parametrize("use_custom_stream", [False, True])
+def test_from_torch_basic_2d_cuda(use_custom_stream):
     torch = pytest.importorskip("torch")
-    sparse_coo = (
-        torch.sparse_coo_tensor(
-            torch.tensor([[0, 1, 2, 2, 3, 3], [0, 1, 2, 3, 2, 3]]), torch.tensor([1.0, 2.0, 3.0, 4.0, 5.0, 6.0]), size=(4, 4)
-        )
-        .coalesce()
-        .cuda()
-    )
-    ust = Tensor.from_package(sparse_coo)
+    sparse_coo = torch.sparse_coo_tensor(
+        torch.tensor([[0, 1, 2, 2, 3, 3], [0, 1, 2, 3, 2, 3]]), torch.tensor([1.0, 2.0, 3.0, 4.0, 5.0, 6.0]), size=(4, 4)
+    ).coalesce()
+    if use_custom_stream:
+        stream = torch.cuda.Stream()
+        with stream:
+            sparse_coo = sparse_coo.cuda()
+    else:
+        stream = None
+        sparse_coo = sparse_coo.cuda()
+    ust = Tensor.from_package(sparse_coo, stream=stream)
     assert str(ust) == (
         "---- Sparse Tensor<VAL=float32,POS=int64,CRD=int64,DIM=2,LVL=2>\n"
         "format   : [i, j] -> (i: (<LevelFormat.COMPRESSED>, <LevelProperty.NONUNIQUE>), j: <LevelFormat.SINGLETON>)\n"
@@ -974,18 +1001,18 @@ def test_from_torch_basic_2d_cuda():
         "sparsity : 62.50%\n"
         "----"
     )
-    assert ust.get_value([0, 0]) == 1.0
-    assert ust.get_value([1, 1]) == 2.0
-    assert ust.get_value([0, 2]) is None
-    assert ust.get_value([3, 3]) == 6.0
+    assert ust.get_value([0, 0], stream=stream) == 1.0
+    assert ust.get_value([1, 1], stream=stream) == 2.0
+    assert ust.get_value([0, 2], stream=stream) is None
+    assert ust.get_value([3, 3], stream=stream) == 6.0
 
-    stream = StringIO()
+    io_stream = StringIO()
 
     def visit(idx, val):
-        print(idx, val, file=stream)
+        print(idx, val, file=io_stream)
 
-    TensorDecomposer(ust, visit).run()
-    assert stream.getvalue() == ("[0, 0] 1.0\n[1, 1] 2.0\n[2, 2] 3.0\n[2, 3] 4.0\n[3, 2] 5.0\n[3, 3] 6.0\n")
+    TensorDecomposer(ust, visit).run(stream=stream)
+    assert io_stream.getvalue() == ("[0, 0] 1.0\n[1, 1] 2.0\n[2, 2] 3.0\n[2, 3] 4.0\n[3, 2] 5.0\n[3, 3] 6.0\n")
 
 
 # Hybrid COO: sparse_dim + dense_dim == ndim, dense dimensions follow sparse dimensions.
@@ -1307,7 +1334,10 @@ def test_zero_copy_roundtrip_cupy():
     _assert_same_cupy(A, Adns)
 
     A = _round_trip(Adia)
-    _assert_same_cupy(A.offsets, Adia.offsets)
+    if not _cupy_dia_offsets_copy_regression():
+        # cupy 14.1.0/14.1.1 reallocate the offsets array even with copy=False, so the
+        # offsets pointer cannot be preserved; the data round-trip is still zero-copy.
+        _assert_same_cupy(A.offsets, Adia.offsets)
     _assert_same_cupy(A.data, Adia.data)
 
     A = _round_trip(Acoo)
@@ -1730,6 +1760,84 @@ def test_delta():
         "[2, 11] 0.0\n"
         "[2, 15] 6.0\n"
     )
+
+
+def test_structured():
+    torch = pytest.importorskip("torch")
+
+    a = torch.tensor(
+        [[1, 0, 0, 0, 0, 0, 0, 2], [0, 0, 3, 4, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 5]], dtype=torch.float64
+    ).to_sparse()
+
+    ust = Tensor.from_package(a)
+    ust = ust.convert(tensor_format=NamedFormats.Structured(2, 4))
+
+    assert ust.nse == 12  # padded all strips
+
+    assert str(ust) == (
+        "---- Sparse Tensor<VAL=float64,POS=int64,CRD=int64,DIM=2,LVL=3>\n"
+        "format   : [i, j] -> "
+        "(i: <LevelFormat.DENSE>, "
+        "(j // 4): <LevelFormat.DENSE>, "
+        "(j % 4): (<LevelFormat.STRUCTURED>, 2))\n"
+        "device   : cpu\n"
+        "dim      : [3, 8]\n"
+        "lvl      : [3, 2, 4]\n"
+        "nse      : 12\n"
+        "pos[0]   : [] #0\n"
+        "pos[1]   : [] #0\n"
+        "pos[2]   : [] #0\n"
+        "crd[0]   : [] #0\n"
+        "crd[1]   : [] #0\n"
+        "crd[2]   : [0, 1, 0, 3, 2, 3, 0, 1, 0, 1, 0, 3] #12\n"
+        "values   : [1.0, 0.0, 0.0, 2.0, 3.0, 4.0, 0.0, 0.0, 0.0, 0.0, 0.0, 5.0] #12\n"
+        "data     : 192 bytes\n"
+        "sparsity : 50.00%\n"
+        "----"
+    )
+
+    assert ust.get_value([0, 0]) == 1.0
+    assert ust.get_value([0, 1]) == 0
+    assert ust.get_value([0, 2]) is None
+    assert ust.get_value([0, 3]) is None
+    assert ust.get_value([0, 7]) == 2.0
+    assert ust.get_value([1, 2]) == 3.0
+    assert ust.get_value([1, 3]) == 4.0
+    assert ust.get_value([1, 4]) == 0.0
+    assert ust.get_value([1, 5]) == 0.0
+    assert ust.get_value([1, 6]) is None
+    assert ust.get_value([1, 7]) is None
+    assert ust.get_value([2, 4]) == 0
+    assert ust.get_value([2, 5]) is None
+    assert ust.get_value([2, 6]) is None
+    assert ust.get_value([2, 7]) == 5
+
+    stream = StringIO()
+
+    def visit(idx, val):
+        print(idx, val, file=stream)
+
+    TensorDecomposer(ust, visit).run()
+    assert stream.getvalue() == (
+        "[0, 0] 1.0\n"
+        "[0, 1] 0.0\n"
+        "[0, 4] 0.0\n"
+        "[0, 7] 2.0\n"
+        "[1, 2] 3.0\n"
+        "[1, 3] 4.0\n"
+        "[1, 4] 0.0\n"
+        "[1, 5] 0.0\n"
+        "[2, 0] 0.0\n"
+        "[2, 1] 0.0\n"
+        "[2, 4] 0.0\n"
+        "[2, 7] 5.0\n"
+    )
+
+    # Convert to delta (7 entries) and then COO (5 entries).
+    ust = ust.convert(tensor_format=NamedFormats.DELTA(2))
+    assert ust.nse == 7
+    ust = ust.convert(tensor_format=NamedFormats.COO)
+    assert ust.nse == 5
 
 
 def test_torch_to():

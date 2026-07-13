@@ -117,10 +117,9 @@ def test_epilogs(
     allow_not_supported |= epilog_aux_type is not None and not (
         atype == "float8_e4m3fn" and btype == "float8_e4m3fn" and ctype == "float16" and epilog_name == "GELU_AUX"
     )
-    # We expect these epilogs to be supported for Blackwell, but they aren't. We have
-    # filed a bug with cuBLAS: bug/5856128
-    # Fix will be included in some release after 130201
-    if COMPUTE_CAPABILITY <= (8, 9) or (COMPUTE_CAPABILITY == (12, 0) and cublaslt.get_version() <= 130201):
+    # These epilogs are supported for Hopper, but not Blackwell until cuBLAS 13.5
+    # (nvbug/5856128)
+    if COMPUTE_CAPABILITY <= (8, 9) or (COMPUTE_CAPABILITY == (12, 0) and cublaslt.get_version() < 130500):
         allow_not_supported |= "AUX" in epilog_name and "float8" in result_type and d_batch != ()
         allow_not_supported |= epilog_name.startswith("GELU_AUX") and atype != btype
 
@@ -128,7 +127,7 @@ def test_epilogs(
         shape = (*batch_shape, *matrix_shape)
         if transposed:
             shape = (*shape[:-2], shape[-1], shape[-2])
-        x = sample_matrix("torch", type, shape, use_cuda=use_cuda, min=-0.2, max=1)
+        x = sample_matrix("torch", type, shape, use_cuda=use_cuda, min_val=-0.2, max_val=1)
         return x.swapaxes(-1, -2) if transposed else x
 
     a = sample_batch(a_batch, (m, k), atype, transposed=False)
@@ -156,7 +155,7 @@ def test_epilogs(
         inputs["aux_quantization_scale"] = 0.45
     if "BIAS" in epilog_name:
         bias_type = "float16" if inferred_ctype == "float16" else "bfloat16"
-        bias = sample_matrix("torch", bias_type, (m,), use_cuda=use_cuda, min=0, max=1)
+        bias = sample_matrix("torch", bias_type, (m,), use_cuda=use_cuda, min_val=0, max_val=1)
         inputs["bias"] = bias
     if "DRELU" in epilog_name:
         round_16 = lambda x: (x + 15) // 16 * 16
@@ -166,9 +165,9 @@ def test_epilogs(
         inputs["relu_aux"] = relu_aux
     if "DGELU" in epilog_name:
         if order == "col":
-            inputs["gelu_aux"] = sample_matrix("torch", result_type, (n, m), use_cuda=use_cuda, min=-5, max=5).T
+            inputs["gelu_aux"] = sample_matrix("torch", result_type, (n, m), use_cuda=use_cuda, min_val=-5, max_val=5).T
         else:
-            inputs["gelu_aux"] = sample_matrix("torch", result_type, (m, n), use_cuda=use_cuda, min=-5, max=5)
+            inputs["gelu_aux"] = sample_matrix("torch", result_type, (m, n), use_cuda=use_cuda, min_val=-5, max_val=5)
 
     # Run matmul. Allow cuBLAS NOT_SUPPORTED error for certain configurations (see above)
     def unpack_matmul(result):

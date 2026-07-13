@@ -8,11 +8,7 @@ import random
 from ast import literal_eval
 
 import pytest
-
-try:
-    from cuda.core import system
-except ImportError:
-    from cuda.core.experimental import system
+from cuda.core import system
 
 try:
     import cupy as cp
@@ -118,7 +114,7 @@ def assert_norm_close_check_constant(a, a_ref, rtol=None, atol=None, axes=None, 
 
 def allow_to_fail_compund_shape(e, shape, axes):
     if (
-        isinstance(e, nvmath.bindings.cufft.cuFFTError)
+        isinstance(e, nvmath.bindings.cufft.cuFFTError | ValueError)
         and "CUFFT_NOT_SUPPORTED" in str(e)
         and not has_only_small_factors(shape, axes)
     ):
@@ -158,11 +154,7 @@ def skip_unsupported_device(fn=None, dev_count=1, min_cc=70):
 
             return test_skipped
 
-        try:
-            num_devices = system.get_num_devices()
-        except AttributeError:
-            num_devices = system.num_devices
-        actual_dev_count = num_devices
+        actual_dev_count = system.get_num_devices()
 
         if actual_dev_count < dev_count:
 
@@ -923,6 +915,10 @@ def test_overlapping_stride_operand(
             (False, (2017, 1, 31, 3, 1), (0, 1, 2), (3, 4, 2, 1, 0)),  # 3D batch, repeat strides
             (True, (4952, 3), (0,), (1, 0)),  # 1D batched, 8 * 619
             (True, (3, 4952), (1,), (1, 0)),  # 1D batched, 8 * 619
+            (False, (8128, 3), (0, 1), (1, 0)),  # 2D, 64 * 127
+            (False, (3, 8128), (0, 1), (1, 0)),  # 2D, 64 * 127
+            (True, (8384, 3), (0, 1), (1, 0)),  # 2D, 64 * 131 # not supported with cuFFT <= 12.2
+            (True, (3, 8384), (0, 1), (1, 0)),  # 2D, 64 * 131
             (True, (2, 4812, 2017), (1, 2), (2, 1, 0)),  # 2D batched, 401 * 12
             (True, (16, 1, 4812, 3, 1), (0, 1, 2), (3, 4, 2, 1, 0)),  # 3D batch, 401 * 12
         ]

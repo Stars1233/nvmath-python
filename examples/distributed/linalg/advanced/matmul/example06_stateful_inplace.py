@@ -12,7 +12,7 @@ NOTE: The operands should be updated inplace only when they are in a memory spac
 accessible from the execution space. In this case, the operands reside on the GPU while the
 execution also happens on the GPU.
 
-The global operation performed in this example is: A @ B
+The global operation performed in this example is: a @ b
 
 $ mpiexec -n 4 python example06_stateful_inplace.py
 """
@@ -50,11 +50,11 @@ with cp.cuda.Device(device_id):
     b = cp.random.rand(*col_wise_distribution.shape(rank, (n, k)))
 
 # Get a transposed view to obtain column-major memory layout. Note that this
-# also changes the distribution of a and b (see example01 for more information).
-a = a.T  # a is now (m, k) with col_wise_distribution
-b = b.T  # b is now (k, n) with row_wise_distribution
+# also changes the distribution of 'a' and 'b' (see example01 for more information).
+a = a.T  # 'a' is now (m, k) with col_wise_distribution
+b = b.T  # 'b' is now (k, n) with row_wise_distribution
 
-# Distribution of a, b and output.
+# Distribution of 'a', 'b' and output.
 distributions = [col_wise_distribution, row_wise_distribution, col_wise_distribution]
 
 # Use the stateful object as a context manager to automatically release resources.
@@ -65,7 +65,7 @@ with nvmath.distributed.linalg.advanced.Matmul(a, b, distributions=distributions
     # Execute the matrix multiplication.
     result = mm.execute()
 
-    # Update the operand A in-place.
+    # Update the operand 'a' in-place.
     print("Updating 'a' in-place.")
     with cp.cuda.Device(device_id):
         a[:] = cp.random.rand(*col_wise_distribution.shape(rank, (m, k)))

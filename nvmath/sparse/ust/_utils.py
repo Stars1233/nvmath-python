@@ -9,10 +9,13 @@ This module has internal utilities used in implementing the UST and related APIs
 __all__ = []
 
 import threading
+from contextlib import nullcontext
 
 import numpy as np
 
 from nvmath.internal import utils
+from nvmath.internal.ndbuffer import NDBuffer
+from nvmath.internal.package_ifc import StreamHolder
 
 
 class Cache(dict):
@@ -91,8 +94,6 @@ _NP_ENVELOPE = {
     "int8": np.int8,
 }
 
-COMPLEX_PRECISION = {"complex64": "float", "complex128": "double"}
-
 
 def type_str(tp):
     return _CTPS[tp]
@@ -100,3 +101,49 @@ def type_str(tp):
 
 def np_enveloping_type(tp):
     return _NP_ENVELOPE[tp]
+
+
+def resolve_stream(stream, tensor, target_device_id=None):
+    """
+    Get a default package stream (based on the dense tensor package)
+    or wrap user-provided stream.
+
+    Similar logic is implemented inside statefull instances for matmul,
+    ffts etc, but ust.Tensor is a standalone public API, so we need
+    to implement the logic separately.
+    For internal usages from stateful objects, we don't interfere
+    and just use the provided StreamHolder.
+    """
+    # For internal use, we accept StreamHolder so that UST `to` has a
+    # consistent interface with `TensorHolder.to`.
+    if isinstance(stream, StreamHolder):
+        return stream
+    device_id = tensor.device_id
+    if device_id == "cpu":
+        if target_device_id is None or target_device_id == "cpu":
+            return None
+        device_id = target_device_id
+    package = tensor._dense_tensorholder_type.device_tensor_class.name
+    return utils.get_or_create_stream(device_id, stream, package)
+
+
+def stream_context(stream_holder):
+    if stream_holder is None:
+        return nullcontext()
+    return stream_holder.ctx
+
+
+def as_external_tensor(tensor, stream_holder):
+    """
+    Return unchanged external package tensor (numpy, torch, etc.)
+    or convert a NDBuffer to a host tensor if necessary.
+    Ensures the tensor can be subsequently used with
+    ufuncs, reductions, etc. (which are not available with NDBuffer).
+    """
+    if type(tensor) is not NDBuffer:
+        return tensor
+    if tensor.device_id == "cpu":
+        return tensor.as_numpy()
+    tensor_host = NDBuffer.empty_like(tensor, device_id="cpu")
+    tensor_host.copy_(tensor, stream=stream_holder)
+    return tensor_host.as_numpy()

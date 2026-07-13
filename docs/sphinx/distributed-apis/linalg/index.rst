@@ -2,40 +2,40 @@
 Distributed Linear Algebra
 **************************
 
-.. _distributed-linalg-overview:
+The distributed Linear Algebra APIs in nvmath-python leverage NVIDIA's high-performance
+distributed math libraries to perform dense linear algebra on multi-node multi-GPU systems
+at scale, directly from host code. They currently provide:
 
-Overview
-========
+* :ref:`Matrix multiplication <distributed-linalg-matmul>`, built on the NVIDIA
+  cuBLASMp library.
+* :ref:`Direct linear solver <distributed-linalg-solver>`, built on the NVIDIA
+  cuSOLVERMp library.
 
-The distributed Linear Algebra module :mod:`nvmath.distributed.linalg.advanced` in
-nvmath-python leverages the NVIDIA cuBLASMp library and provides a powerful suite
-of APIs that can be directly called from the host to efficiently perform matrix
-multiplications on multi-node multi-GPU systems at scale. Both stateless
-function-form APIs and stateful class-form APIs are provided.
+Each operation offers both stateless function-form APIs and stateful class-form APIs. As
+with all distributed APIs, the operands on each process are the **local partition** of the
+global operands, and the user specifies the **distribution**.
 
-The distributed matrix multiplication APIs are similar to their non-distributed host
-API counterparts, with the key difference that the operands to the API on each process
-are the **local partition** of the global operands, and the user specifies the
-**distribution** (how the data is partitioned across processes). The APIs natively
-support the block-cyclic distribution (see :ref:`distribution-block`).
+**Operand distribution.** These APIs natively use the block-cyclic distribution
+(see :ref:`distribution-block`), so the distribution you specify for each operand must be
+compatible with it. The supported choices are :ref:`distribution-block-cyclic`,
+:ref:`distribution-block-non-cyclic`, and :ref:`distribution-slab`
+(with uniform partition sizes).
 
-Operand distribution
---------------------
-
-To perform a distributed operation, first you have to specify how the operand is
-distributed across processes. Distributed matrix multiply natively supports the
-block-cyclic distribution (see :ref:`distribution-block`), therefore you must
-provide a distribution compatible with block-cyclic. Compatible distributions
-include :ref:`distribution-block-cyclic`, :ref:`distribution-block-non-cyclic`,
-and :ref:`distribution-slab` (with uniform partition sizes).
-
-Memory layout
--------------
-
-cuBLASMp requires operands to use Fortran-order memory layout, while Python libraries
-such as NumPy and PyTorch use C-order by default.
+**Memory layout.** cuBLASMp and cuSOLVERMp require operands to use Fortran-order memory
+layout, while Python libraries such as NumPy and PyTorch use C-order by default.
 See :ref:`distribution-mem-layout` for guidelines on memory layout conversion
 for distributed operands and potential implications on distribution.
+
+.. _distributed-linalg-matmul:
+
+Matrix Multiplication
+=====================
+
+The distributed matrix multiplication APIs (in :mod:`nvmath.distributed.linalg.advanced`)
+leverage the NVIDIA cuBLASMp library to compute :math:`F(\alpha A @ B + \beta C)`, where
+:math:`F` is an optional epilog, on multi-node multi-GPU systems, with both a function-form
+(:func:`~nvmath.distributed.linalg.advanced.matmul`) and a stateful class-form
+(:class:`~nvmath.distributed.linalg.advanced.Matmul`) API.
 
 Matrix qualifiers
 -----------------
@@ -46,6 +46,7 @@ For example, for ``A.T @ B`` you have to specify:
 
 .. code-block:: python
 
+    import numpy as np
     from nvmath.distributed.linalg.advanced import matrix_qualifiers_dtype, matmul
 
     qualifiers = np.zeros((3,), dtype=matrix_qualifiers_dtype)
@@ -108,6 +109,7 @@ according to a :ref:`distribution-slab` distribution (partitioning on a single d
 
 .. code-block:: python
 
+    import numpy as np
     import cupy as cp
     from nvmath.distributed.distribution import Slab
     from nvmath.distributed.linalg.advanced import matrix_qualifiers_dtype
@@ -148,6 +150,11 @@ according to a :ref:`distribution-slab` distribution (partitioning on a single d
         qualifiers=qualifiers,
     )
 
+    # Distributed matrix multiplication is inplace by default when c
+    # is provided (the result is stored in c). This behavior can
+    # be modified using the `inplace` option.
+    assert result is c
+
     # Synchronize the default stream, since by default the execution
     # is non-blocking for GPU operands.
     cp.cuda.get_current_stream().synchronize()
@@ -156,20 +163,13 @@ according to a :ref:`distribution-slab` distribution (partitioning on a single d
     assert result.shape == Slab.X.shape(rank, (m, n))
 
 
-You can find many more examples `here
-<https://github.com/NVIDIA/nvmath-python/tree/main/examples/distributed/
-linalg/advanced/matmul>`_.
+You can find many more examples `here <distributed-matmul-examples_>`_.
 
-
-.. _distributed-linalg-api-reference:
 
 API Reference
-=============
+-------------
 
 .. module:: nvmath.distributed.linalg.advanced
-
-Distributed Linear Algebra APIs (:mod:`nvmath.distributed.linalg.advanced`)
----------------------------------------------------------------------------
 
 .. autosummary::
    :toctree: generated/
@@ -196,3 +196,53 @@ Helpers
 The module :mod:`nvmath.linalg.advanced.helpers.matmul` provides helper
 functions that facilitate working with the narrow-precision features of
 :mod:`nvmath.distributed.linalg.advanced` module.
+
+.. _distributed-linalg-solver:
+
+Direct Linear Solver
+====================
+
+The distributed direct linear solver APIs (in
+:ref:`nvmath.distributed.linalg <distributed-linalg-solver-api>`)
+leverage the NVIDIA cuSOLVERMp library to solve dense linear systems :math:`A @ X = B`
+on multi-node multi-GPU systems, via an LU factorization with partial pivoting followed
+by triangular solves.
+Both a function-form (:func:`~nvmath.distributed.linalg.direct_solver`) and a
+stateful class-form (:class:`~nvmath.distributed.linalg.DirectSolver`) API
+are provided. On each process, the operands ``a`` and ``b`` hold only the local partitions
+of :math:`A` and :math:`B` according to the specified ``distributions``;
+see :class:`~nvmath.distributed.linalg.DirectSolver` for the supported distributions
+and the constraints they must satisfy.
+
+.. note::
+    To use the distributed direct solver APIs you need to
+    :ref:`initialize the distributed runtime <distributed-api-initialize>`
+    with the NCCL communication backend.
+
+You can find examples `here <distributed-solver-examples_>`_.
+
+.. _distributed-linalg-solver-api:
+
+API Reference
+-------------
+
+.. module:: nvmath.distributed.linalg
+
+.. autosummary::
+   :toctree: generated/
+
+   direct_solver
+   DirectSolver
+   InvalidDirectSolverState
+
+.. autosummary::
+   :toctree: generated/
+   :template: dataclass
+
+   DirectSolverOptions
+
+.. _distributed-matmul-examples:
+   https://github.com/NVIDIA/nvmath-python/tree/main/examples/distributed/linalg/advanced/matmul
+
+.. _distributed-solver-examples:
+   https://github.com/NVIDIA/nvmath-python/tree/main/examples/distributed/linalg/generic/direct_solver

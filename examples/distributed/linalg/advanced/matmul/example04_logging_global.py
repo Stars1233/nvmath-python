@@ -5,7 +5,7 @@
 """
 This example demonstrates how to turn on logging using the global logger.
 
-The global operation performed in this example is: A @ B
+The global operation performed in this example is: a @ b
 
 $ mpiexec -n 2 python example04_logging_global.py
 """

@@ -18,13 +18,79 @@ from nvmath.device import (
     float16x4_type,
     float32x2,
     float32x2_type,
+    float32x4,
+    float32x4_type,
     float64x2,
     float64x2_type,
+    float64x4,
+    float64x4_type,
     half2,
     half4,
     np_float16x2,
     np_float16x4,
+    uint32x4,
+    uint32x4_type,
 )
+
+from .utils.common_axes import Compiler, all_compiler_params, xfail_mlir_fp16
+
+
+def _native_vec_for(compiler, dtype):
+    if compiler == Compiler.numba_cuda:
+        from nvmath.device import (
+            float16x2 as nc_float16x2,
+        )
+        from nvmath.device import (
+            float16x2_type as nc_float16x2_type,
+        )
+        from nvmath.device import (
+            float16x4 as nc_float16x4,
+        )
+        from nvmath.device import (
+            float16x4_type as nc_float16x4_type,
+        )
+        from nvmath.device import (
+            float32x2 as nc_float32x2,
+        )
+        from nvmath.device import (
+            float32x2_type as nc_float32x2_type,
+        )
+        from nvmath.device import (
+            float64x2 as nc_float64x2,
+        )
+        from nvmath.device import (
+            float64x2_type as nc_float64x2_type,
+        )
+
+        return {
+            complex32: (nc_float16x2, nc_float16x2_type),
+            complex64: (nc_float32x2, nc_float32x2_type),
+            complex128: (nc_float64x2, nc_float64x2_type),
+            half2: (nc_float16x2, nc_float16x2_type),
+            half4: (nc_float16x4, nc_float16x4_type),
+        }[dtype]
+    if compiler == Compiler.numba_cuda_mlir:
+        from numba_cuda_mlir.cuda.vector_types import (
+            float16x2 as mlir_float16x2,
+        )
+        from numba_cuda_mlir.cuda.vector_types import (
+            float16x4 as mlir_float16x4,
+        )
+        from numba_cuda_mlir.cuda.vector_types import (
+            float32x2 as mlir_float32x2,
+        )
+        from numba_cuda_mlir.cuda.vector_types import (
+            float64x2 as mlir_float64x2,
+        )
+
+        return {
+            complex32: (mlir_float16x2, mlir_float16x2),
+            complex64: (mlir_float32x2, mlir_float32x2),
+            complex128: (mlir_float64x2, mlir_float64x2),
+            half2: (mlir_float16x2, mlir_float16x2),
+            half4: (mlir_float16x4, mlir_float16x4),
+        }[dtype]
+    raise ValueError(f"Unknown compiler: {compiler}")
 
 
 # Tests we can use the types to build arrays and read to/from global arrays
@@ -63,24 +129,46 @@ def test_complex_numpy_numba_interop(numpy_type, numba_type, numba_fe_type):
     assert np.allclose(input, output2)
 
 
+np_float32x2 = np.dtype([("x", np.float32), ("y", np.float32)], align=True)
+np_float32x4 = np.dtype([("x", np.float32), ("y", np.float32), ("z", np.float32), ("w", np.float32)], align=True)
+np_float64x2 = np.dtype([("x", np.float64), ("y", np.float64)], align=True)
+np_float64x4 = np.dtype([("x", np.float64), ("y", np.float64), ("z", np.float64), ("w", np.float64)], align=True)
+np_uint32x4 = np.dtype([("x", np.uint32), ("y", np.uint32), ("z", np.uint32), ("w", np.uint32)], align=True)
+
+FLOAT64X2_INPUT = np.array(
+    [(3.14, 2.71), (2.71, 42), (1.0, -100), (-1.0, 1.0)],
+    dtype=np_float64x2,
+)
+FLOAT64X4_INPUT = np.array(
+    [
+        (3.14, 2.71, -0.1, 0.1),
+        (2.71, 42, 3.0, 4.0),
+        (1.0, -100, 1000, -10000),
+        (-1.0, 1.0, 0, 0),
+    ],
+    dtype=np_float64x4,
+)
+UINT32X4_INPUT = np.array(
+    [(0, 1, 2, 3), (4, 5, 6, 7), (2**32 - 1, 42, 100, 999), (1234, 5678, 9012, 3456)],
+    dtype=np_uint32x4,
+)
+
+
 # Test we can build types from numpy dtypes
 @pytest.mark.parametrize(
-    "size,numpy_type,numba_type,numba_fe_type,numba_basic_type",
+    "size,input,numba_type,numba_fe_type",
     [
-        (2, np.dtype([("x", np.float16), ("y", np.float16)], align=True), float16x2_type, float16x2, np.float16),
-        (
-            4,
-            np.dtype([("x", np.float16), ("y", np.float16), ("z", np.float16), ("w", np.float16)], align=True),
-            float16x4_type,
-            float16x4,
-            np.float16,
-        ),
-        (2, np.dtype([("x", np.float32), ("y", np.float32)], align=True), float32x2_type, float32x2, np.float32),
-        (2, np.dtype([("x", np.float64), ("y", np.float64)], align=True), float64x2_type, float64x2, np.float64),
+        (2, FLOAT64X2_INPUT.astype(np_float16x2), float16x2_type, float16x2),
+        (4, FLOAT64X4_INPUT.astype(np_float16x4), float16x4_type, float16x4),
+        (2, FLOAT64X2_INPUT.astype(np_float32x2), float32x2_type, float32x2),
+        (4, FLOAT64X4_INPUT.astype(np_float32x4), float32x4_type, float32x4),
+        (2, FLOAT64X2_INPUT, float64x2_type, float64x2),
+        (4, FLOAT64X4_INPUT, float64x4_type, float64x4),
+        (4, UINT32X4_INPUT, uint32x4_type, uint32x4),
     ],
 )
-def test_dtypes_numpy_numba_interop(size, numpy_type, numba_type, numba_fe_type, numba_basic_type):
-    print(f"Test for {numpy_type} <-> {numba_type}")
+def test_dtypes_numpy_numba_interop(size, input, numba_type, numba_fe_type):
+    print(f"Test for {input.dtype} <-> {numba_type}")
 
     @cuda.jit
     def f(input, output):
@@ -97,19 +185,12 @@ def test_dtypes_numpy_numba_interop(size, numpy_type, numba_type, numba_fe_type,
                 output[i].z = w.z
                 output[i].w = w.w
 
-    if size == 2:
-        input = np.array([(3.14, 2.71), (2.71, 42), (1.0, -100), (-1.0, 1.0)], dtype=numpy_type)
-    elif size == 4:
-        input = np.array(
-            [(3.14, 2.71, -0.1, 0.1), (2.71, 42, 3.0, 4.0), (1.0, -100, 1000, -10000), (-1.0, 1.0, 0, 0)],
-            dtype=numpy_type,
-        )
     output = np.zeros_like(input)
 
     f[1, 1](input, output)
     cuda.synchronize()
 
-    assert np.allclose(input.view(dtype=numba_basic_type), output.view(dtype=numba_basic_type))
+    assert np.array_equal(input, output)
 
 
 @pytest.mark.parametrize(
@@ -118,7 +199,10 @@ def test_dtypes_numpy_numba_interop(size, numpy_type, numba_type, numba_fe_type,
         (float16x2_type, 2, 2 * 16, types.float16),
         (float16x4_type, 4, 4 * 16, types.float16),
         (float32x2_type, 2, 2 * 32, types.float32),
+        (float32x4_type, 4, 4 * 32, types.float32),
         (float64x2_type, 2, 2 * 64, types.float64),
+        (float64x4_type, 4, 4 * 64, types.float64),
+        (uint32x4_type, 4, 4 * 32, types.uint32),
     ],
 )
 def test_vector_types(numba_type, count, bitwidth, numba_basic_type):
@@ -201,33 +285,85 @@ def test_views_vector_load_store():
     assert "st.global.u16" in ptx or "st.global.b16" in ptx
 
 
+@pytest.mark.parametrize("compiler", all_compiler_params())
 @pytest.mark.parametrize(
-    "dtype, expected_host_dtype, expected_alignment",
+    "dtype, real_np_dtype, four_args",
     [
-        (complex32, np_float16x2, 4),
-        (complex64, np.complex64, 8),
-        (complex128, np.complex128, 16),
-        (half2, np_float16x2, 4),
-        (half4, np_float16x4, 8),
+        (complex32, np.float16, False),
+        (complex64, np.float32, False),
+        (complex128, np.float64, False),
+        (half2, np.float16, False),
+        (half4, np.float16, True),
     ],
 )
-def test_numba_type(dtype, expected_host_dtype, expected_alignment):
-    make_dtype = dtype.make
+def test_underlying_abstraction_storage_interop(request, compiler, dtype, real_np_dtype, four_args):
+    cuda = compiler.runtime
+    xfail_mlir_fp16(request, compiler, dtype)
+    native_ctor, native_dtype = _native_vec_for(compiler, dtype)
 
+    @cuda.jit
+    def kernel(out_a, out_b):
+        # Direction: native -> abstraction
+        native_slot_a = cuda.local.array(shape=(1,), dtype=native_dtype)
+        if four_args:
+            native_slot_a[0] = dtype(1.0, 2.0, 3.0, 4.0)
+        else:
+            native_slot_a[0] = dtype(1.0, 2.0)
+        abstraction_slot_a = cuda.local.array(shape=(1,), dtype=dtype)
+        abstraction_slot_a[0] = native_slot_a[0]
+        out_a.view(dtype)[0] = abstraction_slot_a[0]
+
+        # Direction: abstraction -> native
+        abstraction_slot_b = cuda.local.array(shape=(1,), dtype=dtype)
+        if four_args:
+            abstraction_slot_b[0] = native_ctor(5.0, 6.0, 7.0, 8.0)
+        else:
+            abstraction_slot_b[0] = native_ctor(5.0, 6.0)
+        native_slot_b = cuda.local.array(shape=(1,), dtype=native_dtype)
+        native_slot_b[0] = abstraction_slot_b[0]
+        out_b.view(dtype)[0] = native_slot_b[0]
+
+    out_a = np.zeros(1, dtype=dtype)
+    out_b = np.zeros(1, dtype=dtype)
+    kernel[1, 1](out_a, out_b)
+    cuda.synchronize()
+
+    if np.issubdtype(out_a.dtype, np.complexfloating):
+        assert out_a[0] == 1.0 + 2.0j
+        assert out_b[0] == 5.0 + 6.0j
+    elif four_args:
+        assert np.allclose(out_a.view(np.float16), np.array([1.0, 2.0, 3.0, 4.0], dtype=np.float16))
+        assert np.allclose(out_b.view(np.float16), np.array([5.0, 6.0, 7.0, 8.0], dtype=np.float16))
+    else:
+        assert np.allclose(out_a.view(real_np_dtype), np.array([1.0, 2.0], dtype=real_np_dtype))
+        assert np.allclose(out_b.view(real_np_dtype), np.array([5.0, 6.0], dtype=real_np_dtype))
+
+
+@pytest.mark.parametrize("compiler", all_compiler_params())
+@pytest.mark.parametrize(
+    "dtype, expected_host_dtype",
+    [
+        (complex32, np_float16x2),
+        (complex64, np.complex64),
+        (complex128, np.complex128),
+        (half2, np_float16x2),
+        (half4, np_float16x4),
+    ],
+)
+def test_numba_type(request, compiler, dtype, expected_host_dtype):
+    cuda = compiler.runtime
+    xfail_mlir_fp16(request, compiler, dtype)
     HOST_COMPLEX = inspect.isclass(expected_host_dtype) and issubclass(expected_host_dtype, np.complexfloating)
     FOUR_ARGS = expected_host_dtype == np_float16x4
 
     @cuda.jit
     def kernel(a):
-        local = cuda.local.array(shape=(1,), dtype=dtype)
+        smem = cuda.shared.array(shape=(1,), dtype=dtype)
         if FOUR_ARGS:
-            local[0] = make_dtype(3.14, 2.71, -1.0, 1.0)
+            smem[0] = dtype(3.14, 2.71, -1.0, 1.0)
         else:
-            local[0] = make_dtype(3.14, 2.71)
-        if HOST_COMPLEX:
-            a[0] = local[0]
-        else:
-            a.view(dtype)[0] = local[0]
+            smem[0] = dtype(3.14, 2.71)
+        a.view(dtype)[0] = smem[0]
 
     a = np.zeros(1, dtype=dtype)
     assert a.dtype == expected_host_dtype
@@ -279,3 +415,51 @@ def test_numba_type_alignment(dtype, expected_alignment):
 
     assert "ld." + expected_ld_st_inst in ptx or "ld." + expected_ld_st_inst_b in ptx
     assert "st." + expected_ld_st_inst in ptx or "st." + expected_ld_st_inst_b in ptx
+
+
+@pytest.mark.parametrize("compiler", all_compiler_params())
+@pytest.mark.parametrize(
+    "complex_dtype, np_complex_ctor",
+    [
+        (complex64, np.complex64),
+        (complex128, np.complex128),
+    ],
+)
+def test_np_complex_cast_from_native_vector(compiler, complex_dtype, np_complex_ctor):
+    cuda = compiler.runtime
+    native_ctor, _ = _native_vec_for(compiler, complex_dtype)
+
+    @cuda.jit
+    def kernel(out):
+        v = native_ctor(1.0, 2.0)
+        out[0] = np_complex_ctor(v) / 4.0
+
+    out = np.zeros(2, dtype=np_complex_ctor)
+    kernel[1, 1](out)
+    cuda.synchronize()
+    assert out[0] == np_complex_ctor(0.25 + 0.5j)
+
+
+@pytest.mark.parametrize("compiler", all_compiler_params())
+@pytest.mark.parametrize(
+    "complex_dtype, np_complex_ctor",
+    [
+        (complex64, np.complex64),
+        (complex128, np.complex128),
+    ],
+)
+def test_np_complex_cast(compiler, complex_dtype, np_complex_ctor):
+    cuda = compiler.runtime
+
+    @cuda.jit
+    def kernel(in_arr, out_arr):
+        tmp = cuda.local.array(shape=(1,), dtype=complex_dtype)
+        tmp[0] = in_arr[0]
+        tmp[0] = np_complex_ctor(tmp[0]) / 4.0
+        out_arr[0] = tmp[0]
+
+    in_arr = np.array([1.0 + 2.0j], dtype=np_complex_ctor)
+    out_arr = np.zeros(1, dtype=np_complex_ctor)
+    kernel[1, 1](in_arr, out_arr)
+    cuda.synchronize()
+    assert out_arr[0] == np_complex_ctor(0.25 + 0.5j)

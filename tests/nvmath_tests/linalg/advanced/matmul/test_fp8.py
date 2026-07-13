@@ -210,7 +210,7 @@ def test_batching(m, n, k, atype, btype, ctype, dtype, a_batch, b_batch, c_batch
         shape = (*batch_shape, *matrix_shape)
         if transposed:
             shape = (*shape[:-2], shape[-1], shape[-2])
-        x = sample_matrix("torch", type, shape, use_cuda=use_cuda, min=0, max=2)
+        x = sample_matrix("torch", type, shape, use_cuda=use_cuda, min_val=0, max_val=2)
         return x.swapaxes(-1, -2) if transposed else x
 
     a_orig = sample_batch(a_batch, (m, k), atype, transposed=False)

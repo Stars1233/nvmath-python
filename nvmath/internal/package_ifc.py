@@ -22,10 +22,7 @@ from contextlib import AbstractContextManager
 from dataclasses import dataclass
 from typing import Generic, Protocol, TypeVar
 
-try:
-    from cuda.core import Stream
-except ImportError:
-    from cuda.core.experimental import Stream
+from cuda.core import Stream
 
 from ._device_utils import get_device
 
@@ -46,22 +43,35 @@ around.
 S = TypeVar("S")
 
 
-class _cuda_core_stream_holder:
-    """
-    Dummy class implementing ``__cuda_stream__`` protocol for ``cuda.core.Stream``.
+# CUDA stream protocol version, see
+# https://nvidia.github.io/cuda-python/cuda-core/latest/interoperability.html#cuda-stream-protocol
+_CUDA_STREAM_PROTOCOL_VERSION = 0
 
-    Calling ``cuda.core.Device.create_stream(_cuda_core_stream_holder(handle, external))``
-    is similar to ``Stream.from_handle(handle)``, but additionally makes sure
-    to extend the ``external`` reference lifetime as long as the created
-    ``cuda.core.Stream`` object is alive.
+
+class _cuda_core_stream_holder(Generic[S]):
+    """
+    Expose a raw ``cudaStream_t`` handle through the CUDA stream protocol.
+
+    This adapter can be passed to consumers that accept the protocol, such as
+    ``cuda.core.Device.create_stream`` or ``cp.cuda.Stream.from_external``.
+
+    Args:
+        handle: The raw ``cudaStream_t`` value to expose.
+        external: Optional object that owns or keeps ``handle`` alive. The
+            holder stores a strong reference to this object but does not
+            otherwise use it. Pass ``None`` when the consumer only reads the
+            protocol immediately, or when the stream lifetime is guaranteed
+            elsewhere.
     """
 
-    def __init__(self, handle: int, external: S):
+    __slots__ = ("external", "handle")
+
+    def __init__(self, handle: int, external: S | None = None):
         self.handle = handle
         self.external = external
 
     def __cuda_stream__(self):
-        return (0, self.handle)
+        return (_CUDA_STREAM_PROTOCOL_VERSION, self.handle)
 
 
 class Package(ABC, Generic[S]):
@@ -84,6 +94,17 @@ class Package(ABC, Generic[S]):
 
         Args:
             stream: The stream object.
+        """
+        raise NotImplementedError
+
+    @staticmethod
+    @abstractmethod
+    def get_current_stream_ptr(device_id: int) -> int:
+        """
+        Return the raw ``cudaStream_t`` int for the current stream on ``device_id``.
+
+        Args:
+            device_id: The id (ordinal) of the device.
         """
         raise NotImplementedError
 

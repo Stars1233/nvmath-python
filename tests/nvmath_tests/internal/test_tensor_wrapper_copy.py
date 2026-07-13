@@ -17,7 +17,7 @@ import numpy as np
 import pytest
 
 from nvmath.internal import utils
-from nvmath.internal.ndbuffer import ndbuffer
+from nvmath.internal.ndbuffer import NDBuffer
 from nvmath.internal.tensor_ifc_ndbuffer import NDBufferTensor
 from nvmath.internal.tensor_ifc_numpy import NumpyTensor
 from nvmath.internal.tensor_wrapper import copy_, maybe_register_package, wrap_operand
@@ -26,6 +26,7 @@ from nvmath_tests.helpers import (
     get_custom_stream,
     get_framework_device_ctx,
     get_random_input_data,
+    use_stream,
 )
 
 try:
@@ -136,16 +137,12 @@ def create_empty_array(framework: Framework, mem_backend: MemBackend, shape: tup
     match (framework, mem_backend):
         case (Framework.ndbuffer, MemBackend.cpu):
             dtype_instance = np.dtype(native_dtype)
-            buf = ndbuffer.empty(
-                shape, device_id=ndbuffer.CPU_DEVICE_ID, dtype_name=dtype_instance.name, itemsize=dtype_instance.itemsize
-            )
+            buf = NDBuffer.empty(shape, device_id="cpu", dtype=dtype_instance.name)
             return NDBufferTensor(buf)
         case (Framework.ndbuffer, MemBackend.cuda):
             dtype_instance = np.dtype(native_dtype)
             with utils.device_ctx(device_id):
-                buf = ndbuffer.empty(
-                    shape, device_id=device_id, dtype_name=dtype_instance.name, itemsize=dtype_instance.itemsize, stream=stream
-                )
+                buf = NDBuffer.empty(shape, device_id=device_id, dtype=dtype_instance.name, stream=stream)
                 return NDBufferTensor(buf)
         case (Framework.numpy, MemBackend.cpu):
             return np.empty(shape, dtype=native_dtype)
@@ -202,7 +199,9 @@ def generate_copy_combinations():
 )
 def test_copy_multiple_operands(src_framework, src_backend, dest_framework, dest_backend, device_id):
     """
-    Test copying multiple operands for CuPy and PyTorch framework combinations.
+    This test validates that copy_(src_list, dst_list, stream_holder)
+    copies a batch of operands correctly across the supported
+    framework/memory-backend combinations, using a non-default custom stream.
     """
     # Skip if required framework is not available
     if (src_framework == Framework.cupy or dest_framework == Framework.cupy) and cp is None:
@@ -234,18 +233,20 @@ def test_copy_multiple_operands(src_framework, src_backend, dest_framework, dest
         stream = get_custom_stream(framework, device_id, is_numpy_stream_oriented=True)
         stream_holder = get_or_create_stream(device_id, stream, "cuda")
 
-    # Create source arrays
+    # Create source and destination arrays on the same stream that `copy_` will use,
+    # otherwise the random-fill kernel (default stream) races against the non-blocking
+    # custom stream used by the copy. `stream_holder` is still passed to
+    # `create_empty_array` because the ndbuffer branch needs an explicit stream kwarg.
     shapes = [(5, 6), (3, 4), (10,)]
     dtype = DType.float32
-    src_arrays = [
-        get_random_input_data(src_framework, shape, dtype, src_backend, get_framework_dtype, device_id=device_id)
-        for shape in shapes
-    ]
-
-    # Create destination arrays
-    dest_arrays = [
-        create_empty_array(dest_framework, dest_backend, shape, dtype, device_id, stream=stream_holder) for shape in shapes
-    ]
+    with use_stream(stream):
+        src_arrays = [
+            get_random_input_data(src_framework, shape, dtype, src_backend, get_framework_dtype, device_id=device_id)
+            for shape in shapes
+        ]
+        dest_arrays = [
+            create_empty_array(dest_framework, dest_backend, shape, dtype, device_id, stream=stream_holder) for shape in shapes
+        ]
     src_wrapped = [wrap_operand(arr) for arr in src_arrays]
     dest_wrapped = [wrap_operand(arr) for arr in dest_arrays]
     copy_(src_wrapped, dest_wrapped, stream_holder)

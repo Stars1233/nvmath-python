@@ -14,7 +14,7 @@ from types import ModuleType
 from typing import Any, Generic, Literal, Protocol, TypeVar
 
 from . import typemaps
-from .ndbuffer import ndbuffer
+from .ndbuffer import NDBuffer
 from .package_ifc import StreamHolder
 
 
@@ -115,8 +115,8 @@ class TensorHolder(ABC, Generic[Tensor]):
         raise NotImplementedError
 
     @abstractmethod
-    def asndbuffer(self) -> ndbuffer.NDBuffer:
-        """Wraps the package tensor as a ndbuffer.NDBuffer object."""
+    def asndbuffer(self) -> NDBuffer:
+        """Wraps the package tensor as a NDBuffer object."""
         raise NotImplementedError
 
     @abstractmethod
@@ -167,21 +167,6 @@ class TensorHolder(ABC, Generic[Tensor]):
         """
         Creates a N-D tensor view of the memory buffer according to the specified
         shape and strides.
-        """
-        raise NotImplementedError
-
-    def _broadcast_to(self, shape: Sequence[int]) -> TensorHolder[Tensor]:
-        """Returns a view of the tensor broadcast to the desired shape.
-
-        .. deprecated:: 0.8.0
-            This method is private, and should not be used. It will be removed in the
-            future once NDBuffer supports broadcasting-aware copy.
-
-        Like reshape, but raises an error if the tensor is not broadcastable to the desired
-        shape.
-
-        Args:
-            shape: a new shape compatible with the original shape.
         """
         raise NotImplementedError
 

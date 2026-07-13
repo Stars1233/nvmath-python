@@ -1,6 +1,7 @@
 # Copyright (c) 2024-2026, NVIDIA CORPORATION & AFFILIATES. ALL RIGHTS RESERVED.
 #
 # SPDX-License-Identifier: Apache-2.0
+import os
 
 import pytest
 
@@ -18,7 +19,7 @@ def run_test(data, precision, m, n, k, autotune=False, ncycles=10):
     A = cupy.random.rand(m, k).astype(precision)
     B = cupy.random.rand(k, n).astype(precision)
 
-    with nvmath.linalg.generic.Matmul(A, B) as mm:
+    with nvmath.linalg.Matmul(A, B) as mm:
         mm.plan()
         if autotune:
             raise NotImplementedError("Generic matmul APIs do not support autotune.")
@@ -47,6 +48,10 @@ def run_test(data, precision, m, n, k, autotune=False, ncycles=10):
     return data
 
 
+@pytest.mark.skipif(
+    os.environ.get("NVMATH_NIGHTLY", default="").lower() != "true",
+    reason="Performance benchmarks only need run nightly.",
+)
 def test_matmul_perf():
     data = []
 

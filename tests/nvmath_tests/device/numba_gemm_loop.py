@@ -5,7 +5,7 @@
 import numpy as np
 import pytest
 
-from nvmath.device import matmul
+from nvmath.device import Matmul
 
 from .helpers import _TOLERANCE, l2error
 
@@ -23,14 +23,13 @@ class NumbaGemmLoop:
         assert precision == np.float32
         assert data_type == "real"
 
-        MM = matmul(
+        MM = Matmul(
             size=size,
             data_type="real",
             precision=np.float32,
             transpose_mode=transpose_mode,
             block_size=block_size,
             execution="Block",
-            compiler="numba",
         )
 
         a_value_type = MM.a_value_type
@@ -49,7 +48,7 @@ class NumbaGemmLoop:
         m, n, k = size
         lda, ldb, ldc = MM.leading_dimension.a, MM.leading_dimension.b, MM.leading_dimension.c
 
-        @cuda.jit(link=MM.files)
+        @cuda.jit()
         def f(a_global, b_global, c_global):
             # Input/output
             a_smem = cuda.shared.array(shape=(a_size,), dtype=a_value_type)
@@ -72,7 +71,7 @@ class NumbaGemmLoop:
 
             # Execute FFT
             for _r in range(repeat):
-                MM(alpha, a_smem, b_smem, beta, c_smem)
+                MM.execute(alpha, a_smem, b_smem, beta, c_smem)
 
             cuda.syncthreads()
 

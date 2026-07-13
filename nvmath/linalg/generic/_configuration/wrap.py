@@ -9,12 +9,12 @@ abbreviation mapping, function name generation, and provides unified access with
 handle and stream management.
 """
 
-import logging
 import typing
 
 import nvmath.bindings.cublas as cublas
 import nvmath.bindings.nvpl.blas as blas
 from nvmath._internal.templates import ExecutionCPU, ExecutionCUDA
+from nvmath._internal.utils import LoggerLike
 from nvmath.bindings._internal.utils import FunctionNotFoundError
 from nvmath.internal import typemaps, utils
 from nvmath.linalg._internal.utils import get_handle
@@ -68,14 +68,14 @@ def _cublas_mm_function_name(
             suffix = ""
         case _:
             raise ValueError("batch_type is invalid.")
-    return _netlib_mm_function_name(dtype, matrix_descr_abbreviation) + suffix + "_64"
+    return _netlib_mm_function_name(dtype, matrix_descr_abbreviation) + suffix
 
 
 def cublas_mm_function(
     execution: ExecutionCUDA | ExecutionCPU,
     dtype: typemaps.cudaDataType,
     matrix_descr_abbreviation: str,
-    logger: logging.Logger,
+    logger: LoggerLike,
     batch_type: typing.Literal["", "stride", "group"] = "",
 ) -> typing.Callable:
     """Return a cublas API Level-3 function from nvmath.bindings.cublas."""
@@ -125,7 +125,7 @@ def _nvpl_mm_function_name(
         case "stride":
             suffix = "_batch_strided"
         case "group":
-            suffix = "_batch_grouped"
+            suffix = "_batch"
         case "":
             suffix = ""
         case _:
@@ -137,7 +137,7 @@ def nvpl_mm_function(
     execution: ExecutionCUDA | ExecutionCPU,
     dtype: typemaps.cudaDataType,
     matrix_descr_abbreviation: str,
-    logger: logging.Logger,
+    logger: LoggerLike,
     batch_type: typing.Literal["", "stride", "group"] = "",
 ) -> typing.Callable:
     """Return an NVPL API Level-3 function from nvmath.bindings.nvpl.blas."""

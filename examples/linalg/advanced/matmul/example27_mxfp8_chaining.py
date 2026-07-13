@@ -3,9 +3,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """
-This example demonstrates how D_OUT quantization scale can be reused as input scale for
-subsequent matrix multiplications. In this example, we compute matrix exponentiation by
-chaining multiple matrix multiplications, while feeding D_OUT scale as A scale.
+Each MXFP8 block-scaled matrix multiplication produces both a result and the quantization
+scale that describes it. This example shows how that output scale can be fed straight
+in as the input scale for the next multiplication. We use this to compute a matrix
+exponentiation by chaining multiplications, feeding each result back in as operand 'a'.
 
 FP8 is only supported with cuBLAS 12.8 or newer and on devices with compute
 capability 10.0 or higher.
@@ -19,16 +20,16 @@ size = 256
 
 p = 4
 
-# We will compute B^p = A*B*B*...*B
+# We will compute b^p = a*b*b*...*b
 a = torch.eye(size, device="cuda", dtype=torch.float8_e4m3fn)  # Identity matrix
-print("Initial value of A (identity matrix):")
+print("Initial value of 'a' (identity matrix):")
 print(a)
 print()
 
 b = (
     (torch.eye(size, device="cuda") * (1 + torch.arange(size, device="cuda"))).type(torch.float8_e4m3fn).T
 )  # Diagonal matrix with ascending values
-print("Initial value of B (diagonal matrix):")
+print("Initial value of 'b' (diagonal matrix):")
 print(b)
 print()
 
@@ -50,12 +51,12 @@ with nvmath.linalg.advanced.Matmul(a, b, quantization_scales=init_scales, option
     for i in range(1, p + 1):
         d, aux = mm.execute()
 
-        # Replace A with A*B and use the D_OUT scale as input scale for the new A
+        # Replace 'a' with a*b and use the output scale as input scale for the new 'a'
         d_out_scale = aux["d_out_scale"]
         print(f"{d_out_scale=}")
         mm.reset_operands(a=d, quantization_scales={"a": d_out_scale})
 
         # Print the result with quantization scales applied
-        print(f"Result of B^{i} (with quantization scales applied):")
+        print(f"Result of b^{i} (with quantization scales applied):")
         print(nvmath.linalg.advanced.helpers.matmul.apply_mxfp8_scale(d, d_out_scale))
         print()

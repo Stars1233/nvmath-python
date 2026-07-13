@@ -39,8 +39,9 @@ with cp.cuda.Device(device_id):
 
 # Forward FFT.
 # In this example, the forward FFT operand is distributed according to Slab.X distribution.
-# With reshape=False, the FFT result will be distributed according to Slab.Y distribution.
-b = nvmath.distributed.fft.fft(a, distribution=Slab.X, options={"reshape": False})
+# With redistribute=False, the FFT result will be distributed according to Slab.Y
+# distribution.
+b = nvmath.distributed.fft.fft(a, distribution=Slab.X, options={"redistribute": False})
 
 # Distributed FFT performs computations in-place. The result is stored in the same
 # buffer as operand a. Note, however, that operand b has a different shape (due
@@ -51,9 +52,9 @@ if rank == 0:
 
 # Inverse FFT.
 # Recall from previous transform that the inverse FFT operand is distributed according to
-# Slab.Y. With reshape=False, the inverse FFT result will be distributed according to
+# Slab.Y. With redistribute=False, the inverse FFT result will be distributed according to
 # Slab.X distribution.
-c = nvmath.distributed.fft.ifft(b, distribution=Slab.Y, options={"reshape": False})
+c = nvmath.distributed.fft.ifft(b, distribution=Slab.Y, options={"redistribute": False})
 
 # The shape of c is the same as a (due to Slab.X distribution). Once again, note that
 # a, b and c are sharing the same symmetric memory buffer (distributed FFT operations

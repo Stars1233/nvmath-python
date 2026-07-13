@@ -15,7 +15,6 @@ supported_dtypes = (
     DType.bfloat16,
     DType.float32,
     DType.float64,
-    DType.complex32,
     DType.complex64,
     DType.complex128,
 )
