@@ -89,7 +89,7 @@ setup(
         get_ext_modules(),
         verbose=True,
         language_level=3,
-        compiler_directives={"embedsignature": True},
+        compiler_directives={"embedsignature": True, "freethreading_compatible": True},
         nthreads=nthreads,
     ),
 )

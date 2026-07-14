@@ -11,6 +11,7 @@ from nvmath.bindings import cufft
 from nvmath.bindings import curand
 from nvmath.bindings import cusolver
 from nvmath.bindings import cusolverDn
+from nvmath.bindings import cusolverSp
 from nvmath.bindings import cusparse
 from nvmath.bindings import cusparseLt
 from nvmath.bindings import cutensor
@@ -33,6 +34,12 @@ try:
 except ImportError:
     cublasMp = None
 
+try:
+    # cusolverMp is Linux-only.
+    from nvmath.bindings import cusolverMp
+except ImportError:
+    cusolverMp = None
+
 __all__ = [
     "cublas",
     "cublasLt",
@@ -43,6 +50,8 @@ __all__ = [
     "curand",
     "cusolver",
     "cusolverDn",
+    "cusolverSp",
+    "cusolverMp",
     "cusparse",
     "cusparseLt",
     "cutensor",

@@ -7,6 +7,7 @@
 
 from libc.stdint cimport int64_t
 from libc.stdint cimport int32_t
+from ._internal.common_types cimport cudaStream_t
 
 
 ###############################################################################
@@ -66,15 +67,6 @@ ctypedef enum flags "flags":
 
 
 # types
-cdef extern from *:
-    """
-    #include <driver_types.h>
-    #include <library_types.h>
-    #include <cuComplex.h>
-    """
-    ctypedef void* cudaStream_t 'cudaStream_t'
-
-
 ctypedef struct nvshmemx_uniqueid_v1 'nvshmemx_uniqueid_v1':
     int version
     char internal[124]

@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 #
-# This code was automatically generated across versions from 11.0.3 to 13.2.0, generator version 0.3.1.dev1301+g7215ac36e. Do not modify it directly.
+# This code was automatically generated across versions from 11.0.3 to 13.2.0, generator version 0.3.1.dev1471+g7122059e9. Do not modify it directly.
 # This layer exposes the C header to Cython as-is.
 
 from libc.stdint cimport int64_t, uint64_t
@@ -10,6 +10,7 @@ from libc.stdio cimport FILE
 
 from .cycublas cimport cublasStatus_t, cublasComputeType_t, CUBLAS_POINTER_MODE_HOST, CUBLAS_POINTER_MODE_DEVICE
 from .cycublas cimport _CUBLASSTATUS_T_INTERNAL_LOADING_ERROR
+from ._internal.common_types cimport cudaDataType, cudaDataType_t, cudaStream_t, libraryPropertyType, libraryPropertyType_t, cuComplex, cuDoubleComplex
 
 
 ###############################################################################
@@ -961,31 +962,20 @@ ctypedef enum cublasLtEmulationDescAttributes_t "cublasLtEmulationDescAttributes
 
 
 # types
-cdef extern from *:
-    """
-    #include <driver_types.h>
-    #include <library_types.h>
-    #include <cuComplex.h>
-    """
-    ctypedef void* cudaStream_t 'cudaStream_t'
-    ctypedef int cudaDataType_t 'cudaDataType_t'
-    ctypedef int cudaDataType 'cudaDataType'
-    ctypedef int libraryPropertyType_t 'libraryPropertyType_t'
-    ctypedef int libraryPropertyType 'libraryPropertyType'
-
-    ctypedef struct cuComplex:
-        pass
-    ctypedef struct cuDoubleComplex:
-        pass
-
-
 ctypedef uint64_t cublasLtNumericalImplFlags_t 'cublasLtNumericalImplFlags_t'
+
 ctypedef void* cublasLtHandle_t 'cublasLtHandle_t'
+
 ctypedef void* cublasLtMatrixLayout_t 'cublasLtMatrixLayout_t'
+
 ctypedef void* cublasLtMatmulDesc_t 'cublasLtMatmulDesc_t'
+
 ctypedef void* cublasLtMatrixTransformDesc_t 'cublasLtMatrixTransformDesc_t'
+
 ctypedef void* cublasLtMatmulPreference_t 'cublasLtMatmulPreference_t'
+
 ctypedef void* cublasLtEmulationDesc_t 'cublasLtEmulationDesc_t'
+
 ctypedef struct cublasLtMatmulAlgo_t 'cublasLtMatmulAlgo_t':
     uint64_t data[8]
 
@@ -994,13 +984,13 @@ ctypedef void (*cublasLtLoggerCallback_t 'cublasLtLoggerCallback_t')(
     const char* functionName,
     const char* message
 )
+
 ctypedef struct cublasLtMatmulHeuristicResult_t 'cublasLtMatmulHeuristicResult_t':
     cublasLtMatmulAlgo_t algo
     size_t workspaceSize
     cublasStatus_t state
     float wavesCount
     int reserved[4]
-
 
 
 ###############################################################################

@@ -10,58 +10,50 @@ __all__ = [
     "axis_order_in_memory",
     "calculate_strides",
     "check_batch_tileable",
-    "create_handle",
-    "destroy_handle",
     "get_handle",
     "pointer_aligned_to",
 ]
 
-import atexit
 import typing
 
+from nvmath._internal import threadsafe
 from nvmath.bindings import cublas
 from nvmath.bindings import cublasLt as cublaslt
 from nvmath.internal import utils
-
-HANDLES: dict[str, dict[int, int]] = {
-    "cublas": {},
-    "cublaslt": {},
-}
+from nvmath.internal._layout import StridedLayout
 
 
-def create_handle(device_id: int, binding="cublaslt") -> int:
+def create_cublas_handle(device_id: int) -> int:
     """
     Currently for internal use only.
     """
     with utils.device_ctx(device_id):
-        match binding:
-            case "cublas":
-                handle = cublas.create()
-            case "cublaslt" | _:
-                handle = cublaslt.create()
-    return handle
+        return cublas.create()
 
 
-def destroy_handle(handle: int, binding="cublaslt"):
+def create_cublaslt_handle(device_id: int) -> int:
     """
     Currently for internal use only.
     """
-    match binding:
-        case "cublas":
-            cublas.destroy(handle)
-        case "cublaslt" | _:
-            cublaslt.destroy(handle)
+    with utils.device_ctx(device_id):
+        return cublaslt.create()
 
 
-@atexit.register
-def _cleanup_handles():
-    """
-    Cleanup all cached handles on program exit.
-    """
-    for binding, device_handles in HANDLES.items():
-        for handle in device_handles.values():
-            destroy_handle(handle, binding=binding)
-        device_handles.clear()
+# One per-thread cache per binding. Keying by `device_id` alone (rather than a
+# shared `(binding, device_id)` dict) keeps the two bindings' handles in
+# separate caches, which avoids any chance of a binding-string typo aliasing
+# the wrong handle. cuBLAS handles must not be shared across threads
+# (https://docs.nvidia.com/cuda/cublas/#thread-safety); cuBLASLt handles could
+# be shared, but per-thread caching is a safe superset and keeps both paths
+# uniform.
+_CUBLAS_CACHE = threadsafe.HandleCache[int](
+    create=create_cublas_handle,
+    destroy=cublas.destroy,
+)
+_CUBLASLT_CACHE = threadsafe.HandleCache[int](
+    create=create_cublaslt_handle,
+    destroy=cublaslt.destroy,
+)
 
 
 def get_handle(device_id: int, binding="cublaslt") -> int:
@@ -69,18 +61,18 @@ def get_handle(device_id: int, binding="cublaslt") -> int:
     Retrieve the cuBLAS[lt] library handle for the specified device. If one doesn't exist,
     create, cache, and return the handle.
 
-    According to the docs for cublasLtHandle_t, any valid cublasHandle_t can be used in
-    place of cublasLtHandle_t with a simple cast, so we use the same handle for both APIs.
-
-    Handles are cached and automatically cleaned up on program exit via the atexit handler.
-    We expect to have exactly one handle per device / thread.
+    Handles are cached per thread in a separate cache per binding, so a single
+    thread can hold distinct handles for ``"cublas"`` and ``"cublaslt"`` on the
+    same device. Cached handles are released automatically when the owning
+    thread exits.
     """
-    if device_id in HANDLES[binding]:
-        handle = HANDLES[binding][device_id]
+    if binding == "cublas":
+        cache = _CUBLAS_CACHE
+    elif binding == "cublaslt":
+        cache = _CUBLASLT_CACHE
     else:
-        handle = create_handle(device_id, binding=binding)
-        HANDLES[binding][device_id] = handle
-    return handle
+        raise ValueError(f"{binding} is not a valid library name.")
+    return cache.get(device_id)
 
 
 def pointer_aligned_to(address):
@@ -120,15 +112,46 @@ def calculate_strides(shape: typing.Sequence[int], axis_order: typing.Sequence[i
     return strides
 
 
-def _contiguous_layout(sorted_shape, sorted_strides):
-    return all(sorted_shape[s - 1] * sorted_strides[s - 1] == sorted_strides[s] for s in range(1, len(sorted_strides)))
-
-
 def check_batch_tileable(batch_shape, batch_strides):
     """
-    Check if the matrix layout is tileable across the specified batch layout.
+    Whether the batch layout can be expressed the way cuBLAS strided-batched
+    expects: a single ``batch_count`` and a single stride ``S`` per operand,
+    so that tile ``k`` lives at ``base + k * S`` for ``k = 0, ..., N - 1``.
+
+    Two scenarios -- and only these two -- satisfy that form:
+
+    (a) Regular grid of distinct tiles (``S > 0``): tiles sit at evenly
+        spaced offsets along *some* axis order, with the gap between
+        consecutive tiles allowed to be larger than the tile itself (i.e.
+        padded/gapped batches are fine).
+
+    (b) Replicated tile (``S == 0``): every batch index lands on the same
+        tile, i.e. *every* non-singleton batch dim has stride 0. Typical
+        source: ``torch.expand`` (or equivalent) applied so that the
+        operand has no real batch axis -- e.g. ``A.unsqueeze(0).expand(N,
+        M, K)``.
+
+    A broadcast on *some* batch axis combined with a real (stride > 0)
+    batch axis of size > 1 does **not** qualify for (b) -- it isn't
+    tileable in the form above and is rejected. E.g.
+    ``X.unsqueeze(0).expand(N1, P, M, K)`` with both ``N1 > 1`` *and*
+    ``P > 1`` has batch strides ``(0, M*K)`` and is not tileable.
     """
-    sorted_batch_strides, sorted_batch_shape = zip(
-        *sorted((batch_strides[a], batch_shape[a]) for a in range(len(batch_shape))), strict=True
-    )
-    return _contiguous_layout(sorted_batch_shape, sorted_batch_strides)
+    # Empty / all-size-1 batch: degenerate intersection of (a) and (b),
+    # trivially tileable.
+    if all(n == 1 for n in batch_shape):
+        return True
+
+    layout = StridedLayout(batch_shape, batch_strides, itemsize=1)
+
+    # Scenario (a): tiles on a regular grid in some axis order.
+    # `"K"` lets the grid be in any order (C, F, or a permutation), and
+    # `allow_leading_dim_stride=True` lets the smallest stride exceed 1.
+    if layout.is_dense("K", allow_leading_dim_stride=True):
+        return True
+
+    # Scenario (b): pure broadcast. Flatten collapses to a single 1-D dim
+    # with stride 0 iff every non-size-1 batch stride is 0; mixed
+    # broadcast + non-broadcast dims don't collapse and get rejected.
+    flat = layout.flattened()
+    return flat.ndim == 1 and flat.strides[0] == 0

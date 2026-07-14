@@ -45,7 +45,8 @@ def test_unplanned():
         mm.execute()
 
 
-def test_reset_operands():
+@pytest.mark.parametrize("reset_method", ("checked", "unchecked"))
+def test_reset_operands(reset_method):
     a = np.ones(shape=(4, 4))
     b = np.ones(shape=(4, 4))
     a1 = np.ones(shape=(4, 4)) * 2
@@ -61,7 +62,10 @@ def test_reset_operands():
     ) as mm:
         mm.plan()
         r = mm.execute()
-        mm.reset_operands(a=a1, b=b1)
+        if reset_method == "unchecked":
+            mm.reset_operands_unchecked(a=a1, b=b1)
+        else:
+            mm.reset_operands(a=a1, b=b1)
         r1 = mm.execute()
     np.testing.assert_equal(6 * r, r1)
 
@@ -237,7 +241,8 @@ def test_release_operands_then_execute_fails(memory_space):
 
 
 @pytest.mark.parametrize("memory_space", ["cuda", "cpu"])
-def test_release_operands_then_reset_works(memory_space):
+@pytest.mark.parametrize("reset_method", ("checked", "unchecked"))
+def test_release_operands_then_reset_works(memory_space, reset_method):
     if memory_space == "cuda":
         cp = pytest.importorskip("cupy")
 
@@ -261,7 +266,10 @@ def test_release_operands_then_reset_works(memory_space):
         cp.cuda.get_current_stream().synchronize()
 
     mm.release_operands()
-    mm.reset_operands(a=a_new, b=b_new)
+    if reset_method == "unchecked":
+        mm.reset_operands_unchecked(a=a_new, b=b_new)
+    else:
+        mm.reset_operands(a=a_new, b=b_new)
     result2 = mm.execute()
 
     if memory_space == "cuda":

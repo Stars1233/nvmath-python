@@ -102,18 +102,13 @@ class USTensorHolder(SparseTensorHolder):
         No copy is performed if the UST is already on the requested device.
         """
 
-        # TODO: create an internal function that directly uses the stream holder.
-        stream = stream_holder.ptr if stream_holder is not None else None
-        target = self.tensor.to(device_id, stream)
-
+        target = self.tensor._to(device_id, stream_holder)
         return USTensorHolder(target)
 
     def copy_(self, src, stream_holder: StreamHolder | None) -> None:
         """Overwrite self.tensor (in-place) with a copy of src (USTensorHolder)."""
 
-        # TODO: create an internal function that directly uses the stream holder.
-        stream = stream_holder.ptr if stream_holder is not None else None
-        self.tensor.copy_(src.tensor, stream)
+        self.tensor.copy_(src.tensor, stream_holder)
 
     def to_ust(self, *, stream):
         return self.tensor

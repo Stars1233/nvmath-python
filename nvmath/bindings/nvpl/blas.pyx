@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 #
-# This code was automatically generated with version 25.5, generator version 0.3.1.dev1303+g031f1197f. Do not modify it directly.
+# This code was automatically generated across versions from 25.5 to 26.5, generator version 0.3.1.dev1723+geb5f29ab4. Do not modify it directly.
 
 cimport cython  # NOQA
 
@@ -299,3 +299,233 @@ cpdef void cgemm_batch_strided(int order, int trans_a, int trans_b, nvpl_int32_t
 cpdef void zgemm_batch_strided(int order, int trans_a, int trans_b, nvpl_int32_t m, nvpl_int32_t n, nvpl_int32_t k, intptr_t alpha, intptr_t a, nvpl_int32_t lda, nvpl_int32_t stridea, intptr_t b, nvpl_int32_t ldb, nvpl_int32_t strideb, intptr_t beta, intptr_t c, nvpl_int32_t ldc, nvpl_int32_t stridec, nvpl_int32_t batch_size) except*:
     """See `cblas_zgemm_batch_strided`."""
     cblas_zgemm_batch_strided(<const _ORDER>order, <const _TRANSPOSE>trans_a, <const _TRANSPOSE>trans_b, <const nvpl_int_t>m, <const nvpl_int_t>n, <const nvpl_int_t>k, <const void*>alpha, <const void*>a, <const nvpl_int_t>lda, <const nvpl_int_t>stridea, <const void*>b, <const nvpl_int_t>ldb, <const nvpl_int_t>strideb, <const void*>beta, <void*>c, <const nvpl_int_t>ldc, <const nvpl_int_t>stridec, <const nvpl_int_t>batch_size)
+
+
+cpdef void sgemmt(int order, int uplo, int trans_a, int trans_b, nvpl_int32_t n, nvpl_int32_t k, float alpha, intptr_t a, nvpl_int32_t lda, intptr_t b, nvpl_int32_t ldb, float beta, intptr_t c, nvpl_int32_t ldc) except*:
+    """See `cblas_sgemmt`."""
+    cblas_sgemmt(<const _ORDER>order, <const _UPLO>uplo, <const _TRANSPOSE>trans_a, <const _TRANSPOSE>trans_b, <const nvpl_int_t>n, <const nvpl_int_t>k, <const float>alpha, <const float*>a, <const nvpl_int_t>lda, <const float*>b, <const nvpl_int_t>ldb, <const float>beta, <float*>c, <const nvpl_int_t>ldc)
+
+
+cpdef void dgemmt(int order, int uplo, int trans_a, int trans_b, nvpl_int32_t n, nvpl_int32_t k, double alpha, intptr_t a, nvpl_int32_t lda, intptr_t b, nvpl_int32_t ldb, double beta, intptr_t c, nvpl_int32_t ldc) except*:
+    """See `cblas_dgemmt`."""
+    cblas_dgemmt(<const _ORDER>order, <const _UPLO>uplo, <const _TRANSPOSE>trans_a, <const _TRANSPOSE>trans_b, <const nvpl_int_t>n, <const nvpl_int_t>k, <const double>alpha, <const double*>a, <const nvpl_int_t>lda, <const double*>b, <const nvpl_int_t>ldb, <const double>beta, <double*>c, <const nvpl_int_t>ldc)
+
+
+cpdef void cgemmt(int order, int uplo, int trans_a, int trans_b, nvpl_int32_t n, nvpl_int32_t k, intptr_t alpha, intptr_t a, nvpl_int32_t lda, intptr_t b, nvpl_int32_t ldb, intptr_t beta, intptr_t c, nvpl_int32_t ldc) except*:
+    """See `cblas_cgemmt`."""
+    cblas_cgemmt(<const _ORDER>order, <const _UPLO>uplo, <const _TRANSPOSE>trans_a, <const _TRANSPOSE>trans_b, <const nvpl_int_t>n, <const nvpl_int_t>k, <const void*>alpha, <const void*>a, <const nvpl_int_t>lda, <const void*>b, <const nvpl_int_t>ldb, <const void*>beta, <void*>c, <const nvpl_int_t>ldc)
+
+
+cpdef void zgemmt(int order, int uplo, int trans_a, int trans_b, nvpl_int32_t n, nvpl_int32_t k, intptr_t alpha, intptr_t a, nvpl_int32_t lda, intptr_t b, nvpl_int32_t ldb, intptr_t beta, intptr_t c, nvpl_int32_t ldc) except*:
+    """See `cblas_zgemmt`."""
+    cblas_zgemmt(<const _ORDER>order, <const _UPLO>uplo, <const _TRANSPOSE>trans_a, <const _TRANSPOSE>trans_b, <const nvpl_int_t>n, <const nvpl_int_t>k, <const void*>alpha, <const void*>a, <const nvpl_int_t>lda, <const void*>b, <const nvpl_int_t>ldb, <const void*>beta, <void*>c, <const nvpl_int_t>ldc)
+
+
+cpdef void sgemm_64(int order, int trans_a, int trans_b, int64_t m, int64_t n, int64_t k, float alpha, intptr_t a, int64_t lda, intptr_t b, int64_t ldb, float beta, intptr_t c, int64_t ldc) except*:
+    """See `cblas_sgemm_64`."""
+    cblas_sgemm_64(<const _ORDER>order, <const _TRANSPOSE>trans_a, <const _TRANSPOSE>trans_b, <const nvpl_int64_t>m, <const nvpl_int64_t>n, <const nvpl_int64_t>k, <const float>alpha, <const float*>a, <const nvpl_int64_t>lda, <const float*>b, <const nvpl_int64_t>ldb, <const float>beta, <float*>c, <const nvpl_int64_t>ldc)
+
+
+cpdef void ssymm_64(int order, int side, int uplo, int64_t m, int64_t n, float alpha, intptr_t a, int64_t lda, intptr_t b, int64_t ldb, float beta, intptr_t c, int64_t ldc) except*:
+    """See `cblas_ssymm_64`."""
+    cblas_ssymm_64(<const _ORDER>order, <const _SIDE>side, <const _UPLO>uplo, <const nvpl_int64_t>m, <const nvpl_int64_t>n, <const float>alpha, <const float*>a, <const nvpl_int64_t>lda, <const float*>b, <const nvpl_int64_t>ldb, <const float>beta, <float*>c, <const nvpl_int64_t>ldc)
+
+
+cpdef void ssyrk_64(int order, int uplo, int trans, int64_t n, int64_t k, float alpha, intptr_t a, int64_t lda, float beta, intptr_t c, int64_t ldc) except*:
+    """See `cblas_ssyrk_64`."""
+    cblas_ssyrk_64(<const _ORDER>order, <const _UPLO>uplo, <const _TRANSPOSE>trans, <const nvpl_int64_t>n, <const nvpl_int64_t>k, <const float>alpha, <const float*>a, <const nvpl_int64_t>lda, <const float>beta, <float*>c, <const nvpl_int64_t>ldc)
+
+
+cpdef void ssyr2k_64(int order, int uplo, int trans, int64_t n, int64_t k, float alpha, intptr_t a, int64_t lda, intptr_t b, int64_t ldb, float beta, intptr_t c, int64_t ldc) except*:
+    """See `cblas_ssyr2k_64`."""
+    cblas_ssyr2k_64(<const _ORDER>order, <const _UPLO>uplo, <const _TRANSPOSE>trans, <const nvpl_int64_t>n, <const nvpl_int64_t>k, <const float>alpha, <const float*>a, <const nvpl_int64_t>lda, <const float*>b, <const nvpl_int64_t>ldb, <const float>beta, <float*>c, <const nvpl_int64_t>ldc)
+
+
+cpdef void strmm_64(int order, int side, int uplo, int trans_a, int diag, int64_t m, int64_t n, float alpha, intptr_t a, int64_t lda, intptr_t b, int64_t ldb) except*:
+    """See `cblas_strmm_64`."""
+    cblas_strmm_64(<const _ORDER>order, <const _SIDE>side, <const _UPLO>uplo, <const _TRANSPOSE>trans_a, <const _DIAG>diag, <const nvpl_int64_t>m, <const nvpl_int64_t>n, <const float>alpha, <const float*>a, <const nvpl_int64_t>lda, <float*>b, <const nvpl_int64_t>ldb)
+
+
+cpdef void strsm_64(int order, int side, int uplo, int trans_a, int diag, int64_t m, int64_t n, float alpha, intptr_t a, int64_t lda, intptr_t b, int64_t ldb) except*:
+    """See `cblas_strsm_64`."""
+    cblas_strsm_64(<const _ORDER>order, <const _SIDE>side, <const _UPLO>uplo, <const _TRANSPOSE>trans_a, <const _DIAG>diag, <const nvpl_int64_t>m, <const nvpl_int64_t>n, <const float>alpha, <const float*>a, <const nvpl_int64_t>lda, <float*>b, <const nvpl_int64_t>ldb)
+
+
+cpdef void dgemm_64(int order, int trans_a, int trans_b, int64_t m, int64_t n, int64_t k, double alpha, intptr_t a, int64_t lda, intptr_t b, int64_t ldb, double beta, intptr_t c, int64_t ldc) except*:
+    """See `cblas_dgemm_64`."""
+    cblas_dgemm_64(<const _ORDER>order, <const _TRANSPOSE>trans_a, <const _TRANSPOSE>trans_b, <const nvpl_int64_t>m, <const nvpl_int64_t>n, <const nvpl_int64_t>k, <const double>alpha, <const double*>a, <const nvpl_int64_t>lda, <const double*>b, <const nvpl_int64_t>ldb, <const double>beta, <double*>c, <const nvpl_int64_t>ldc)
+
+
+cpdef void dsymm_64(int order, int side, int uplo, int64_t m, int64_t n, double alpha, intptr_t a, int64_t lda, intptr_t b, int64_t ldb, double beta, intptr_t c, int64_t ldc) except*:
+    """See `cblas_dsymm_64`."""
+    cblas_dsymm_64(<const _ORDER>order, <const _SIDE>side, <const _UPLO>uplo, <const nvpl_int64_t>m, <const nvpl_int64_t>n, <const double>alpha, <const double*>a, <const nvpl_int64_t>lda, <const double*>b, <const nvpl_int64_t>ldb, <const double>beta, <double*>c, <const nvpl_int64_t>ldc)
+
+
+cpdef void dsyrk_64(int order, int uplo, int trans, int64_t n, int64_t k, double alpha, intptr_t a, int64_t lda, double beta, intptr_t c, int64_t ldc) except*:
+    """See `cblas_dsyrk_64`."""
+    cblas_dsyrk_64(<const _ORDER>order, <const _UPLO>uplo, <const _TRANSPOSE>trans, <const nvpl_int64_t>n, <const nvpl_int64_t>k, <const double>alpha, <const double*>a, <const nvpl_int64_t>lda, <const double>beta, <double*>c, <const nvpl_int64_t>ldc)
+
+
+cpdef void dsyr2k_64(int order, int uplo, int trans, int64_t n, int64_t k, double alpha, intptr_t a, int64_t lda, intptr_t b, int64_t ldb, double beta, intptr_t c, int64_t ldc) except*:
+    """See `cblas_dsyr2k_64`."""
+    cblas_dsyr2k_64(<const _ORDER>order, <const _UPLO>uplo, <const _TRANSPOSE>trans, <const nvpl_int64_t>n, <const nvpl_int64_t>k, <const double>alpha, <const double*>a, <const nvpl_int64_t>lda, <const double*>b, <const nvpl_int64_t>ldb, <const double>beta, <double*>c, <const nvpl_int64_t>ldc)
+
+
+cpdef void dtrmm_64(int order, int side, int uplo, int trans_a, int diag, int64_t m, int64_t n, double alpha, intptr_t a, int64_t lda, intptr_t b, int64_t ldb) except*:
+    """See `cblas_dtrmm_64`."""
+    cblas_dtrmm_64(<const _ORDER>order, <const _SIDE>side, <const _UPLO>uplo, <const _TRANSPOSE>trans_a, <const _DIAG>diag, <const nvpl_int64_t>m, <const nvpl_int64_t>n, <const double>alpha, <const double*>a, <const nvpl_int64_t>lda, <double*>b, <const nvpl_int64_t>ldb)
+
+
+cpdef void dtrsm_64(int order, int side, int uplo, int trans_a, int diag, int64_t m, int64_t n, double alpha, intptr_t a, int64_t lda, intptr_t b, int64_t ldb) except*:
+    """See `cblas_dtrsm_64`."""
+    cblas_dtrsm_64(<const _ORDER>order, <const _SIDE>side, <const _UPLO>uplo, <const _TRANSPOSE>trans_a, <const _DIAG>diag, <const nvpl_int64_t>m, <const nvpl_int64_t>n, <const double>alpha, <const double*>a, <const nvpl_int64_t>lda, <double*>b, <const nvpl_int64_t>ldb)
+
+
+cpdef void cgemm_64(int order, int trans_a, int trans_b, int64_t m, int64_t n, int64_t k, intptr_t alpha, intptr_t a, int64_t lda, intptr_t b, int64_t ldb, intptr_t beta, intptr_t c, int64_t ldc) except*:
+    """See `cblas_cgemm_64`."""
+    cblas_cgemm_64(<const _ORDER>order, <const _TRANSPOSE>trans_a, <const _TRANSPOSE>trans_b, <const nvpl_int64_t>m, <const nvpl_int64_t>n, <const nvpl_int64_t>k, <const void*>alpha, <const void*>a, <const nvpl_int64_t>lda, <const void*>b, <const nvpl_int64_t>ldb, <const void*>beta, <void*>c, <const nvpl_int64_t>ldc)
+
+
+cpdef void csymm_64(int order, int side, int uplo, int64_t m, int64_t n, intptr_t alpha, intptr_t a, int64_t lda, intptr_t b, int64_t ldb, intptr_t beta, intptr_t c, int64_t ldc) except*:
+    """See `cblas_csymm_64`."""
+    cblas_csymm_64(<const _ORDER>order, <const _SIDE>side, <const _UPLO>uplo, <const nvpl_int64_t>m, <const nvpl_int64_t>n, <const void*>alpha, <const void*>a, <const nvpl_int64_t>lda, <const void*>b, <const nvpl_int64_t>ldb, <const void*>beta, <void*>c, <const nvpl_int64_t>ldc)
+
+
+cpdef void csyrk_64(int order, int uplo, int trans, int64_t n, int64_t k, intptr_t alpha, intptr_t a, int64_t lda, intptr_t beta, intptr_t c, int64_t ldc) except*:
+    """See `cblas_csyrk_64`."""
+    cblas_csyrk_64(<const _ORDER>order, <const _UPLO>uplo, <const _TRANSPOSE>trans, <const nvpl_int64_t>n, <const nvpl_int64_t>k, <const void*>alpha, <const void*>a, <const nvpl_int64_t>lda, <const void*>beta, <void*>c, <const nvpl_int64_t>ldc)
+
+
+cpdef void csyr2k_64(int order, int uplo, int trans, int64_t n, int64_t k, intptr_t alpha, intptr_t a, int64_t lda, intptr_t b, int64_t ldb, intptr_t beta, intptr_t c, int64_t ldc) except*:
+    """See `cblas_csyr2k_64`."""
+    cblas_csyr2k_64(<const _ORDER>order, <const _UPLO>uplo, <const _TRANSPOSE>trans, <const nvpl_int64_t>n, <const nvpl_int64_t>k, <const void*>alpha, <const void*>a, <const nvpl_int64_t>lda, <const void*>b, <const nvpl_int64_t>ldb, <const void*>beta, <void*>c, <const nvpl_int64_t>ldc)
+
+
+cpdef void ctrmm_64(int order, int side, int uplo, int trans_a, int diag, int64_t m, int64_t n, intptr_t alpha, intptr_t a, int64_t lda, intptr_t b, int64_t ldb) except*:
+    """See `cblas_ctrmm_64`."""
+    cblas_ctrmm_64(<const _ORDER>order, <const _SIDE>side, <const _UPLO>uplo, <const _TRANSPOSE>trans_a, <const _DIAG>diag, <const nvpl_int64_t>m, <const nvpl_int64_t>n, <const void*>alpha, <const void*>a, <const nvpl_int64_t>lda, <void*>b, <const nvpl_int64_t>ldb)
+
+
+cpdef void ctrsm_64(int order, int side, int uplo, int trans_a, int diag, int64_t m, int64_t n, intptr_t alpha, intptr_t a, int64_t lda, intptr_t b, int64_t ldb) except*:
+    """See `cblas_ctrsm_64`."""
+    cblas_ctrsm_64(<const _ORDER>order, <const _SIDE>side, <const _UPLO>uplo, <const _TRANSPOSE>trans_a, <const _DIAG>diag, <const nvpl_int64_t>m, <const nvpl_int64_t>n, <const void*>alpha, <const void*>a, <const nvpl_int64_t>lda, <void*>b, <const nvpl_int64_t>ldb)
+
+
+cpdef void zgemm_64(int order, int trans_a, int trans_b, int64_t m, int64_t n, int64_t k, intptr_t alpha, intptr_t a, int64_t lda, intptr_t b, int64_t ldb, intptr_t beta, intptr_t c, int64_t ldc) except*:
+    """See `cblas_zgemm_64`."""
+    cblas_zgemm_64(<const _ORDER>order, <const _TRANSPOSE>trans_a, <const _TRANSPOSE>trans_b, <const nvpl_int64_t>m, <const nvpl_int64_t>n, <const nvpl_int64_t>k, <const void*>alpha, <const void*>a, <const nvpl_int64_t>lda, <const void*>b, <const nvpl_int64_t>ldb, <const void*>beta, <void*>c, <const nvpl_int64_t>ldc)
+
+
+cpdef void zsymm_64(int order, int side, int uplo, int64_t m, int64_t n, intptr_t alpha, intptr_t a, int64_t lda, intptr_t b, int64_t ldb, intptr_t beta, intptr_t c, int64_t ldc) except*:
+    """See `cblas_zsymm_64`."""
+    cblas_zsymm_64(<const _ORDER>order, <const _SIDE>side, <const _UPLO>uplo, <const nvpl_int64_t>m, <const nvpl_int64_t>n, <const void*>alpha, <const void*>a, <const nvpl_int64_t>lda, <const void*>b, <const nvpl_int64_t>ldb, <const void*>beta, <void*>c, <const nvpl_int64_t>ldc)
+
+
+cpdef void zsyrk_64(int order, int uplo, int trans, int64_t n, int64_t k, intptr_t alpha, intptr_t a, int64_t lda, intptr_t beta, intptr_t c, int64_t ldc) except*:
+    """See `cblas_zsyrk_64`."""
+    cblas_zsyrk_64(<const _ORDER>order, <const _UPLO>uplo, <const _TRANSPOSE>trans, <const nvpl_int64_t>n, <const nvpl_int64_t>k, <const void*>alpha, <const void*>a, <const nvpl_int64_t>lda, <const void*>beta, <void*>c, <const nvpl_int64_t>ldc)
+
+
+cpdef void zsyr2k_64(int order, int uplo, int trans, int64_t n, int64_t k, intptr_t alpha, intptr_t a, int64_t lda, intptr_t b, int64_t ldb, intptr_t beta, intptr_t c, int64_t ldc) except*:
+    """See `cblas_zsyr2k_64`."""
+    cblas_zsyr2k_64(<const _ORDER>order, <const _UPLO>uplo, <const _TRANSPOSE>trans, <const nvpl_int64_t>n, <const nvpl_int64_t>k, <const void*>alpha, <const void*>a, <const nvpl_int64_t>lda, <const void*>b, <const nvpl_int64_t>ldb, <const void*>beta, <void*>c, <const nvpl_int64_t>ldc)
+
+
+cpdef void ztrmm_64(int order, int side, int uplo, int trans_a, int diag, int64_t m, int64_t n, intptr_t alpha, intptr_t a, int64_t lda, intptr_t b, int64_t ldb) except*:
+    """See `cblas_ztrmm_64`."""
+    cblas_ztrmm_64(<const _ORDER>order, <const _SIDE>side, <const _UPLO>uplo, <const _TRANSPOSE>trans_a, <const _DIAG>diag, <const nvpl_int64_t>m, <const nvpl_int64_t>n, <const void*>alpha, <const void*>a, <const nvpl_int64_t>lda, <void*>b, <const nvpl_int64_t>ldb)
+
+
+cpdef void ztrsm_64(int order, int side, int uplo, int trans_a, int diag, int64_t m, int64_t n, intptr_t alpha, intptr_t a, int64_t lda, intptr_t b, int64_t ldb) except*:
+    """See `cblas_ztrsm_64`."""
+    cblas_ztrsm_64(<const _ORDER>order, <const _SIDE>side, <const _UPLO>uplo, <const _TRANSPOSE>trans_a, <const _DIAG>diag, <const nvpl_int64_t>m, <const nvpl_int64_t>n, <const void*>alpha, <const void*>a, <const nvpl_int64_t>lda, <void*>b, <const nvpl_int64_t>ldb)
+
+
+cpdef void chemm_64(int order, int side, int uplo, int64_t m, int64_t n, intptr_t alpha, intptr_t a, int64_t lda, intptr_t b, int64_t ldb, intptr_t beta, intptr_t c, int64_t ldc) except*:
+    """See `cblas_chemm_64`."""
+    cblas_chemm_64(<const _ORDER>order, <const _SIDE>side, <const _UPLO>uplo, <const nvpl_int64_t>m, <const nvpl_int64_t>n, <const void*>alpha, <const void*>a, <const nvpl_int64_t>lda, <const void*>b, <const nvpl_int64_t>ldb, <const void*>beta, <void*>c, <const nvpl_int64_t>ldc)
+
+
+cpdef void cherk_64(int order, int uplo, int trans, int64_t n, int64_t k, float alpha, intptr_t a, int64_t lda, float beta, intptr_t c, int64_t ldc) except*:
+    """See `cblas_cherk_64`."""
+    cblas_cherk_64(<const _ORDER>order, <const _UPLO>uplo, <const _TRANSPOSE>trans, <const nvpl_int64_t>n, <const nvpl_int64_t>k, <const float>alpha, <const void*>a, <const nvpl_int64_t>lda, <const float>beta, <void*>c, <const nvpl_int64_t>ldc)
+
+
+cpdef void cher2k_64(int order, int uplo, int trans, int64_t n, int64_t k, intptr_t alpha, intptr_t a, int64_t lda, intptr_t b, int64_t ldb, float beta, intptr_t c, int64_t ldc) except*:
+    """See `cblas_cher2k_64`."""
+    cblas_cher2k_64(<const _ORDER>order, <const _UPLO>uplo, <const _TRANSPOSE>trans, <const nvpl_int64_t>n, <const nvpl_int64_t>k, <const void*>alpha, <const void*>a, <const nvpl_int64_t>lda, <const void*>b, <const nvpl_int64_t>ldb, <const float>beta, <void*>c, <const nvpl_int64_t>ldc)
+
+
+cpdef void zhemm_64(int order, int side, int uplo, int64_t m, int64_t n, intptr_t alpha, intptr_t a, int64_t lda, intptr_t b, int64_t ldb, intptr_t beta, intptr_t c, int64_t ldc) except*:
+    """See `cblas_zhemm_64`."""
+    cblas_zhemm_64(<const _ORDER>order, <const _SIDE>side, <const _UPLO>uplo, <const nvpl_int64_t>m, <const nvpl_int64_t>n, <const void*>alpha, <const void*>a, <const nvpl_int64_t>lda, <const void*>b, <const nvpl_int64_t>ldb, <const void*>beta, <void*>c, <const nvpl_int64_t>ldc)
+
+
+cpdef void zherk_64(int order, int uplo, int trans, int64_t n, int64_t k, double alpha, intptr_t a, int64_t lda, double beta, intptr_t c, int64_t ldc) except*:
+    """See `cblas_zherk_64`."""
+    cblas_zherk_64(<const _ORDER>order, <const _UPLO>uplo, <const _TRANSPOSE>trans, <const nvpl_int64_t>n, <const nvpl_int64_t>k, <const double>alpha, <const void*>a, <const nvpl_int64_t>lda, <const double>beta, <void*>c, <const nvpl_int64_t>ldc)
+
+
+cpdef void zher2k_64(int order, int uplo, int trans, int64_t n, int64_t k, intptr_t alpha, intptr_t a, int64_t lda, intptr_t b, int64_t ldb, double beta, intptr_t c, int64_t ldc) except*:
+    """See `cblas_zher2k_64`."""
+    cblas_zher2k_64(<const _ORDER>order, <const _UPLO>uplo, <const _TRANSPOSE>trans, <const nvpl_int64_t>n, <const nvpl_int64_t>k, <const void*>alpha, <const void*>a, <const nvpl_int64_t>lda, <const void*>b, <const nvpl_int64_t>ldb, <const double>beta, <void*>c, <const nvpl_int64_t>ldc)
+
+
+cpdef void sgemmt_64(int order, int uplo, int trans_a, int trans_b, int64_t n, int64_t k, float alpha, intptr_t a, int64_t lda, intptr_t b, int64_t ldb, float beta, intptr_t c, int64_t ldc) except*:
+    """See `cblas_sgemmt_64`."""
+    cblas_sgemmt_64(<const _ORDER>order, <const _UPLO>uplo, <const _TRANSPOSE>trans_a, <const _TRANSPOSE>trans_b, <const nvpl_int64_t>n, <const nvpl_int64_t>k, <const float>alpha, <const float*>a, <const nvpl_int64_t>lda, <const float*>b, <const nvpl_int64_t>ldb, <const float>beta, <float*>c, <const nvpl_int64_t>ldc)
+
+
+cpdef void dgemmt_64(int order, int uplo, int trans_a, int trans_b, int64_t n, int64_t k, double alpha, intptr_t a, int64_t lda, intptr_t b, int64_t ldb, double beta, intptr_t c, int64_t ldc) except*:
+    """See `cblas_dgemmt_64`."""
+    cblas_dgemmt_64(<const _ORDER>order, <const _UPLO>uplo, <const _TRANSPOSE>trans_a, <const _TRANSPOSE>trans_b, <const nvpl_int64_t>n, <const nvpl_int64_t>k, <const double>alpha, <const double*>a, <const nvpl_int64_t>lda, <const double*>b, <const nvpl_int64_t>ldb, <const double>beta, <double*>c, <const nvpl_int64_t>ldc)
+
+
+cpdef void cgemmt_64(int order, int uplo, int trans_a, int trans_b, int64_t n, int64_t k, intptr_t alpha, intptr_t a, int64_t lda, intptr_t b, int64_t ldb, intptr_t beta, intptr_t c, int64_t ldc) except*:
+    """See `cblas_cgemmt_64`."""
+    cblas_cgemmt_64(<const _ORDER>order, <const _UPLO>uplo, <const _TRANSPOSE>trans_a, <const _TRANSPOSE>trans_b, <const nvpl_int64_t>n, <const nvpl_int64_t>k, <const void*>alpha, <const void*>a, <const nvpl_int64_t>lda, <const void*>b, <const nvpl_int64_t>ldb, <const void*>beta, <void*>c, <const nvpl_int64_t>ldc)
+
+
+cpdef void zgemmt_64(int order, int uplo, int trans_a, int trans_b, int64_t n, int64_t k, intptr_t alpha, intptr_t a, int64_t lda, intptr_t b, int64_t ldb, intptr_t beta, intptr_t c, int64_t ldc) except*:
+    """See `cblas_zgemmt_64`."""
+    cblas_zgemmt_64(<const _ORDER>order, <const _UPLO>uplo, <const _TRANSPOSE>trans_a, <const _TRANSPOSE>trans_b, <const nvpl_int64_t>n, <const nvpl_int64_t>k, <const void*>alpha, <const void*>a, <const nvpl_int64_t>lda, <const void*>b, <const nvpl_int64_t>ldb, <const void*>beta, <void*>c, <const nvpl_int64_t>ldc)
+
+
+cpdef void sgemm_batch_64(int order, intptr_t trans_a_array, intptr_t trans_b_array, intptr_t m_array, intptr_t n_array, intptr_t k_array, intptr_t alpha_array, intptr_t a_array, intptr_t lda_array, intptr_t b_array, intptr_t ldb_array, intptr_t beta_array, intptr_t c_array, intptr_t ldc_array, int64_t group_count, intptr_t group_size) except*:
+    """See `cblas_sgemm_batch_64`."""
+    cblas_sgemm_batch_64(<_ORDER>order, <_TRANSPOSE*>trans_a_array, <_TRANSPOSE*>trans_b_array, <nvpl_int64_t*>m_array, <nvpl_int64_t*>n_array, <nvpl_int64_t*>k_array, <const float*>alpha_array, <const float**>a_array, <nvpl_int64_t*>lda_array, <const float**>b_array, <nvpl_int64_t*>ldb_array, <const float*>beta_array, <float**>c_array, <nvpl_int64_t*>ldc_array, <nvpl_int64_t>group_count, <nvpl_int64_t*>group_size)
+
+
+cpdef void dgemm_batch_64(int order, intptr_t trans_a_array, intptr_t trans_b_array, intptr_t m_array, intptr_t n_array, intptr_t k_array, intptr_t alpha_array, intptr_t a_array, intptr_t lda_array, intptr_t b_array, intptr_t ldb_array, intptr_t beta_array, intptr_t c_array, intptr_t ldc_array, int64_t group_count, intptr_t group_size) except*:
+    """See `cblas_dgemm_batch_64`."""
+    cblas_dgemm_batch_64(<_ORDER>order, <_TRANSPOSE*>trans_a_array, <_TRANSPOSE*>trans_b_array, <nvpl_int64_t*>m_array, <nvpl_int64_t*>n_array, <nvpl_int64_t*>k_array, <const double*>alpha_array, <const double**>a_array, <nvpl_int64_t*>lda_array, <const double**>b_array, <nvpl_int64_t*>ldb_array, <const double*>beta_array, <double**>c_array, <nvpl_int64_t*>ldc_array, <nvpl_int64_t>group_count, <nvpl_int64_t*>group_size)
+
+
+cpdef void cgemm_batch_64(int order, intptr_t trans_a_array, intptr_t trans_b_array, intptr_t m_array, intptr_t n_array, intptr_t k_array, intptr_t alpha_array, intptr_t a_array, intptr_t lda_array, intptr_t b_array, intptr_t ldb_array, intptr_t beta_array, intptr_t c_array, intptr_t ldc_array, int64_t group_count, intptr_t group_size) except*:
+    """See `cblas_cgemm_batch_64`."""
+    cblas_cgemm_batch_64(<_ORDER>order, <_TRANSPOSE*>trans_a_array, <_TRANSPOSE*>trans_b_array, <nvpl_int64_t*>m_array, <nvpl_int64_t*>n_array, <nvpl_int64_t*>k_array, <const void*>alpha_array, <const void**>a_array, <nvpl_int64_t*>lda_array, <const void**>b_array, <nvpl_int64_t*>ldb_array, <const void*>beta_array, <void**>c_array, <nvpl_int64_t*>ldc_array, <nvpl_int64_t>group_count, <nvpl_int64_t*>group_size)
+
+
+cpdef void zgemm_batch_64(int order, intptr_t trans_a_array, intptr_t trans_b_array, intptr_t m_array, intptr_t n_array, intptr_t k_array, intptr_t alpha_array, intptr_t a_array, intptr_t lda_array, intptr_t b_array, intptr_t ldb_array, intptr_t beta_array, intptr_t c_array, intptr_t ldc_array, int64_t group_count, intptr_t group_size) except*:
+    """See `cblas_zgemm_batch_64`."""
+    cblas_zgemm_batch_64(<_ORDER>order, <_TRANSPOSE*>trans_a_array, <_TRANSPOSE*>trans_b_array, <nvpl_int64_t*>m_array, <nvpl_int64_t*>n_array, <nvpl_int64_t*>k_array, <const void*>alpha_array, <const void**>a_array, <nvpl_int64_t*>lda_array, <const void**>b_array, <nvpl_int64_t*>ldb_array, <const void*>beta_array, <void**>c_array, <nvpl_int64_t*>ldc_array, <nvpl_int64_t>group_count, <nvpl_int64_t*>group_size)
+
+
+cpdef void sgemm_batch_strided_64(int order, int trans_a, int trans_b, int64_t m, int64_t n, int64_t k, float alpha, intptr_t a, int64_t lda, int64_t stridea, intptr_t b, int64_t ldb, int64_t strideb, float beta, intptr_t c, int64_t ldc, int64_t stridec, int64_t batch_size) except*:
+    """See `cblas_sgemm_batch_strided_64`."""
+    cblas_sgemm_batch_strided_64(<const _ORDER>order, <const _TRANSPOSE>trans_a, <const _TRANSPOSE>trans_b, <const nvpl_int64_t>m, <const nvpl_int64_t>n, <const nvpl_int64_t>k, <const float>alpha, <const float*>a, <const nvpl_int64_t>lda, <const nvpl_int64_t>stridea, <const float*>b, <const nvpl_int64_t>ldb, <const nvpl_int64_t>strideb, <const float>beta, <float*>c, <const nvpl_int64_t>ldc, <const nvpl_int64_t>stridec, <const nvpl_int64_t>batch_size)
+
+
+cpdef void dgemm_batch_strided_64(int order, int trans_a, int trans_b, int64_t m, int64_t n, int64_t k, double alpha, intptr_t a, int64_t lda, int64_t stridea, intptr_t b, int64_t ldb, int64_t strideb, double beta, intptr_t c, int64_t ldc, int64_t stridec, int64_t batch_size) except*:
+    """See `cblas_dgemm_batch_strided_64`."""
+    cblas_dgemm_batch_strided_64(<const _ORDER>order, <const _TRANSPOSE>trans_a, <const _TRANSPOSE>trans_b, <const nvpl_int64_t>m, <const nvpl_int64_t>n, <const nvpl_int64_t>k, <const double>alpha, <const double*>a, <const nvpl_int64_t>lda, <const nvpl_int64_t>stridea, <const double*>b, <const nvpl_int64_t>ldb, <const nvpl_int64_t>strideb, <const double>beta, <double*>c, <const nvpl_int64_t>ldc, <const nvpl_int64_t>stridec, <const nvpl_int64_t>batch_size)
+
+
+cpdef void cgemm_batch_strided_64(int order, int trans_a, int trans_b, int64_t m, int64_t n, int64_t k, intptr_t alpha, intptr_t a, int64_t lda, int64_t stridea, intptr_t b, int64_t ldb, int64_t strideb, intptr_t beta, intptr_t c, int64_t ldc, int64_t stridec, int64_t batch_size) except*:
+    """See `cblas_cgemm_batch_strided_64`."""
+    cblas_cgemm_batch_strided_64(<const _ORDER>order, <const _TRANSPOSE>trans_a, <const _TRANSPOSE>trans_b, <const nvpl_int64_t>m, <const nvpl_int64_t>n, <const nvpl_int64_t>k, <const void*>alpha, <const void*>a, <const nvpl_int64_t>lda, <const nvpl_int64_t>stridea, <const void*>b, <const nvpl_int64_t>ldb, <const nvpl_int64_t>strideb, <const void*>beta, <void*>c, <const nvpl_int64_t>ldc, <const nvpl_int64_t>stridec, <const nvpl_int64_t>batch_size)
+
+
+cpdef void zgemm_batch_strided_64(int order, int trans_a, int trans_b, int64_t m, int64_t n, int64_t k, intptr_t alpha, intptr_t a, int64_t lda, int64_t stridea, intptr_t b, int64_t ldb, int64_t strideb, intptr_t beta, intptr_t c, int64_t ldc, int64_t stridec, int64_t batch_size) except*:
+    """See `cblas_zgemm_batch_strided_64`."""
+    cblas_zgemm_batch_strided_64(<const _ORDER>order, <const _TRANSPOSE>trans_a, <const _TRANSPOSE>trans_b, <const nvpl_int64_t>m, <const nvpl_int64_t>n, <const nvpl_int64_t>k, <const void*>alpha, <const void*>a, <const nvpl_int64_t>lda, <const nvpl_int64_t>stridea, <const void*>b, <const nvpl_int64_t>ldb, <const nvpl_int64_t>strideb, <const void*>beta, <void*>c, <const nvpl_int64_t>ldc, <const nvpl_int64_t>stridec, <const nvpl_int64_t>batch_size)

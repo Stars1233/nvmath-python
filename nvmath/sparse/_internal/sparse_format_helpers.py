@@ -493,9 +493,9 @@ class USTFormatHelper(SparseFormatHelper):
             "num_sparse_dim": lambda a: 2,
             "num_dense_dim": lambda a: 0,
             # Format-specific attributes.
-            "crow_indices": lambda a: a.pos(a.tensor_format.num_dimensions - 1),
-            "col_indices": lambda a: a.crd(a.tensor_format.num_dimensions - 1),
-            "values": lambda a: a.val,
+            "crow_indices": lambda a: a._pos.get(a.tensor_format.num_dimensions - 1),
+            "col_indices": lambda a: a._crd.get(a.tensor_format.num_dimensions - 1),
+            "values": lambda a: a._val,
             # Checker attributes.
             "has_sorted_indices": lambda a: a.tensor_format.is_ordered,
             "is_coalesced": lambda a: a.tensor_format.is_ordered and a.tensor_format.is_unique,
@@ -511,9 +511,9 @@ class USTFormatHelper(SparseFormatHelper):
             # Format-specific attributes.
             "block_size": lambda a: a.levels[-2:],
             "block_order": lambda a: "right" if "Right" in a.tensor_format.name else "left",
-            "crow_indices": lambda a: a.pos(a.tensor_format.num_dimensions - 1),
-            "col_indices": lambda a: a.crd(a.tensor_format.num_dimensions - 1),
-            "values": lambda a: a.val,
+            "crow_indices": lambda a: a._pos.get(a.tensor_format.num_dimensions - 1),
+            "col_indices": lambda a: a._crd.get(a.tensor_format.num_dimensions - 1),
+            "values": lambda a: a._val,
             # Checker attributes.
             "has_sorted_indices": lambda a: a.tensor_format.is_ordered,
             "is_coalesced": lambda a: a.tensor_format.is_ordered and a.tensor_format.is_unique,
@@ -527,9 +527,9 @@ class USTFormatHelper(SparseFormatHelper):
             "num_sparse_dim": lambda a: 2,
             "num_dense_dim": lambda a: 0,
             # Format-specific attributes.
-            "ccol_indices": lambda a: a.pos(a.tensor_format.num_dimensions - 1),
-            "row_indices": lambda a: a.crd(a.tensor_format.num_dimensions - 1),
-            "values": lambda a: a.val,
+            "ccol_indices": lambda a: a._pos.get(a.tensor_format.num_dimensions - 1),
+            "row_indices": lambda a: a._crd.get(a.tensor_format.num_dimensions - 1),
+            "values": lambda a: a._val,
             # Checker attributes.
             "has_sorted_indices": lambda a: a.tensor_format.is_ordered,
             "is_coalesced": lambda a: a.tensor_format.is_ordered and a.tensor_format.is_unique,
@@ -545,9 +545,9 @@ class USTFormatHelper(SparseFormatHelper):
             # Format-specific attributes.
             "block_size": lambda a: a.levels[-2:],
             "block_order": lambda a: "right" if "Right" in a.tensor_format.name else "left",
-            "ccol_indices": lambda a: a.pos(a.tensor_format.num_dimensions - 1),
-            "row_indices": lambda a: a.crd(a.tensor_format.num_dimensions - 1),
-            "values": lambda a: a.val,
+            "ccol_indices": lambda a: a._pos.get(a.tensor_format.num_dimensions - 1),
+            "row_indices": lambda a: a._crd.get(a.tensor_format.num_dimensions - 1),
+            "values": lambda a: a._val,
             # Checker attributes.
             "has_sorted_indices": lambda a: a.tensor_format.is_ordered,
             "is_coalesced": lambda a: a.tensor_format.is_ordered and a.tensor_format.is_unique,
@@ -561,8 +561,8 @@ class USTFormatHelper(SparseFormatHelper):
             "num_sparse_dim": lambda a: 2,
             "num_dense_dim": lambda a: 0,
             # Format-specific attributes.
-            "indices": lambda a: [a.crd(i) for i in range(a.tensor_format.num_dimensions)],
-            "values": lambda a: a.val,
+            "indices": lambda a: [a._crd.get(i) for i in range(a.tensor_format.num_dimensions)],
+            "values": lambda a: a._val,
             # Checker attributes.
             "has_sorted_indices": lambda a: a.tensor_format.is_ordered,
             "is_coalesced": lambda a: a.tensor_format.is_ordered and a.tensor_format.is_unique,

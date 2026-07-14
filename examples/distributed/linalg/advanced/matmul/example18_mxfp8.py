@@ -12,9 +12,9 @@ Key differences from FP8:
   and improves the accuracy of MXFP8 operations.
 - MXFP8 scales are uint8 numbers in exponent-only format, representing values of the form
   2^n, where n is an integer between -127 and 128.
-- In MXFP8 mode, if D is FP8, it is scaled automatically during the matmul operation and
-  the quantization scales used are returned as "d_out_scale". This is covered in the next
-  example.
+- In MXFP8 mode, if the output is FP8, it is scaled automatically during the matmul, and the
+  scale factors that were applied are returned in the auxiliary output under the
+  `d_out_scale` key. This is covered in the next example.
 
 To use MXFP8, set the `block_scaling` option to True.
 
@@ -39,7 +39,7 @@ comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 nranks = comm.Get_size()
 device_id = rank % torch.cuda.device_count()
-# cuBLASMp requires NCCL communication backends.
+# cuBLASMp requires NCCL communication backend.
 nvmath.distributed.initialize(device_id, comm, backends=["nccl"])
 
 # Prepare sample input data. Note that N, M and K (for local GEMMs)
@@ -53,28 +53,28 @@ col_wise_distribution = Slab.Y
 
 with torch.cuda.device(device_id):
     a = torch.zeros(*row_wise_distribution.shape(rank, (m, k)), dtype=torch.float8_e4m3fn, device="cuda")
-    # B is filled with ones.
+    # 'b' is filled with ones.
     b = torch.ones(*row_wise_distribution.shape(rank, (n, k)), dtype=torch.float8_e4m3fn, device="cuda")
 
 # Get a transposed view to obtain column-major memory layout. Note that this
-# also changes the distribution of a and b (see example01 for more information).
-a = a.T  # a is now (k, m) with col_wise_distribution
-b = b.T  # b is now (k, n) with col_wise_distribution
+# also changes the distribution of 'a' and 'b' (see example01 for more information).
+a = a.T  # 'a' is now (k, m) with col_wise_distribution
+b = b.T  # 'b' is now (k, n) with col_wise_distribution
 
-# Distributions for A, B, and result matrix D
+# Distributions for 'a', 'b', and result matrix 'd'
 distributions = [col_wise_distribution, col_wise_distribution, row_wise_distribution]
 
-# Initialize A as global identity matrix.
+# Initialize 'a' as global identity matrix.
 with torch.cuda.device(device_id):
     i = rank * (m // nranks)
     j = i + (m // nranks)
     a[i:j, :] = torch.eye(m // nranks, device="cuda", dtype=torch.float8_e4m3fn)
 
-# Prepare quantization scales for A and B using the `create_mxfp8_scale` helper.
-# While MXFP8 allows different scales for different blocks in A and B,
+# Prepare quantization scales for 'a' and 'b' using the `create_mxfp8_scale` helper.
+# While MXFP8 allows different scales for different blocks in 'a' and 'b',
 # this helper creates uniform scaling across all blocks.
 # For more advanced scale configurations, see the cuBLAS documentation and
-# the `get_mxfp8_scale_offset` helper.
+# the `get_block_scale_offset` helper.
 scales = {
     "a": nvmath.distributed.linalg.advanced.helpers.matmul.create_mxfp8_scale(a, -1),  # 2^-1 = 0.5
     "b": nvmath.distributed.linalg.advanced.helpers.matmul.create_mxfp8_scale(b, 3),  # 2^3 = 8
@@ -109,4 +109,4 @@ if rank == 0:
     print(f"Reference result (without scaling):\n{reference}")
 
     # Print the result with scaling applied
-    print(f"Result with scaling (A scaled by 0.5, B scaled by 8):\n{result}")
+    print(f"Result with scaling ('a' scaled by 0.5, 'b' scaled by 8):\n{result}")

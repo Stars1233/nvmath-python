@@ -7,11 +7,12 @@ __all__ = ["FFT", "fft", "ifft", "rfft", "irfft", "UnsupportedLayoutError", "est
 import enum
 import functools
 import logging
+import math
 import operator
 from collections.abc import Sequence
 from dataclasses import astuple as data_cls_astuple
-from dataclasses import dataclass
-from typing import Literal
+from dataclasses import dataclass, replace
+from typing import Any, Literal
 
 from nvmath.bindings import cufft  # type: ignore
 
@@ -23,9 +24,10 @@ except ImportError:
     fftw = None  # type: ignore
 from nvmath import memory
 from nvmath._internal.layout import is_contiguous_in_memory, is_contiguous_layout, is_overlapping_layout
+from nvmath._internal.workspace import Workspace
 from nvmath.bindings._internal import utils as _bindings_utils  # type: ignore
-from nvmath.fft._exec_utils import _cross_setup_execution_and_options
-from nvmath.internal import formatters, tensor_wrapper, utils
+from nvmath.fft._exec_utils import _check_init_cufft, _check_init_fftw, _get_num_threads_default
+from nvmath.internal import tensor_wrapper, utils
 from nvmath.internal.package_wrapper import AnyStream, StreamHolder
 from nvmath.internal.typemaps import (
     DATA_TYPE_TO_NAME,
@@ -147,8 +149,8 @@ operand,
 /,
 *,
 axes: Sequence[int] | None = None,
-options: FFTOptions | None = None,
-execution: ExecutionCPU | ExecutionCUDA | None = None,
+options: FFTOptions | dict[str, Any] | None = None,
+execution: ExecutionCPU | ExecutionCUDA | str | dict[str, Any] | None = None,
 prolog: DeviceCallable | None = None,
 epilog: DeviceCallable | None = None,
 stream: AnyStream | None = None
@@ -259,11 +261,82 @@ def _get_last_axis_id_and_size(
         return last_axis_id, operand_shape[last_axis_id] // 2 + 1
 
 
-def check_inplace_overlapping_layout(operand: utils.TensorHolder):
-    if is_overlapping_layout(operand.shape, operand.strides):
+def _has_only_small_factors(extent):
+    # fast track for powers of 2 (and zero)
+    if extent & (extent - 1) == 0:
+        return True
+    # Divide the `extent` by the product of all the prime factors up to
+    # 127 present in the `extent` until there are none left.
+    # Considering all the prime factors at once is faster, even though the
+    # first call (and only the first call) to gcd operates on ints with precision
+    # exceeding 64 bits. For common 2, 3, 5, 7 factors, the higher powers are included,
+    # to reduce number of iterations.
+    # math.prod(p for p in range(2, 128) if is_prime(p)) * 2**10 * 3**7 * 5**5 * 7**4
+    magic_prod = 67455891904760197438286248026720562156610454525830430432000000
+    d = math.gcd(extent, magic_prod)
+    while d > 1:
+        if extent == d:
+            return True
+        extent //= d
+        d = math.gcd(extent, d)
+    return False
+
+
+def _is_lto_supported_shape(
+    plan_traits: PlanTraits,
+    fft_abstract_type: Literal["C2C", "C2R", "R2C"],
+    operand_dtype: str,
+    prolog: DeviceCallable | None,
+    epilog: DeviceCallable | None,
+) -> bool:
+    """Check if this plan hits a known cuFFT 12.3.x (CUDA 13.3) bug.
+
+    On the cuFFT shipped with CUDA 13.3, an LTO callback applied on the real side
+    of a real transform (R2C prolog / C2R epilog) can compute incorrect results
+    for lengths with a large prime factor. Resolved in CUDA 13.4; cuFFT <= 12.2
+    reports these as unsupported. This is an interim guard so affected plans
+    raise instead of returning incorrect results.
+    """
+    cufft_version = cufft.get_version()
+    # Affected: cuFFT 12.3.x only (CUDA 13.3). cufft.get_version() encodes
+    # major*1000 + minor*100 + patch (e.g. 12300).
+    if not 12300 <= cufft_version < 12400:
+        return True
+
+    # Only callbacks on the real side: R2C load (real input) / C2R store (real
+    # output). Complex-side callbacks (R2C store, C2R load) are unaffected.
+    real_side = (prolog is not None and fft_abstract_type == "R2C") or (epilog is not None and fft_abstract_type == "C2R")
+    if not real_side:
+        return True
+
+    # We need to check the extent at the last axis (axes[-1]). Since
+    # we require `axes[-1]` to have smallest stride, it will land
+    # as last of the ``ordered_fft_in_shape`` or ``ordered_fft_out_shape``.
+    real_len = plan_traits.ordered_fft_in_shape[-1] if fft_abstract_type == "R2C" else plan_traits.ordered_fft_out_shape[-1]
+
+    # nvmath only allows in-place for C2C, so every R2C/C2R plan is out-of-place.
+    # Only even lengths are affected; odd (and strided/unaligned) operands take a
+    # different, correct path. This guard is conservative: it may reject some
+    # configurations that are fine, but never lets an incorrect plan through.
+    if real_len % 2:
+        return True
+
+    # Lengths whose prime factors are all <= 127 use a different (correct) path
+    # and are unaffected (matches the cuFFT docs' factorization condition).
+    if _has_only_small_factors(real_len):
+        return True
+
+    # Only sufficiently large transforms are affected; smaller ones use a
+    # different, correct path. These size thresholds match the affected cuFFT.
+    cap = 8192 if operand_dtype in ("float32", "complex64") else 4096
+    return real_len < cap
+
+
+def check_inplace_overlapping_layout(shape: Sequence[int], strides: Sequence[int]):
+    if is_overlapping_layout(shape, strides):
         raise ValueError(
             f"In-place transform is not supported because the tensor with shape "
-            f"{operand.shape} and strides {operand.strides} overlaps in memory."
+            f"{shape} and strides {strides} overlaps in memory."
         )
 
 
@@ -813,46 +886,65 @@ def fftw_plan_args(xt_plan_args, operand_ptr, result_ptr, fft_abstract_type, dir
     )
 
 
-def setup_options(operand: utils.TensorHolder, options, execution) -> tuple[FFTOptions, ExecutionCUDA | ExecutionCPU]:
-    default_exec_space = operand.device
+def setup_options_and_execution(
+    memory_space: Literal["cpu", "cuda"] | None, options, execution
+) -> tuple[FFTOptions, ExecutionCUDA | ExecutionCPU]:
+    # The operand's memory space is used as the default execution space when 'execution'
+    # is not specified. It may be None only when 'execution' is provided explicitly.
     execution = utils.check_or_create_one_of_options(
         (ExecutionCUDA, ExecutionCPU),
         execution,
         "'execution' options",
-        default_name=default_exec_space,
+        default_name=memory_space,
     )
-    # Process options.
+    if execution.name == "cpu":
+        _check_init_fftw()
+        if execution.num_threads is None:
+            execution = replace(execution, num_threads=_get_num_threads_default())
+        if not isinstance(execution.num_threads, int) or execution.num_threads <= 0:
+            raise ValueError("The 'num_threads' must be a positive integer")
+    else:
+        assert execution.name == "cuda"
+        _check_init_cufft()
     options = utils.check_or_create_options(FFTOptions, options, "FFT options")
-    return _cross_setup_execution_and_options(options, execution)
+    return options, execution
 
 
 def _compute_fft_plan_args_and_traits(
-    operand: utils.TensorHolder,
+    shape: Sequence[int],
+    strides: Sequence[int],
+    dtype: str,
     *,
     axes: Sequence[int] | None = None,
     options: FFTOptions,
     execution: ExecutionCPU | ExecutionCUDA,
     inplace: bool | None = None,
+    memory_space: Literal["cpu", "cuda"] | None = None,
 ) -> tuple[tuple, PlanTraits]:
     """
-    (private method) Compute plan_args and plan_traits for FFT operations.
+    (private method) Compute plan_args and plan_traits from operand metadata.
 
     Args:
-        operand: The input operand wrapped as a TensorHolder.
+        shape: The operand shape (in number of elements per dimension).
+        strides: The operand strides (in number of elements per dimension).
+        dtype: The operand data type name (e.g. ``"complex64"``).
         axes: The axes along which to perform the FFT.
-        options: Normalized FFTOptions object (use setup_options to normalize).
+        options: Normalized FFTOptions object.
         execution: ExecutionCPU or ExecutionCUDA object.
         inplace: Whether the operation is in-place. If None, computed from
-            options.inplace with cross-device override.
+            options.inplace with cross-device override (which requires
+            ``memory_space``).
+        memory_space: Where the operand resides ("cpu" or "cuda"). Only consulted
+            when ``inplace`` is None, to apply the cross-device override.
 
     Returns:
         tuple: (plan_args, plan_traits) containing the plan arguments and traits.
     """
-    fft_abstract_type = _get_default_fft_abstract_type(operand.dtype, options.fft_type)
+    fft_abstract_type = _get_default_fft_abstract_type(dtype, options.fft_type)
     if axes is None:
-        axes = range(len(operand.shape))
+        axes = range(len(shape))
     else:
-        operand_dim = len(operand.shape)
+        operand_dim = len(shape)
         # Mirror FFT.__init__: enforce bounds and support negative indices.
         if any(axis >= operand_dim or axis < -operand_dim for axis in axes):
             raise ValueError(f"The specified FFT axes {tuple(axes)} are out of bounds for a {operand_dim}-D tensor.")
@@ -860,9 +952,9 @@ def _compute_fft_plan_args_and_traits(
 
     # Determine plan traits.
     plan_traits = get_fft_plan_traits(
-        operand.shape,
-        operand.strides,
-        operand.dtype,
+        shape,
+        strides,
+        dtype,
         axes,
         execution,
         fft_abstract_type=fft_abstract_type,
@@ -874,25 +966,26 @@ def _compute_fft_plan_args_and_traits(
     # If inplace is not explicitly provided, use options.inplace.
     # For cross-device, inplace is always True (the operand needs to be copied once anyway).
     if inplace is None:
-        memory_space = operand.device
+        assert memory_space is not None, "Internal error: memory_space is required when inplace is None."
         execution_space = execution.name
         assert execution.name in ("cpu", "cuda")
         inplace = memory_space != execution_space or options.inplace
 
     if inplace:
-        check_inplace_overlapping_layout(operand)
+        check_inplace_overlapping_layout(shape, strides)
 
     # Get the arguments to xt_make_plan_many.
     plan_args = create_xt_plan_args(
         plan_traits=plan_traits,
         fft_abstract_type=fft_abstract_type,
-        operand_data_type=operand.dtype,
+        operand_data_type=dtype,
         inplace=inplace,
     )
 
     return plan_args, plan_traits
 
 
+@utils.docstring_decorator(SHARED_FFT_DOCUMENTATION, skip_missing=True)
 def create_fft_key(
     plan_args: tuple,
     execution: ExecutionCPU | ExecutionCUDA,
@@ -911,9 +1004,17 @@ def create_fft_key(
 
     Args:
         plan_args: The plan arguments from create_xt_plan_args.
-        execution: The execution options (ExecutionCPU or ExecutionCUDA).
-        prolog: Optional prolog callback.
-        epilog: Optional epilog callback.
+
+        execution: {execution}
+
+        prolog: {prolog}
+
+            .. experimental:: parameter
+
+        epilog: {epilog}
+
+            .. experimental:: parameter
+
 
     Returns:
         tuple: (plan_args, callable_data, execution_tuple) representing the FFT key.
@@ -932,8 +1033,9 @@ def create_fft_key(
 
     # The key is based on plan arguments, callback data (a callable object of type
     # DeviceCallback or None) and the execution options (in "normalized" form of
-    # ("cpu"/"cuda", *execution_options)).
-    return plan_args, callable_data, data_cls_astuple(execution)  # type: ignore[arg-type]
+    # ("cpu"/"cuda", *execution_options)). `name` is a ClassVar on the templates, so
+    # `astuple()` excludes it; prepend it explicitly to preserve the contract.
+    return plan_args, callable_data, (execution.name, *data_cls_astuple(execution))  # type: ignore[arg-type]
 
 
 _CUDA_TYPES_TO_CUFFT_TYPE = {
@@ -956,7 +1058,8 @@ def estimate_workspace_size(
     Estimate the workspace size in bytes for the given FFT key.
 
     Args:
-        key: The FFT key returned by :meth:`FFT.create_key`.
+        key: The FFT key returned by :meth:`FFT.create_key` or
+          :meth:`FFT.create_key_from_metadata`.
 
         technique: The estimation technique to use.
 
@@ -989,8 +1092,13 @@ def estimate_workspace_size(
           the CPU backend, or (2) the key specifies CUDA execution but
           no temporary workspace is needed for the given FFT configuration.
 
+    .. tip::
+        If an allocated operand is not available but the problem's metadata is known,
+        the key can be built from it using :meth:`FFT.create_key_from_metadata`
+        (see its documentation for the accepted parameters).
+
     .. seealso::
-        :meth:`FFT.create_key`
+        :meth:`FFT.create_key`, :meth:`FFT.create_key_from_metadata`
     """
     if technique not in ("default", "refined"):
         raise ValueError(f"technique must be 'default' or 'refined', got {technique!r}.")
@@ -1217,12 +1325,12 @@ class FFT:
         /,
         *,
         axes: Sequence[int] | None = None,
-        options: FFTOptions | None = None,
-        execution: ExecutionCPU | ExecutionCUDA | None = None,
+        options: FFTOptions | dict[str, Any] | None = None,
+        execution: ExecutionCPU | ExecutionCUDA | str | dict[str, Any] | None = None,
         stream: AnyStream | None = None,
     ):
         self.operand = operand = tensor_wrapper.wrap_operand(operand)
-        options, execution = setup_options(operand, options, execution)
+        options, execution = setup_options_and_execution(operand.device, options, execution)
         self.options = options
         self.execution_options = execution
 
@@ -1324,11 +1432,14 @@ class FFT:
             try:
                 # Pass inplace explicitly to match what create_key() does.
                 self.plan_args_from_user_operand, _ = _compute_fft_plan_args_and_traits(
-                    operand,
+                    operand.shape,
+                    operand.strides,
+                    operand.dtype,
                     axes=self.axes,
                     options=self.options,
                     execution=self.execution_options,
                     inplace=self.options.inplace,
+                    memory_space=operand.device,
                 )
                 self.key_from_user_operand = create_fft_key(self.plan_args_from_user_operand, self.execution_options)
             except UnsupportedLayoutError:
@@ -1471,13 +1582,25 @@ class FFT:
 
         self.fft_planned = False
 
-        # Workspace attributes.
-        self.workspace_ptr: None | memory.MemoryPointer = None
-        self.workspace_size = 0
-        self._workspace_allocated_here = False
+        # Workspace lifecycle is managed by `Workspace` (allocate-on-demand,
+        # reuse, mid-call release, exception cleanup, stream-ordered free).
+        # The on_allocated callback re-registers the buffer with the cuFFT
+        # handle via cufft.set_work_area on every fresh allocation (not on
+        # reuse or the 0-byte fast path). On the CPU/nvpl/fftw path there
+        # is no workspace concept, so self.workspace is left as None.
+        if self.execution_space == "cuda":
+            self.workspace: Workspace | None = Workspace(
+                self.allocator,
+                self.logger,
+                label="fft workspace",
+                on_allocated=lambda raw_ptr: cufft.set_work_area(self.handle, raw_ptr),
+                device_id=self.device_id,
+            )
+        else:
+            self.workspace = None
 
-        # Attributes to establish stream ordering.
-        self.workspace_stream = None
+        # Last event recorded by cuda_call_ctx; consumed on workspace release
+        # so the free is ordered after the compute that touched the buffer.
         self.last_compute_event = None
 
         self.valid_state = True
@@ -1498,7 +1621,12 @@ class FFT:
 
         Args:
             prolog: {prolog}
+
+                .. experimental:: parameter
+
             epilog: {epilog}
+
+                .. experimental:: parameter
 
         Returns:
             {fft_key}
@@ -1519,8 +1647,8 @@ class FFT:
         operand,
         *,
         axes: Sequence[int] | None = None,
-        options: FFTOptions | None = None,
-        execution: ExecutionCPU | ExecutionCUDA | None = None,
+        options: FFTOptions | dict[str, Any] | None = None,
+        execution: ExecutionCPU | ExecutionCUDA | str | dict[str, Any] | None = None,
         prolog: DeviceCallable | None = None,
         epilog: DeviceCallable | None = None,
     ):
@@ -1542,7 +1670,11 @@ class FFT:
 
             prolog: {prolog}
 
+                .. experimental:: parameter
+
             epilog: {epilog}
+
+                .. experimental:: parameter
 
         Returns:
             {fft_key}
@@ -1556,14 +1688,130 @@ class FFT:
               used on a different machine.
             - It is the user's responsibility to augment this key with the stream in case
               they use stream-ordered memory pools.
+            - The operand's data is never accessed, only the metadata. When an operand is
+              not at hand, an equivalent key can be built from that metadata alone
+              with :meth:`create_key_from_metadata`.
 
         .. seealso::
-            :meth:`get_key`, :func:`estimate_workspace_size`
+            :meth:`create_key_from_metadata`, :meth:`get_key`,
+            :func:`estimate_workspace_size`
         """
         operand = tensor_wrapper.wrap_operand(operand)
-        options, execution = setup_options(operand, options, execution)
+        if len(operand.shape) == 0:
+            # Match FFT.__init__: fail fast before any backend/plan computation.
+            raise ValueError("The FFT of a scalar is a no-op.")
+        options, execution = setup_options_and_execution(operand.device, options, execution)
         plan_args, _ = _compute_fft_plan_args_and_traits(
-            operand, axes=axes, options=options, execution=execution, inplace=options.inplace
+            operand.shape,
+            operand.strides,
+            operand.dtype,
+            axes=axes,
+            options=options,
+            execution=execution,
+            inplace=options.inplace,
+        )
+        return create_fft_key(plan_args, execution, prolog=prolog, epilog=epilog)
+
+    @staticmethod
+    def create_key_from_metadata(
+        shape: Sequence[int],
+        dtype: str,
+        memory_space: Literal["cpu", "cuda"],
+        *,
+        strides: Sequence[int] | None = None,
+        axes: Sequence[int] | None = None,
+        options: FFTOptions | None = None,
+        execution: ExecutionCPU | ExecutionCUDA | None = None,
+        prolog: DeviceCallable | None = None,
+        epilog: DeviceCallable | None = None,
+    ) -> tuple[tuple, tuple | None, tuple]:
+        """
+        .. experimental:: method
+
+        Create an FFT key from metadata.
+
+        This is the metadata-based counterpart to :meth:`create_key`. Rather than a live
+        operand, it describes the problem through the operand's layout (``shape``,
+        ``dtype``, ``memory_space``, and optionally ``strides``). This is useful when
+        an operand is yet to be allocated but its layout is already known, for example
+        to estimate the workspace size (see :func:`estimate_workspace_size`) ahead of
+        allocation.
+
+        Args:
+            shape: Sequence of ints (extent of each dimension in number of elements).
+
+            dtype: The data-type name (e.g. ``"complex64"``, ``"float32"``).
+
+            memory_space: "cpu" or "cuda"; it is used as the default execution space
+                when ``execution`` is not given.
+
+            strides: Sequence of ints (in number of elements per dimension).
+                If omitted, a C-contiguous (row-major) layout is assumed.
+
+            axes: {axes}
+
+            options: {options}
+
+            execution: Specify execution space options for the FFT as a
+                :class:`ExecutionCUDA` or :class:`ExecutionCPU` object. Alternatively, a
+                string ('cuda' or 'cpu'), or a `dict` with the 'name' key set to 'cpu' or
+                'cuda' and optional parameters relevant to the given execution space. If
+                not specified, the execution space defaults to ``memory_space``.
+
+            prolog: {prolog}
+
+            epilog: {epilog}
+
+        Returns:
+            {fft_key}
+
+        Examples:
+            Build a key from metadata (a contiguous, GPU-resident operand) and use it to
+            estimate the cuFFT workspace size, without allocating an operand. Omitting
+            ``strides`` assumes a C-contiguous (row-major) layout:
+
+            >>> import nvmath
+            >>> key = nvmath.fft.FFT.create_key_from_metadata(
+            ...     (512, 512),
+            ...     "complex64",
+            ...     "cuda",
+            ... )
+            >>> nbytes = nvmath.fft.estimate_workspace_size(key)
+
+            The key matches the one built from an equivalent live operand:
+
+            >>> import cupy as cp
+            >>> a = cp.empty((512, 512), dtype=cp.complex64)
+            >>> key == nvmath.fft.FFT.create_key(a, execution="cuda")
+            True
+
+        .. seealso::
+            :meth:`create_key`, :meth:`get_key`, :func:`estimate_workspace_size`
+        """
+        if memory_space not in ("cpu", "cuda"):
+            raise ValueError(f"The 'memory_space' must be 'cpu' or 'cuda', got {memory_space!r}.")
+
+        if len(shape) == 0:
+            # Equivalent of FFT.__init__'s scalar guard: FFT does not support 0-D operands.
+            raise ValueError(
+                f"The provided 'shape' {tuple(shape)} identifies a scalar (0-D operand), which FFT does not support."
+            )
+
+        if not isinstance(dtype, str) or dtype not in NAME_TO_DATA_TYPE:
+            raise ValueError(
+                f"Unsupported or invalid 'dtype' {dtype!r}. It must be one of the supported "
+                f"data-type names: {sorted(NAME_TO_DATA_TYPE)}."
+            )
+
+        if strides is None:
+            # Default to a row-major layout.
+            strides = tuple(calculate_strides(shape, reversed(range(len(shape)))))
+        elif len(strides) != len(shape):
+            raise ValueError(f"The length of 'strides' ({len(strides)}) must match the length of 'shape' ({len(shape)}).")
+
+        options, execution = setup_options_and_execution(memory_space, options, execution)
+        plan_args, _ = _compute_fft_plan_args_and_traits(
+            shape, strides, dtype, axes=axes, options=options, execution=execution, inplace=options.inplace
         )
         return create_fft_key(plan_args, execution, prolog=prolog, epilog=epilog)
 
@@ -1585,7 +1833,8 @@ class FFT:
         Free resources allocated in planning.
         """
 
-        self.workspace_ptr = None
+        if self.workspace is not None:
+            self.workspace.set_size(0)
         self.fft_planned = False
         return True
 
@@ -1660,7 +1909,11 @@ class FFT:
         Args:
             prolog: {prolog}
 
+                .. experimental:: parameter
+
             epilog: {epilog}
+
+                .. experimental:: parameter
 
             stream: {stream}
 
@@ -1689,13 +1942,30 @@ class FFT:
             # Set LTO-IR callbacks, if present.
             prolog = utils.check_or_create_options(DeviceCallable, prolog, "prolog", keep_none=True)
             epilog = utils.check_or_create_options(DeviceCallable, epilog, "epilog", keep_none=True)
+            if not _is_lto_supported_shape(
+                self.plan_traits,
+                self.fft_abstract_type,
+                self.operand_data_type,
+                prolog,
+                epilog,
+            ):
+                cb_kind = "prologs" if self.fft_abstract_type == "R2C" else "epilogs"
+                raise ValueError(
+                    f"CUFFT_NOT_SUPPORTED\n"
+                    f"cuFFT 12.3.x (CUDA 13.3) does not support LTO {cb_kind} for "
+                    f"{self.fft_abstract_type} FFT. "
+                    f"As a workaround, you may: "
+                    f"1. upgrade to CUDA 13.4 or later, "
+                    f"2. apply the callback only on the complex side (epilog for R2C, prolog for C2R), "
+                    f"3. adjust the real operand size to comprise prime factors not larger than 127"
+                )
             set_prolog_and_epilog(self.handle, prolog, epilog, self.operand_data_type, self.result_data_type, self.logger)
 
         # Get all the arguments to xt_make_plan_many except for the first (the handle).
         if self.inplace:
-            check_inplace_overlapping_layout(self.operand)
+            check_inplace_overlapping_layout(self.operand.shape, self.operand.strides)
             if self.operand_backup is not None:
-                check_inplace_overlapping_layout(self.operand_backup)
+                check_inplace_overlapping_layout(self.operand_backup.shape, self.operand_backup.strides)
 
         plan_args = create_xt_plan_args(
             plan_traits=self.plan_traits,
@@ -1758,7 +2028,8 @@ class FFT:
                 self.last_compute_event,
                 elapsed,
             ):
-                self.workspace_size = cufft.xt_make_plan_many(self.handle, *plan_args)
+                assert self.workspace is not None  # cuda execution space => workspace was created
+                self.workspace.set_size(int(cufft.xt_make_plan_many(self.handle, *plan_args)))
 
         self.fft_planned = True
 
@@ -1791,9 +2062,9 @@ class FFT:
             operand: The new operand tensor to validate.
 
         Raises:
-            TypeError: If the library package or data type doesn't match.
-            ValueError: If the device doesn't match or if the operand's traits
-                        are incompatible with the original operand.
+            TypeError: If the library package doesn't match.
+            ValueError: If the data type or device doesn't match, or if the
+                        operand's traits are incompatible with the original operand.
         """
 
         # Validate package match
@@ -1829,11 +2100,14 @@ class FFT:
         try:
             # Pass inplace explicitly to match what create_key() does.
             new_plan_args, _ = _compute_fft_plan_args_and_traits(
-                operand,
+                operand.shape,
+                operand.strides,
+                operand.dtype,
                 axes=self.axes,
                 options=self.options,
                 execution=self.execution_options,
                 inplace=self.options.inplace,
+                memory_space=operand.device,
             )
             new_key = create_fft_key(new_plan_args, self.execution_options)
         except UnsupportedLayoutError:
@@ -2110,8 +2384,9 @@ class FFT:
         """
 
         self.logger.info("Resetting operand...")
+
         if operand is None:
-            raise ValueError("Resetting operand requires a valid operand. Use release_operand() to release the operand.")
+            raise ValueError("reset_operand() requires a valid operand.")
 
         operand = tensor_wrapper.wrap_operand(operand)
         self._reset_operand_validate(operand)
@@ -2270,6 +2545,10 @@ class FFT:
         """
         {release_operand}
         """
+        if self._operand_released:
+            self.logger.info("Operand has already been released; nothing to do.")
+            return
+
         # We release the references to the user-provided
         # operand and/or GPU mirrors of the user-provided operand
         # and/or the internal auxiliary buffer for C2R transforms
@@ -2329,99 +2608,9 @@ class FFT:
                 f"operand before performing the {what.lower()}."
             )
 
-    def _free_workspace_memory(self, exception: Exception | None = None) -> bool:
-        """
-        Free workspace by releasing the MemoryPointer object.
-        """
-        if self.workspace_ptr is None:
-            return True
-
-        self.workspace_ptr = None
-        self.logger.debug("[_free_workspace_memory] The workspace has been released.")
-
-        return True
-
-    @utils.precondition(_check_valid_fft)
-    @utils.precondition(_check_planned, "Workspace memory allocation")
-    @utils.atomic(_free_workspace_memory, method=True)
-    def _allocate_workspace_memory(self, stream_holder: StreamHolder):
-        """
-        Allocate workspace memory using the specified allocator.
-        """
-
-        assert self._workspace_allocated_here is False, "Internal Error."
-
-        self.logger.debug("Allocating workspace for performing the FFT...")
-        with utils.device_ctx(self.device_id), stream_holder.ctx:
-            try:
-                if isinstance(self.allocator, memory.BaseCUDAMemoryManagerAsync):
-                    self.workspace_ptr = self.allocator.memalloc_async(self.workspace_size, stream_holder.obj)
-                else:
-                    self.workspace_ptr = self.allocator.memalloc(self.workspace_size)  # type: ignore[union-attr]
-                self._workspace_allocated_here = True
-            except TypeError as e:
-                message = (
-                    "The method 'memalloc' in the allocator object must conform to the interface in the "
-                    "'BaseCUDAMemoryManager' protocol."
-                )
-                raise TypeError(message) from e
-            raw_workspace_ptr = utils.get_ptr_from_memory_pointer(self.workspace_ptr)
-            cufft.set_work_area(self.handle, raw_workspace_ptr)
-
-        self.workspace_stream = stream_holder.obj
-        self.logger.debug(
-            f"Finished allocating device workspace of size {formatters.MemoryStr(self.workspace_size)} in the context "
-            f"of stream {self.workspace_stream}."
-        )
-
-    def _allocate_workspace_memory_perhaps(self, stream_holder: StreamHolder):
-        """
-        Allocate workspace memory using the specified allocator, if it hasn't already been
-        done.
-        """
-        if self.execution_space != "cuda" or self.workspace_ptr is not None:
-            return
-
-        return self._allocate_workspace_memory(stream_holder)
-
-    @utils.precondition(_check_valid_fft)
-    def _free_workspace_memory_perhaps(self, release_workspace):
-        """
-        Free workspace memory if if 'release_workspace' is True.
-        """
-        if not release_workspace:
-            return
-
-        # Establish ordering wrt the computation and free workspace if it's more than the
-        # specified cache limit.
-        if self.last_compute_event is not None:
-            self.workspace_stream.wait(self.last_compute_event)
-            self.logger.debug("Established ordering with respect to the computation before releasing the workspace.")
-            self.last_compute_event = None
-
-        self.logger.debug("[_free_workspace_memory_perhaps] The workspace memory will be released.")
-        self._free_workspace_memory()
-
-        return True
-
-    def _release_workspace_memory_perhaps(self, exception: Exception | None = None) -> bool:
-        """
-        Free workspace memory if it was allocated in this call
-        (self._workspace_allocated_here == True) when an exception occurs.
-        """
-        release_workspace = self._workspace_allocated_here
-        self.logger.debug(
-            f"[_release_workspace_memory_perhaps] The release_workspace flag is set to {release_workspace} based upon "
-            "the value of 'workspace_allocated_here'."
-        )
-        self._free_workspace_memory_perhaps(release_workspace)
-        self._workspace_allocated_here = False
-        return True
-
     @utils.precondition(_check_valid_fft)
     @utils.precondition(_check_planned, "Execution")
     @utils.precondition(_check_valid_operand, "Execution")
-    @utils.atomic(_release_workspace_memory_perhaps, method=True)
     def execute(self, direction: FFTDirection | None = None, stream: AnyStream | None = None, release_workspace: bool = False):
         """
         Execute the FFT operation.
@@ -2459,56 +2648,71 @@ class FFT:
 
         exec_stream_holder, operand_stream_holder = self._get_or_create_stream_maybe(stream)
 
-        if self.execution_space == "cuda":
-            # Set stream for the FFT.
-            cufft.set_stream(self.handle, exec_stream_holder.ptr)  # type: ignore[union-attr]
-
-        # Allocate workspace if needed.
-        self._allocate_workspace_memory_perhaps(exec_stream_holder)  # type: ignore[arg-type]
-        # Allocate output operand if needed
-        if self.inplace:
-            result_ptr = self.operand.data_ptr
-        else:
-            if self._preallocated_result is not None:
-                assert self.execution_space == "cpu"
-                self.result = self._preallocated_result
-                self._preallocated_result = None
-            else:
-                self.result = self._allocate_result_operand(exec_stream_holder, log_debug)
-            result_ptr = self.result.data_ptr
-
-        if log_info:
-            self.logger.info(f"Starting FFT {self.fft_abstract_type} calculation in the {direction.name} direction...")  # type: ignore[union-attr]
-            self.logger.info(f"{self.call_prologue}")
-
         if self.execution_space == "cpu":
+            # Allocate output operand if needed.
+            if self.inplace:
+                result_ptr = self.operand.data_ptr
+            else:
+                if self._preallocated_result is not None:
+                    self.result = self._preallocated_result
+                    self._preallocated_result = None
+                else:
+                    self.result = self._allocate_result_operand(exec_stream_holder, log_debug)
+                result_ptr = self.result.data_ptr
+
+            if log_info:
+                self.logger.info(
+                    f"Starting FFT {self.fft_abstract_type} calculation in the {direction.name} direction..."  # type: ignore[union-attr]
+                )
+                self.logger.info(f"{self.call_prologue}")
+
             with utils.host_call_ctx(timing=log_info) as elapsed:
                 fftw.execute(self.handle, self.operand.data_ptr, result_ptr, direction)
         else:
             assert isinstance(self.device_id, int), self.device_id
             assert exec_stream_holder is not None
-            with utils.cuda_call_ctx(exec_stream_holder, self.blocking, timing=log_info) as (
-                self.last_compute_event,
-                elapsed,
+            assert self.workspace is not None  # cuda execution space => workspace was created
+
+            # Set stream for the FFT.
+            cufft.set_stream(self.handle, exec_stream_holder.ptr)
+
+            # The workspace buffer is plumbed into cuFFT via cufft.set_work_area,
+            # which is invoked by the Workspace.on_allocated callback wired in
+            # __init__ — so we don't need ws.raw_ptr / ws.size at the xt_exec
+            # call site, only the with-block lifetime guarantees.
+            with self.workspace.allocate_perhaps(
+                exec_stream_holder,
+                get_last_event=lambda: self.last_compute_event,
             ):
-                if log_debug:
-                    self.logger.debug("The cuFFT execution function is 'xt_exec'.")
-                cufft.xt_exec(self.handle, self.operand.data_ptr, result_ptr, direction)
+                # Allocate output operand if needed.
+                if self.inplace:
+                    result_ptr = self.operand.data_ptr
+                else:
+                    self.result = self._allocate_result_operand(exec_stream_holder, log_debug)
+                    result_ptr = self.result.data_ptr
+
+                if log_info:
+                    self.logger.info(
+                        f"Starting FFT {self.fft_abstract_type} calculation in the {direction.name} direction..."  # type: ignore[union-attr]
+                    )
+                    self.logger.info(f"{self.call_prologue}")
+
+                with utils.cuda_call_ctx(exec_stream_holder, self.blocking, timing=log_info) as (
+                    self.last_compute_event,
+                    elapsed,
+                ):
+                    if log_debug:
+                        self.logger.debug("The cuFFT execution function is 'xt_exec'.")
+                    cufft.xt_exec(self.handle, self.operand.data_ptr, result_ptr, direction)
+
+                if release_workspace:
+                    self.workspace.release(self.last_compute_event)
 
         if self.fft_abstract_type == "C2R":
             self._c2r_operand_stale = True
 
         if log_info and elapsed.data is not None:
             self.logger.info(f"The FFT calculation took {elapsed.data:.3f} ms to complete.")
-
-        # Establish ordering wrt the computation and free workspace if it's more than the
-        # specified cache limit.
-        self._free_workspace_memory_perhaps(release_workspace)
-
-        # reset workspace allocation tracking to False at the end of the methods where
-        # workspace memory is potentially allocated. This is necessary to prevent any
-        # exceptions raised before method entry from using stale tracking values.
-        self._workspace_allocated_here = False
 
         # Return the result.
         result = self.operand if self.inplace else self.result
@@ -2542,11 +2746,9 @@ class FFT:
             # Ensure ordering with respect to the last computation
             # to avoid race conditions when releasing internal resources.
             self._maybe_wait_c2r_aux_buffer_on_last_compute()
-            if self.last_compute_event is not None and self.workspace_stream is not None:
-                self.workspace_stream.wait(self.last_compute_event)
+            if self.workspace is not None:
+                self.workspace.release(self.last_compute_event)
             self.last_compute_event = None
-
-            self._free_workspace_memory()
 
             if self.handle is not None:
                 if self.execution_space == "cuda":
@@ -2577,8 +2779,8 @@ def _fft(
     *,
     axes: Sequence[int] | None = None,
     direction: FFTDirection | None = None,
-    options: FFTOptions | None = None,
-    execution: ExecutionCPU | ExecutionCUDA | None = None,
+    options: FFTOptions | dict[str, Any] | None = None,
+    execution: ExecutionCPU | ExecutionCUDA | str | dict[str, Any] | None = None,
     prolog: DeviceCallable | None = None,
     epilog: DeviceCallable | None = None,
     stream: AnyStream | None = None,
@@ -2600,7 +2802,11 @@ def _fft(
 
         prolog: {prolog}
 
+            .. experimental:: parameter
+
         epilog: {epilog}
+
+            .. experimental:: parameter
 
         stream: {stream}
 
@@ -2695,7 +2901,8 @@ def _fft(
 
 # Forward C2C FFT Function.
 fft = functools.wraps(_fft)(functools.partial(_fft, direction=FFTDirection.FORWARD, check_dtype="complex"))
-fft.__doc__ = fft.__doc__.format(**SHARED_FFT_DOCUMENTATION)  # type: ignore
+if fft.__doc__ is not None:
+    fft.__doc__ = fft.__doc__.format(**SHARED_FFT_DOCUMENTATION)  # type: ignore
 fft.__name__ = "fft"
 
 
@@ -2706,8 +2913,8 @@ def rfft(
     /,
     *,
     axes: Sequence[int] | None = None,
-    options: FFTOptions | None = None,
-    execution: ExecutionCPU | ExecutionCUDA | None = None,
+    options: FFTOptions | dict[str, Any] | None = None,
+    execution: ExecutionCPU | ExecutionCUDA | str | dict[str, Any] | None = None,
     prolog: DeviceCallable | None = None,
     epilog: DeviceCallable | None = None,
     stream: AnyStream | None = None,
@@ -2731,7 +2938,11 @@ def rfft(
 
         prolog: {prolog}
 
+            .. experimental:: parameter
+
         epilog: {epilog}
+
+            .. experimental:: parameter
 
         stream: {stream}
 
@@ -2780,7 +2991,11 @@ ifft.__doc__ = """
 
         prolog: {prolog}
 
+            .. experimental:: parameter
+
         epilog: {epilog}
+
+            .. experimental:: parameter
 
         stream: {stream}
 
@@ -2810,8 +3025,8 @@ def irfft(
     /,
     *,
     axes: Sequence[int] | None = None,
-    options: FFTOptions | None = None,
-    execution: ExecutionCPU | ExecutionCUDA | None = None,
+    options: FFTOptions | dict[str, Any] | None = None,
+    execution: ExecutionCPU | ExecutionCUDA | str | dict[str, Any] | None = None,
     prolog: DeviceCallable | None = None,
     epilog: DeviceCallable | None = None,
     stream: AnyStream | None = None,
@@ -2833,7 +3048,11 @@ def irfft(
 
         prolog: {prolog}
 
+            .. experimental:: parameter
+
         epilog: {epilog}
+
+            .. experimental:: parameter
 
         stream: {stream}
 

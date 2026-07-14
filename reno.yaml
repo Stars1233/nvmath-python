@@ -1,0 +1,70 @@
+---
+default_branch: main
+stop_at_branch_base: true
+
+# Release branches are named like "release-0.9.x" (literal "x" suffix);
+# release tags are stamped on those branches as v0.9.0, v0.9.1, ...
+# The "release-0.9.x" branch MUST start from a "v0.9.0rc0" tag
+branch_name_re: '^release-\d+\.\d+\.x$'
+branch_name_prefix: 'release-'
+branch_sort_re: '^release-(\d+\.\d+)\.x$'
+
+# Only consider tags of the form vX.Y.Z, optionally with a PEP 440
+# pre-release suffix (a, b, rc, or legacy c). The trailing $ is required
+# because reno applies this regex with re.match (anchored at start only),
+# so without $ "v0.9.0-something-else" would still match.
+release_tag_re: 'v\d+\.\d+\.\d+(?:(?:a|b|c|rc)\d+)?$'
+
+# Identify the pre-release suffix so reno can collapse rc/beta/alpha notes
+# into the corresponding final release heading. The named group is required;
+# reno strips exactly the substring captured by `pre_release` to derive the
+# released form (e.g. v0.9.0rc1 -> v0.9.0).
+pre_release_tag_re: '(?P<pre_release>(?:a|b|c|rc)\d+)$'
+
+add_release_date: false
+unreleased_version_title: 'nvmath-python unreleased'
+
+# Reno was adopted partway through the 0.9 development cycle; releases
+# before v0.9.0 have no YAML fragments and should not appear in the
+# rendered notes. Clip the scan to the v0.9 series and forward.
+earliest_version: v0.9.0rc0
+
+sections:
+  - [features, New Features]
+  - [fixes, Bugs Fixed]
+  - [api, Breaking Changes]
+  - [doc, Documentation Changes]
+  - [dependencies, Dependency Changes]
+  - [deprecations, Deprecations]
+  - [issues, Known Issues]
+  - [security, Security Issues]
+
+# Map our section identifiers onto reno's semver-bump heuristic.
+# `issues` is intentionally excluded — known issues should not drive a bump.
+semver_major: [api]
+semver_minor: [features, deprecations]
+semver_patch: [fixes, security, doc]
+
+prelude_section_name: release_summary
+template: |
+  ---
+  # Uncomment a section header and replace with your own note.
+  #release_summary:
+  #api:
+  #  - Backward incompatible changes
+  #features:
+  #  - Non-breaking additions or performance improvements
+  #dependencies:
+  #  - Dependency change announcements
+  #deprecations:
+  #  - Announcements of deprecations
+  #fixes:
+  #  - Bug fixes only
+  #issues:
+  #  - Known issues that are not yet fixed
+  #security:
+  #  - Non-breaking fixes of security issues
+  #doc:
+  #  - Notable documentation changes
+   - Write a note here.
+encoding: utf8

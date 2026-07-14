@@ -11,6 +11,14 @@ from functools import lru_cache
 from typing import NamedTuple, Protocol
 
 import numpy as np
+from cuda.core import (
+    Kernel,
+    Linker,
+    LinkerOptions,
+    ObjectCode,
+    Program,
+    ProgramOptions,
+)
 
 from nvmath.bindings import mathdx
 
@@ -31,25 +39,70 @@ from .common_backend import (
 from .common_cuda import Code, CodeType, ComputeCapability, Dim3, ISAVersion
 from .types import INT_NP_TYPES, REAL_NP_TYPES
 
-try:
-    from cuda.core import (
-        Kernel,
-        Linker,
-        LinkerOptions,
-        ObjectCode,
-        Program,
-        ProgramOptions,
-    )
-except ImportError:
-    from cuda.core.experimental import (
-        Kernel,
-        Linker,
-        LinkerOptions,
-        ObjectCode,
-        Program,
-        ProgramOptions,
-    )
+# ==============================================
+# Type definition args
+# ==============================================
 
+_BLAS_DEFINITION_ARGS = [
+    "size",
+    "precision",
+    "data_type",
+    "sm",
+    "block_size",
+    "block_dim",
+    "leading_dimension",
+    "transpose_mode",
+    "arrangement",
+    "function",
+    "execution",
+    "alignment",
+    "with_pipeline",
+    "enable_input_streaming",
+    "static_block_dim",
+]
+
+_BLAS_COMPILED_ARGS = [
+    "a_value_type",
+    "b_value_type",
+    "c_value_type",
+    # value_type, input_type, and output_type not included intentionally,
+    # because they are deprecated.
+    "a_dim",
+    "b_dim",
+    "c_dim",
+    "a_size",
+    "b_size",
+    "c_size",
+    "leading_dimension",
+    "max_threads_per_block",
+]
+
+_DEVICE_PIPELINE_DEFINITION_ARGS = [
+    "mm",
+    "pipeline_depth",
+    "a",
+    "b",
+]
+
+_DEVICE_PIPELINE_COMPILED_ARGS = [
+    "buffer_alignment",
+    "buffer_size",
+    "storage_bytes",
+    "storage_alignment",
+]
+
+_TILE_PIPELINE_DEFINITION_ARGS = [
+    "device_pipeline",
+]
+
+_TILE_PIPELINE_COMPILED_ARGS = [
+    "storage_bytes",
+    "storage_alignment",
+]
+
+# ==============================================
+# backend implementation
+# ==============================================
 
 _BLAS_API_STR_TO_MATHDX = {
     "static_leading_dimensions": mathdx.CublasdxApi.SMEM,
@@ -73,7 +126,7 @@ _TENSOR_TYPE_STR_TO_MATHDX = {t.name.lower(): t for t in mathdx.CublasdxTensorTy
 def check_blas_sm(sm, library_name: str, var_name: str = "sm"):
     check_sm(sm, library_name, var_name)
     if sm.arch == "a" and sm.integer not in {900, 1000, 1030, 1100}:
-        raise ValueError(f"SM modifiers other than generic are only supported for SM 900, 1000, 1030, 1100, got {sm}")
+        raise ValueError(f"The 'a' SM modifier is only supported for SM 900, 1000, 1030, 1100, got {sm}")
 
 
 class LeadingDimension(namedtuple("LeadingDimension", ["a", "b", "c"])):
@@ -244,7 +297,7 @@ def validate(
             f"precision should be an instance of {Precision} or a 3-sequence, and individual fields "
             f"should be one of {_ACCEPTED_PRECISION}. Instead got precision = {precision}"
         )
-    check_blas_sm(sm, "sm")
+    check_blas_sm(sm, "cuBLASDx")
     check_in("data_type", data_type, ["real", "complex"])
     check_in("execution", execution, ["Block", "Thread"])
     check_in("function", function, ["MM"])
@@ -271,9 +324,9 @@ def validate(
                 f"should be one of {allowed_values}. Instead got arrangement = {arrangement}"
             )
     if arrangement is not None and transpose_mode is not None:
-        raise ValueError("only arrangement or transpose_mode must be provide. Instead got both")
+        raise ValueError("Only one of arrangement or transpose_mode must be provided. Instead got both")
     if arrangement is None and transpose_mode is None:
-        raise ValueError("arrangement or transpose_mode must be provide. Instead got nothing")
+        raise ValueError("arrangement or transpose_mode must be provided. Instead got nothing")
     if alignment is not None:
         validate_alignment(alignment, precision, data_type)
     if block_dim in (None, "suggested"):
@@ -335,9 +388,9 @@ def validate_alignment(alignment: Alignment, precision: Precision, data_type: st
         if a <= 0:
             raise ValueError(f"{name}.{m} must be > 0. Got {a}")
         if a > max_a:
-            raise ValueError(f"{name}.{m} must be less than maximum alignment {max_a}. Got {a}")
+            raise ValueError(f"{name}.{m} must not be greater than the maximum alignment {max_a}. Got {a}")
         if a % def_a != 0:
-            raise ValueError(f"{name}.{m} must be a multiple of input value type {def_a}. Got {a}")
+            raise ValueError(f"{name}.{m} must be a multiple of the input value type size ({def_a} bytes). Got {a}")
 
 
 def default_alignment(precision: Precision, data_type: str):

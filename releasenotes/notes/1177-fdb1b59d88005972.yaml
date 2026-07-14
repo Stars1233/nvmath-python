@@ -1,0 +1,11 @@
+---
+# Uncomment a section header and replace with your own note.
+#release_summary:
+#features:
+#api:
+#deprecations:
+fixes:
+#issues:
+#security:
+#doc:
+ - Silence deprecation warnings from cupy about :class:`cupy.cuda.ExternalStream`.

@@ -15,17 +15,16 @@ from collections import namedtuple
 from collections.abc import MutableSequence, Sequence
 from dataclasses import dataclass
 
-try:
-    from cuda.core import Device, EventOptions
-except ImportError:
-    from cuda.core.experimental import Device, EventOptions
 import numpy as np
+from cuda.core import Device
 
 from nvmath import memory
+from nvmath._internal.workspace import Workspace
 from nvmath._utils import CudaDataType
 from nvmath.bindings import cublas
 from nvmath.bindings import cublasLt as cublaslt  # type: ignore
 from nvmath.internal import formatters, tensor_wrapper, typemaps, utils
+from nvmath.internal._layout import StridedLayout
 from nvmath.linalg._internal import matmul_desc_ifc, matmul_pref_ifc, matrix_layout_ifc
 from nvmath.linalg._internal.epilog_protocol import (
     BATCHED_EPILOG_MINIMUM_VERSIONS_MAP,
@@ -374,6 +373,16 @@ def get_mm_traits(a_layout, b_layout, c_layout, inplace, logger):
                 )
                 raise ValueError(message)
 
+        # Inplace writes back into C, so the C layout must be unique.
+        # Otherwise distinct logical indices alias the same memory cell,
+        # producing overlapping writes / undefined behavior.
+        if inplace and not StridedLayout(c_shape, c_strides, itemsize=1).is_unique:
+            raise ValueError(
+                f"The layout for C with shape = {c_shape} and strides = {c_strides} is not "
+                f"supported for inplace operations: the index-to-memory mapping is not "
+                f"injective, which would cause overlapping writes into the same memory."
+            )
+
         c_order, c_ld, c_batch_offset = get_matrix_layout_traits(
             c_mm_shape, c_mm_strides, c_batch_strides, col_bcast=not inplace
         )
@@ -512,12 +521,12 @@ Allowed and required only for narrow-precision (FP8 and lower) operations.""".re
         #
         "algorithms": """\
 A sequence of :class:`Algorithm` objects that can be directly provided to bypass planning. The algorithm objects must be
-compatible with the matrix multiplication. A typical use for this option is to provide algorithms serialized (pickled)
+compatible with the matrix multiplication. A typical use for this option is to provide algorithms serialized (numpy)
 from a previously planned and autotuned matrix multiplication.""".replace("\n", " "),
         #
         "epilog": """\
-Specify an epilog :math:`F` as an object of type :class:`MatmulEpilog` to apply to the result of the matrix
-multiplication: :math:`F(\\alpha A @ B + \\beta C`). The default is no epilog. See `cuBLASLt documentation
+Specify an epilog :math:`\\mathcal{F}` as an object of type :class:`MatmulEpilog` to apply to the result of the matrix
+multiplication: :math:`\\mathcal{F}(\\alpha a @ b + \\beta c)`. The default is no epilog. See `cuBLASLt documentation
 <https://docs.nvidia.com/cuda/cublas/#cublasltepilogue-t>`_ for the list of available epilogs.""".replace("\n", " "),
         #
         "epilog_inputs": """\
@@ -620,7 +629,7 @@ being the auxiliary output provided as a `dict`. """.replace("\n", " "),
 
         **NVFP4**
 
-        .. versionadded:: 1.0
+        .. versionadded:: 0.9.0
             NVFP4 support.
 
         NVFP4 uses ``float4_e2m1fn_x2`` data type with block scaling (16-element blocks arranged in 128x64 tiles).
@@ -710,6 +719,12 @@ being the auxiliary output provided as a `dict`. """.replace("\n", " "),
         <https://github.com/NVIDIA/nvmath-python/tree/main/examples/linalg/advanced/matmul>`_
         directory.
 """.strip(),
+        #
+        "thread_safety": """\
+A :class:`Matmul` instance should only be used by its creating thread; it is not safe to use
+concurrently from multiple threads. The free function :func:`matmul` creates a fresh
+instance per call and is safe to call concurrently from multiple threads.
+""".replace("\n", " "),
         #
         "semantics": """\
         .. _semantics:
@@ -917,7 +932,7 @@ def _create_fp4_ab_layouts(a_shape, a_strides, a_is_conjugate, b_shape, b_stride
     return a_layout, b_layout
 
 
-def _create_d_out_scale_and_scale_mode(result_class, num_output_elements, using_fp4_ab, device_id, stream_holder):
+def _create_d_out_scale_and_scale_mode(result_class, num_output_elements, d_dtype_width, device_id, stream_holder):
     """
     Create the d_out_scale tensor and determine the scale mode for block-scaled output.
     Block-scaled narrow-precision output (FP4 or FP8) requires a scale tensor where each
@@ -929,7 +944,7 @@ def _create_d_out_scale_and_scale_mode(result_class, num_output_elements, using_
     Args:
         result_class: The tensor class used to create the output tensor.
         num_output_elements: Total number of output elements.
-        using_fp4_ab: Whether FP4 operands are being used.
+        d_dtype_width: Result dtype width.
         device_id: The CUDA device id.
         stream_holder: The stream holder for tensor allocation.
 
@@ -937,11 +952,12 @@ def _create_d_out_scale_and_scale_mode(result_class, num_output_elements, using_
         (d_out_scale_tensor, d_out_scale_mode) — the allocated scale tensor and the
         corresponding ``cublaslt.MatmulMatrixScale`` mode.
     """
-    if using_fp4_ab:
+    if d_dtype_width == 4:
         scale_mode = cublaslt.MatmulMatrixScale.VEC16_UE4M3
         scale_group_size = 16
         scale_dtype = "float8_e4m3fn"  # UE4M3 format, consistent with input A/B scales
     else:
+        assert d_dtype_width == 8, "Internal error."
         scale_mode = cublaslt.MatmulMatrixScale.VEC32_UE8M0
         scale_group_size = 32
         scale_dtype = "uint8"  # UE8M0 format
@@ -956,6 +972,40 @@ def _create_d_out_scale_and_scale_mode(result_class, num_output_elements, using_
         verify_strides=False,
     )
     return d_out_scale, scale_mode
+
+
+def _realloc_if_needed_and_copy_to_mirror(src_holder, dest_holder, destination_device_id, stream_holder):
+    """
+    Copy a CPU source operand into its device-side mirror (``dest_holder``).
+
+    Two cases:
+
+    * **Buffer exists** (``dest_holder.tensor is not None``): copy the
+      source data into the existing device buffer in-place via ``copy_()``.
+    * **Buffer released** (``dest_holder.tensor is None``, e.g. after
+      ``release_operands()``): call ``src_holder.to()`` to allocate a new
+      device buffer and copy the data into it, then assign the underlying
+      raw tensor to ``dest_holder.tensor``. The ``dest_holder`` wrapper
+      object itself is never replaced, so its concrete type is preserved.
+
+    Args:
+        src_holder: Wrapped CPU source operand.
+        dest_holder: Device-side tensor wrapper whose ``.tensor`` may be None.
+            Note: ``dest_holder.device_id`` is not usable when ``.tensor`` is
+            None, hence the explicit ``destination_device_id`` parameter.
+        destination_device_id: CUDA device ordinal (int, never ``"cpu"``)
+            since this function is only used for CPU-to-GPU mirroring.
+        stream_holder: Stream wrapper for the copy / allocation.
+
+    Returns:
+        True if a new buffer was allocated (data pointer changed),
+        False if the existing buffer was reused via in-place copy.
+    """
+    if dest_holder.tensor is not None:
+        dest_holder.copy_(src_holder, stream_holder=stream_holder)
+        return False
+    dest_holder.tensor = src_holder.to(destination_device_id, stream_holder).tensor
+    return True
 
 
 @utils.docstring_decorator(SHARED_MM_DOCUMENTATION, skip_missing=False)
@@ -1022,6 +1072,9 @@ class Matmul:
     Narrow-precision support:
         {narrow_precision}
 
+    Thread Safety:
+        {thread_safety}
+
     .. seealso::
         :meth:`autotune`, :meth:`plan`, :meth:`reset_operands`,
         :meth:`reset_operands_unchecked`, :meth:`execute`
@@ -1087,7 +1140,7 @@ class Matmul:
         ...     # Execute the operation to get the first result.
         ...     r1 = mm.execute()
         ...
-        ...     # Update operands A and B in-place (see reset_operands() for an
+        ...     # Update operands 'a' and 'b' in-place (see reset_operands() for an
         ...     # alternative).
         ...     a[:] = cp.random.rand(M, K)
         ...     b[:] = cp.random.rand(K, N)
@@ -1114,7 +1167,7 @@ class Matmul:
         beta=None,
         qualifiers=None,
         quantization_scales=None,
-        options=None,
+        options: _configuration.MatmulOptions | dict[str, typing.Any] | None = None,
         stream: utils.AnyStream | int | None = None,
     ):
         options = utils.check_or_create_options(_configuration.MatmulOptions, options, "Matrix multiplication options")
@@ -1194,11 +1247,11 @@ the operation is in-place."
         self.operands: MutableSequence[utils.TensorHolder] | None = operands
 
         self.package = utils.get_operands_package(operands)
+        # Package used for internal operations (stream + allocator). NumPy uses cuda.core.
+        self.internal_op_package = "cuda" if self.package == "numpy" else self.package
         self.memory_space = "cuda"
         self.device_id = utils.get_operands_device_id(operands)
         if self.device_id == "cpu":
-            if self.package == "numpy":
-                self.package = "cuda"
             self.memory_space = "cpu"
             self.device_id = options.device_id
         self.logger.info(
@@ -1206,7 +1259,7 @@ the operation is in-place."
         )
 
         # Allocate device memory (in stream context) if needed.
-        stream_holder = utils.get_or_create_stream(self.device_id, stream, self.package)
+        stream_holder = utils.get_or_create_stream(self.device_id, stream, self.internal_op_package)
         self.logger.info(f"The specified stream for the Matmul ctor is {stream_holder.obj}.")
 
         # Copy operands to device (and store reference to CPU operand), if needed.
@@ -1248,7 +1301,7 @@ the operation is in-place."
         self.allocator = (
             options.allocator
             if options.allocator is not None
-            else memory._MEMORY_MANAGER[self.package](self.device_id, self.logger)
+            else memory._MEMORY_MANAGER[self.internal_op_package](self.device_id, self.logger)
         )
 
         # Set memory limit.
@@ -1505,7 +1558,7 @@ the operation is in-place."
 
         # Guard SM count target and fast accumulation flag.
         version = cublaslt.get_version()
-        if options.sm_count_target > 0:
+        if options.sm_count_target > 0:  # type: ignore[operator]
             if version < 111103:
                 raise ValueError(f"The 'sm_count_target' option is not supported in cuBLASLt version {version}.")
             self.mm_desc_ifc.sm_count_target = options.sm_count_target
@@ -1557,14 +1610,17 @@ the operation is in-place."
         self.algorithm_objects = None
         self.cached_best_algorithm_struct = None
 
-        # Workspace attributes.
-        self.workspace_ptr: None | memory.MemoryPointer = None
-        self.workspace_size = 0
-        self.workspace_allocated_size = 0
-        self.workspace_allocated_here = False
+        # Workspace lifecycle is managed by `Workspace` (allocate-on-demand,
+        # reuse, mid-call release, exception cleanup, stream-ordered free).
+        self.workspace = Workspace(
+            self.allocator,
+            self.logger,
+            label="device workspace",
+            device_id=self.device_id,
+        )
 
-        # Attributes to establish stream ordering.
-        self.workspace_stream = None
+        # Last event recorded by cuda_call_ctx; consumed on workspace release
+        # so the free is ordered after the compute that touched the buffer.
         self.last_compute_event = None
 
         # Track whether the user has called release_operands().
@@ -1631,99 +1687,6 @@ the operation is in-place."
         if not self.mm_planned:
             raise RuntimeError(f"{what} cannot be performed before plan() has been called.")
 
-    def _free_workspace_memory(self, exception: Exception | None = None) -> bool:
-        """
-        Free workspace by releasing the MemoryPointer object.
-        """
-        if self.workspace_ptr is None:
-            return True
-
-        self.workspace_ptr = None
-        self.workspace_allocated_size = 0
-        self.logger.debug("[_free_workspace_memory] The workspace has been released.")
-
-        return True
-
-    def _reset_workspace_allocation_tracking(self):
-        """
-        Reset workspace allocation tracking attributes to False at the end of the methods
-        where workspace memory is potentially allocated. This is necessary to prevent any
-        exceptions raised before method entry from using stale tracking values.
-        """
-        self.workspace_allocated_here = False
-
-    @utils.precondition(_check_valid_matmul)
-    def _release_workspace_memory_perhaps(self, release_workspace):
-        """
-        Free workspace memory if it's larger than the specified limit.
-        """
-        if not release_workspace:
-            return True
-
-        # Establish ordering wrt the computation and free workspace if requested.
-        if self.last_compute_event is not None:
-            self.workspace_stream.wait(self.last_compute_event)
-            self.logger.debug("Established ordering with respect to the computation before releasing the workspace.")
-            self.last_compute_event = None
-
-        self.logger.debug("[_release_workspace_memory_perhaps] The workspace memory will be released.")
-        return self._free_workspace_memory()
-
-    def _release_workspace_memory_perhaps_wrapper(self, exception: Exception | None = None) -> bool:
-        """
-        This is used in @atomic.
-        """
-        self._release_workspace_memory_perhaps(release_workspace=self.workspace_allocated_here)
-        self._reset_workspace_allocation_tracking()
-        return True
-
-    @utils.precondition(_check_valid_matmul)
-    @utils.precondition(_check_planned, "Workspace memory allocation")
-    @utils.atomic(_free_workspace_memory, method=True)
-    def _allocate_workspace_memory(self, stream_holder: utils.StreamHolder):
-        """
-        Allocate workspace memory using the specified allocator.
-        """
-
-        assert self.workspace_size is not None, "Internal Error."
-        assert self.workspace_allocated_here is False, "Internal Error."
-
-        if self.workspace_size == 0:  # For performance, bypass allocator for workspace size == 0.
-            self.workspace_ptr = memory.MemoryPointer(0, 0, finalizer=None)
-        else:
-            self.logger.debug("Allocating workspace for performing the matrix multiplication...")
-            with utils.device_ctx(self.device_id), stream_holder.ctx:
-                try:
-                    if isinstance(self.allocator, memory.BaseCUDAMemoryManagerAsync):
-                        self.workspace_ptr = self.allocator.memalloc_async(self.workspace_size, stream_holder.obj)
-                    else:
-                        self.workspace_ptr = self.allocator.memalloc(self.workspace_size)
-                    self.workspace_allocated_here = True
-                except TypeError as e:
-                    message = (
-                        "The method 'memalloc' in the allocator object must conform to the interface in the "
-                        "'BaseCUDAMemoryManager' protocol."
-                    )
-                    raise TypeError(message) from e
-
-        self.workspace_allocated_size = self.workspace_size
-        self.workspace_stream = stream_holder.obj
-        self.logger.debug(
-            f"Finished allocating device workspace of size {formatters.MemoryStr(self.workspace_size)} in the context "
-            f"of stream {self.workspace_stream}."
-        )
-
-    def _allocate_workspace_memory_perhaps(self, stream_holder: utils.StreamHolder):
-        """
-        Allocate workspace memory using the specified allocator, if it hasn't already been
-        done.
-        """
-
-        if self.workspace_ptr is not None and self.workspace_allocated_size >= self.workspace_size:
-            return
-
-        return self._allocate_workspace_memory(stream_holder)
-
     @utils.precondition(_check_valid_matmul)
     def applicable_algorithm_ids(self, limit=8):
         """Obtain the algorithm IDs that are applicable to this matrix multiplication.
@@ -1764,13 +1727,7 @@ the operation is in-place."
             operand: The operand name (a, b, c, d)
             operand_size: Size of the operand (needed for block scaling shape validation)
         """
-        # Package validation: Normalize "numpy" to "cuda" to match the behavior in __init__.
-        # When operands are NumPy on CPU, self.package is set to "cuda" (execution package),
-        # so we must also normalize NumPy scales to "cuda" to allow the same input format.
-        # This handles the NumPy <=> CuPy asymmetry where NumPy on CPU is accepted as input
-        # but internally converted to CuPy for CUDA execution.
         scale_package = utils.infer_object_package(scale)
-        scale_package = "cuda" if scale_package == "numpy" else scale_package
         if scale_package != self.package:
             raise TypeError(
                 f"The quantization scaling tensor for {operand.upper()} must belong to the same package as the operands."
@@ -2087,6 +2044,10 @@ the operation is in-place."
 
         self.logger.info("= PLANNING PHASE =")
 
+        # Release layout objects and other plan resources from a previous plan() call
+        # to prevent leaks on re-plan. This is a no-op on the first call.
+        self._free_plan_resources()
+
         # Clear epilog operands, since different epilogs can be provided in different calls.
         # We don't need to worry about ordering, since it's the user's responsibility to
         # order calls that accept a stream argument. This applies to CPU operands as well,
@@ -2102,7 +2063,7 @@ the operation is in-place."
 
         mm_traits = self.mm_traits
 
-        stream_holder = utils.get_or_create_stream(self.device_id, stream, self.package)
+        stream_holder = utils.get_or_create_stream(self.device_id, stream, self.internal_op_package)
         self.logger.info(f"The specified stream for the matrix multiplication plan is {stream_holder.obj}.")
 
         # Base FLOP count.
@@ -2214,7 +2175,6 @@ the operation is in-place."
                 # Check if epilog inputs all belong to the same package, which is the same
                 # as the package of the MM operands.
                 epilog_package = utils.get_operands_package(list(epilog_inputs.values()))
-                epilog_package = "cuda" if epilog_package == "numpy" else epilog_package  # Handle the NumPy <=> CuPy asymmetry.
                 if self.package != epilog_package:
                     message = f"Library package mismatch for epilog: '{self.package}' => '{epilog_package}'"
                     raise TypeError(message)
@@ -2410,7 +2370,7 @@ the operation is in-place."
             # cublasLtMatmulAlgoGetHeuristic requires the scale pointer to be set.
             num_output_elements = mm_traits.M * mm_traits.N * mm_traits.batch_count
             d_out_scale, d_out_scale_mode = _create_d_out_scale_and_scale_mode(
-                self.result_class, num_output_elements, self.using_fp4_ab, self.device_id, stream_holder
+                self.result_class, num_output_elements, self.d_dtype_width, self.device_id, stream_holder
             )
             self.aux_outputs = {"d_out_scale": d_out_scale}
             self.mm_desc_ifc.d_out_scale_pointer = d_out_scale.data_ptr
@@ -2426,13 +2386,7 @@ the operation is in-place."
             )
             num_algorithms = len(algorithms)
 
-        if self.preference_ptr is None:
-            self.preference_ptr = cublaslt.matmul_preference_create()
-        else:
-            # We need to create a new preferences object to avoid preferences being set in a
-            # cumulative manner if plan() is called multiple times.
-            cublaslt.matmul_preference_destroy(self.preference_ptr)
-            self.preference_ptr = cublaslt.matmul_preference_create()
+        self.preference_ptr = cublaslt.matmul_preference_create()
 
         if self.input_type_width <= 8:
             self._prepare_operand_quantization_scales(self.quantization_scales, stream_holder)
@@ -2501,19 +2455,20 @@ the operation is in-place."
         # Create the map from object to buffer.
         self.algorithm_object_to_buffer = dict(zip(self.algorithm_objects, self.algorithms_buffer, strict=True))
 
-        self.workspace_size = int(np.max(self.algorithms_buffer["workspace_size"]))
-        if self.workspace_size > 0 and self.epilog:
-            self.workspace_size += 16  # Workaround for library issue
+        workspace_size = int(np.max(self.algorithms_buffer["workspace_size"]))
+        if workspace_size > 0 and self.epilog:
+            workspace_size += 16  # Workaround for library issue
+        self.workspace.set_size(workspace_size)
 
         if algorithms is None:
             self.logger.info(
                 f"The plan found {num_algorithms} suitable algorithms within the requested limit of {limit} "
-                f"algorithms, with a workspace requirement of {formatters.MemoryStr(self.workspace_size)}."
+                f"algorithms, with a workspace requirement of {formatters.MemoryStr(workspace_size)}."
             )
         else:
             self.logger.info(
                 f"The plan is using {num_algorithms} algorithm passed through the algorithms argument, with a "
-                f"workspace requirement of {formatters.MemoryStr(self.workspace_size)}."
+                f"workspace requirement of {formatters.MemoryStr(workspace_size)}."
             )
 
         self.mm_planned = True
@@ -2576,7 +2531,6 @@ the operation is in-place."
             )
 
         if device_id == "cpu":
-            package = "cuda" if package == "numpy" else package  # Handle the NumPy <=> CuPy asymmetry.
             if self.package != package:
                 message = f"Library package mismatch: '{self.package}' => '{package}'"
                 raise TypeError(message)
@@ -2621,185 +2575,91 @@ the operation is in-place."
 
         return
 
-    def _reset_quantization_scales_unchecked_from_host(
-        self,
-        quantization_scales: _configuration.MatmulQuantizationScales,
-        stream_holder: utils.StreamHolder[utils.AnyStream],
-    ):
-        """(Private method) Unchecked method to reset quantization residing on the CPU.
-        This method updates quantization scales for operands A, B, C, and D.
-
-        Args:
-            quantization_scales: MatmulQuantizationScales object
-                containing new scale values for operands. Can contain scalars,
-                single-element tensors (for tensor-wide scaling),
-                or properly shaped uint8 tensors (for block scaling).
-
-            stream_holder: Stream holder for GPU operations.
-
-        This method updates the stored scale values in `self.quantization_scales`
-        and the device-side tensor wrappers in `self.quantization_scales_device`.
-        It also updates the cuBLAS descriptor pointers via `self.mm_desc_ifc`.
+    def _reset_quantization_scales_unchecked(self, quantization_scales_obj, stream, stream_holder):
         """
-        # Note: when updating the aux scale, we only need to update the "data",
-        # but the scale_mode does not need to be update since it is unchanged
-        # from initialization. This is guaranteed by reset_operands_unchecked
-        # requirement for the newly provided operands to match the
-        # original operands' properties.
+        Unchecked reset of quantization scales for operands A, B, C, and D.
 
+        Works for both CPU and CUDA memory spaces.  For each provided scale the
+        function updates the host-side value in ``self.quantization_scales``, updates
+        the existing device-side holder in ``self.quantization_scales_device``
+        (copy in-place or rebind ``.tensor``), and refreshes the descriptor pointer.
+
+        A stream holder is created lazily only when a CPU-to-GPU copy is needed
+        (scalar scales, or tensor scales in CPU memory space).
+
+        Returns the stream_holder (may be newly created).
+        """
+        mm_desc_ifc = self.mm_desc_ifc
         qsd = self.quantization_scales_device
-        mm_desc_ifc = self.mm_desc_ifc
 
-        def _wrap_and_copy(scale):
-            if isinstance(scale, (int, float)):
-                return tensor_wrapper.wrap_operand(np.asarray(scale, dtype="float32")).to(self.device_id, stream_holder)
-            return tensor_wrapper.wrap_operand(scale).to(self.device_id, stream_holder)
-
-        if quantization_scales.a is not None:
-            host_scale = quantization_scales.a
-            self.quantization_scales.a = host_scale
-            holder = qsd["a"] = _wrap_and_copy(host_scale)
-            mm_desc_ifc.set_a_scale_pointer_unchecked(holder.data_ptr)
-
-        if quantization_scales.b is not None:
-            host_scale = quantization_scales.b
-            self.quantization_scales.b = host_scale
-            holder = qsd["b"] = _wrap_and_copy(host_scale)
-            mm_desc_ifc.set_b_scale_pointer_unchecked(holder.data_ptr)
-
-        if quantization_scales.c is not None:
-            host_scale = quantization_scales.c
-            self.quantization_scales.c = host_scale
-            holder = qsd["c"] = _wrap_and_copy(host_scale)
-            mm_desc_ifc.set_c_scale_pointer_unchecked(holder.data_ptr)
-
-        if quantization_scales.d is not None:
-            host_scale = quantization_scales.d
-            self.quantization_scales.d = host_scale
-            holder = qsd["d"] = _wrap_and_copy(host_scale)
-            mm_desc_ifc.set_d_scale_pointer_unchecked(holder.data_ptr)
-
-    def _reset_aux_quantization_scale_unchecked(
-        self, aux_quantization_scale, stream: utils.AnyStream | int | None, stream_holder: utils.StreamHolder | None
-    ):
-        """(Private method) Unchecked method to reset aux_quantization_scale.
-
-        Args:
-            aux_quantization_scale: The aux quantization scale (scalar or tensor).
-            stream: The stream for GPU operations (may be None).
-            stream_holder: The stream holder (may be None, will be created if needed).
-
-        Returns:
-            The stream_holder (either the input or newly created one).
-
-        Notes:
-            - to minimize overhead, the stream logic is as follows:
-              - if the operation does not need a stream, then `stream_holder` is not used.
-              - if the operation needs to use a stream, and `stream_holder` is None,
-                then a stream holder is created from `stream` and `self.package`.
-              - if the operation needs to use a stream, and `stream_holder`
-                is not None, then it is used directly.
-        """
-        # Note: when updating the aux scale, we only need to update the "data",
-        # but the scale_mode does not need to be update since it is unchanged
-        # from initialization. This is guaranteed by reset_operands_unchecked
-        # requirement for the newly provided operands to match the
-        # original operands' properties.
-
-        if isinstance(aux_quantization_scale, (int, float)):
-            # Scalar scales always need stream holder because we need to do a CPU->GPU copy.
-            if stream_holder is None:
-                stream_holder = utils.get_or_create_stream(self.device_id, stream, self.package)
-            scale_op = tensor_wrapper.wrap_operand(np.asarray(aux_quantization_scale, dtype="float32"))
-            self.quantization_scales_device["epilog_aux"] = scale_op.to(self.device_id, stream_holder)
-            self.mm_desc_ifc.epilogue_aux_scale_pointer = self.quantization_scales_device["epilog_aux"].data_ptr
-        else:
-            # aux_quantization_scale is a tensor
-            member_tensor_holder = self.quantization_scales_device["epilog_aux"]
-            if self.memory_space == "cuda":
-                member_tensor_holder.tensor = aux_quantization_scale
-                self.mm_desc_ifc.epilogue_aux_scale_pointer = member_tensor_holder.data_ptr
-            else:
-                # wrap and copy to GPU
-                if stream_holder is None:
-                    stream_holder = utils.get_or_create_stream(self.device_id, stream, self.package)
-                aux_quantization_scale_wrapped = tensor_wrapper.wrap_operand(aux_quantization_scale)
-                member_tensor_holder = aux_quantization_scale_wrapped.to(self.device_id, stream_holder)
-                self.mm_desc_ifc.epilogue_aux_scale_pointer = member_tensor_holder.data_ptr
-
-        return stream_holder
-
-    def _reset_quantization_scales_unchecked_on_device(
-        self,
-        quantization_scales_obj: _configuration.MatmulQuantizationScales,
-        stream: utils.AnyStream | int | None,
-        stream_holder: utils.StreamHolder | None,
-    ):
-        """(Private method) Unchecked method to reset quantization residing on GPU.
-        This method directly updates tensor references without wrapping overhead.
-
-        Args:
-            quantization_scales_obj: Quantization scales object.
-            stream_holder: Stream holder (may be None, will be created if needed).
-
-        Returns:
-            The stream_holder (either the input or newly created one).
-
-        Notes:
-            - to minimize overhead, the stream logic is as follows:
-              - if the operation does not need a stream, then `stream_holder` is not used.
-              - if the operation needs a stream, and `stream_holder` is None,
-                then a stream holder is created from `stream` and `self.package`.
-              - if the operation needs to use a stream, and `stream_holder` is
-                not None, then it is used directly.
-        """
-        # Note: when updating the aux scale, we only need to update the "data",
-        # but the scale_mode does not need to be update since it is unchanged
-        # from initialization. This is guaranteed by reset_operands_unchecked
-        # requirement for the newly provided operands to match the
-        # original operands' properties.
-
-        mm_desc_ifc = self.mm_desc_ifc
-
-        def _update_scale(holder, scale):
+        def _update(holder, scale):
             nonlocal stream_holder
             if isinstance(scale, (int, float)):
                 if stream_holder is None:
-                    stream_holder = utils.get_or_create_stream(self.device_id, stream, self.package)
-                holder.tensor = (
-                    tensor_wrapper.wrap_operand(np.asarray(scale, dtype="float32")).to(self.device_id, stream_holder).tensor
-                )
+                    stream_holder = utils.get_or_create_stream(self.device_id, stream, self.internal_op_package)
+                src = tensor_wrapper.wrap_operand(np.asarray(scale, dtype="float32"))
+                _realloc_if_needed_and_copy_to_mirror(src, holder, self.device_id, stream_holder)
+            elif self.memory_space == "cpu":
+                if stream_holder is None:
+                    stream_holder = utils.get_or_create_stream(self.device_id, stream, self.internal_op_package)
+                _realloc_if_needed_and_copy_to_mirror(tensor_wrapper.wrap_operand(scale), holder, self.device_id, stream_holder)
             else:
                 holder.tensor = scale
 
         if quantization_scales_obj.a is not None:
-            scale = quantization_scales_obj.a
-            self.quantization_scales.a = scale
-            holder = self.quantization_scales_device["a"]
-            _update_scale(holder, scale)
+            self.quantization_scales.a = quantization_scales_obj.a
+            holder = qsd["a"]
+            _update(holder, quantization_scales_obj.a)
             mm_desc_ifc.set_a_scale_pointer_unchecked(holder.data_ptr)
 
         if quantization_scales_obj.b is not None:
-            scale = quantization_scales_obj.b
-            self.quantization_scales.b = scale
-            holder = self.quantization_scales_device["b"]
-            _update_scale(holder, scale)
+            self.quantization_scales.b = quantization_scales_obj.b
+            holder = qsd["b"]
+            _update(holder, quantization_scales_obj.b)
             mm_desc_ifc.set_b_scale_pointer_unchecked(holder.data_ptr)
 
         if quantization_scales_obj.c is not None:
-            scale = quantization_scales_obj.c
-            self.quantization_scales.c = scale
-            holder = self.quantization_scales_device["c"]
-            _update_scale(holder, scale)
+            self.quantization_scales.c = quantization_scales_obj.c
+            holder = qsd["c"]
+            _update(holder, quantization_scales_obj.c)
             mm_desc_ifc.set_c_scale_pointer_unchecked(holder.data_ptr)
 
         if quantization_scales_obj.d is not None:
-            scale = quantization_scales_obj.d
-            self.quantization_scales.d = scale
-            holder = self.quantization_scales_device["d"]
-            _update_scale(holder, scale)
+            self.quantization_scales.d = quantization_scales_obj.d
+            holder = qsd["d"]
+            _update(holder, quantization_scales_obj.d)
             mm_desc_ifc.set_d_scale_pointer_unchecked(holder.data_ptr)
 
+        return stream_holder
+
+    def _reset_aux_quantization_scale_unchecked(self, aux_quantization_scale, stream, stream_holder):
+        """
+        Unchecked reset of aux_quantization_scale.
+
+        Works for both CPU and CUDA memory spaces.  Updates the existing
+        device-side holder (copy in-place or rebind ``.tensor``) and refreshes
+        the descriptor pointer.
+        A stream holder is created lazily only when a CPU-to-GPU copy is needed.
+
+        Returns the stream_holder (may be newly created).
+        """
+        holder = self.quantization_scales_device["epilog_aux"]
+
+        if isinstance(aux_quantization_scale, (int, float)):
+            if stream_holder is None:
+                stream_holder = utils.get_or_create_stream(self.device_id, stream, self.internal_op_package)
+            src = tensor_wrapper.wrap_operand(np.asarray(aux_quantization_scale, dtype="float32"))
+            _realloc_if_needed_and_copy_to_mirror(src, holder, self.device_id, stream_holder)
+        elif self.memory_space == "cpu":
+            if stream_holder is None:
+                stream_holder = utils.get_or_create_stream(self.device_id, stream, self.internal_op_package)
+            _realloc_if_needed_and_copy_to_mirror(
+                tensor_wrapper.wrap_operand(aux_quantization_scale), holder, self.device_id, stream_holder
+            )
+        else:
+            holder.tensor = aux_quantization_scale
+
+        self.mm_desc_ifc.epilogue_aux_scale_pointer = holder.data_ptr
         return stream_holder
 
     def reset_operands_unchecked(
@@ -2817,84 +2677,23 @@ the operation is in-place."
         """
         {reset_operands_unchecked}
         """
-
-        # After release_operands(), the TensorHolder wrappers of the operands are
-        # still alive since only .tensor was cleared. When the operands' memory space
-        # is the same as the execution space (i.e. CUDA), the code below can reuse
-        # them directly.
-        # This is not the case for CPU memory space, where device mirrors
-        # need re-allocation. Rather than duplicating all the non-trivial
-        # re-initialization logic here, which would add significant overhead and,
-        # therefore, undo the performance benefits of this method, we delegate
-        # the first reset after a release to reset_operands(); subsequent resets
-        # take the fast path below.
-        if self._operands_released and self.memory_space == "cpu":
-            self.reset_operands(
-                a=a,
-                b=b,
-                c=c,
-                alpha=alpha,
-                beta=beta,
-                quantization_scales=quantization_scales,
-                epilog_inputs=epilog_inputs,
-                stream=stream,
-            )
-            return
-
-        # Deal with alpha, beta which are scalars and we don't need the stream holder.
         if alpha is not None:
             self.alpha[0] = alpha
 
         if beta is not None:
             self.beta[0] = beta
 
-        # Stream holder optimization: Initialize to None and create lazily
-        # only when needed. The `stream` parameter is None or the user-provided CUDA stream
-        # The `stream_holder` is the internal wrapper
-        # around the stream that we reuse across multiple operations
-        # in this method to avoid redundant wrapper creation overhead.
-        # Each method that needs a stream holder will:
-        #   - Create one if stream_holder is None (lazy creation)
-        #   - Return the stream_holder so subsequent operations can reuse it
-        # This is better than creating a new one for each operation,
-        # which is useful when needs to be reused across multiple operations (e.g.,
-        # copying scalar quantization scales, copying CPU operands to GPU, etc.).
-        # This approach is a good compromise between stream manipulation overhead
-        # and code readability, since it allows us to keep the code below
-        # quite separated into different methods. One alternative would be to simplify
-        # the logic of stream holder creation but that would imply having a
-        # single giant method, making the code more complex and hard to reason about.
         stream_holder = None
 
-        # The "unchecked" contract means the caller guarantees that new operands
-        # match the original operands' memory space. We exploit this below by
-        # using the self.memory_space attribute (set in __init__) to determine
-        # the code path without inspecting individual operands:
-        #
-        # - If self.memory_space == "cuda":
-        #     All tensor operands are guaranteed to already be on GPU.
-        #     We directly update references avoiding wrapping overhead
-        #     and stream holder creation (unless needed for scalar scales).
-        #
-        # - If self.memory_space == "cpu":
-        #     All tensor operands are on CPU and must be copied to GPU.
-        #     We create a stream holder upfront and wrap+copy each operand
-        #     to the execution device.
-
-        # Handle aux_quantization_scale first (needs special handling because of the
-        # particular set of strings that are used to identify/store this internally).
         if epilog_inputs is not None and "aux_quantization_scale" in epilog_inputs:
             aux_quantization_scale = epilog_inputs.get("aux_quantization_scale")
             stream_holder = self._reset_aux_quantization_scale_unchecked(aux_quantization_scale, stream, stream_holder)
 
-        # Convert quantization scales to object if needed
         quantization_scales_obj = quantization_scales
         if quantization_scales is not None and isinstance(quantization_scales, dict):
             quantization_scales_obj = _configuration.MatmulQuantizationScales(**quantization_scales)
 
-        # Branch based on memory space
         if self.memory_space == "cuda":
-            # Update a, b, c operands by directly updating tensor references
             if a is not None:
                 self.operands[0].tensor = a  # type: ignore[index, union-attr]
             if b is not None:
@@ -2902,11 +2701,6 @@ the operation is in-place."
             if c is not None:
                 self.operands[2].tensor = c  # type: ignore[index, union-attr]
 
-            # Handle epilog inputs (except aux_quantization_scale handled earlier).
-            # The reset_operands_* contract guarantees that operand properties
-            # (shape, strides, dtype) are unchanged, so only the data pointer needs
-            # updating in the cuBLASLt descriptor while all other attributes
-            # (batch stride, leading dimension, data type) remain valid from before.
             if epilog_inputs is not None:
                 for epilog_name, epilog_value in epilog_inputs.items():
                     if epilog_name != "aux_quantization_scale":
@@ -2915,42 +2709,36 @@ the operation is in-place."
                             self.mm_desc_ifc, self.epilog_operands[epilog_name].data_ptr
                         )
 
-            # handle quantization scales (ignore returned stream_holder, not needed anymore)
-            if quantization_scales_obj is not None:
-                self._reset_quantization_scales_unchecked_on_device(quantization_scales_obj, stream, stream_holder)
         else:
-            # Create stream holder (required for CPU->GPU copies)
             if stream_holder is None:
-                stream_holder = utils.get_or_create_stream(self.device_id, stream, self.package)
+                stream_holder = utils.get_or_create_stream(self.device_id, stream, self.internal_op_package)
 
-            # Wrap and copy a, b, c operands to GPU
             if a is not None:
                 a_wrapped = tensor_wrapper.wrap_operand(a)
-                self.operands[0] = a_wrapped.to(self.device_id, stream_holder)  # type: ignore[index]
+                _realloc_if_needed_and_copy_to_mirror(a_wrapped, self.operands[0], self.device_id, stream_holder)  # type: ignore[index, union-attr]
             if b is not None:
                 b_wrapped = tensor_wrapper.wrap_operand(b)
-                self.operands[1] = b_wrapped.to(self.device_id, stream_holder)  # type: ignore[index]
+                _realloc_if_needed_and_copy_to_mirror(b_wrapped, self.operands[1], self.device_id, stream_holder)  # type: ignore[index, union-attr]
             if c is not None:
                 c_wrapped = tensor_wrapper.wrap_operand(c)
-                self.operands[2] = c_wrapped.to(self.device_id, stream_holder)  # type: ignore[index]
-                # For inplace operations with CPU operands,
-                # hold reference to the CPU operand.
+                _realloc_if_needed_and_copy_to_mirror(c_wrapped, self.operands[2], self.device_id, stream_holder)  # type: ignore[index, union-attr]
                 if self.inplace:
                     self.cpu_c_ref = c_wrapped
 
-            # Handle epilog inputs (except aux_quantization_scale which was handled earlier)
             if epilog_inputs is not None:
                 for epilog_name, epilog_value in epilog_inputs.items():
                     if epilog_name != "aux_quantization_scale":
                         epilog_input_wrapped = tensor_wrapper.wrap_operand(epilog_value)
-                        self.epilog_operands[epilog_name] = epilog_input_wrapped.to(self.device_id, stream_holder)
-                        self.epilog_input_name_to_handler[epilog_name].update(
-                            self.mm_desc_ifc, self.epilog_operands[epilog_name]
+                        reallocated = _realloc_if_needed_and_copy_to_mirror(
+                            epilog_input_wrapped, self.epilog_operands[epilog_name], self.device_id, stream_holder
                         )
+                        if reallocated:
+                            self.epilog_input_name_to_handler[epilog_name].update_pointer(
+                                self.mm_desc_ifc, self.epilog_operands[epilog_name].data_ptr
+                            )
 
-            # handle quantization scales
-            if quantization_scales_obj is not None:
-                self._reset_quantization_scales_unchecked_from_host(quantization_scales_obj, stream_holder)
+        if quantization_scales_obj is not None:
+            self._reset_quantization_scales_unchecked(quantization_scales_obj, stream, stream_holder)
 
         self._operands_released = False
 
@@ -2968,14 +2756,7 @@ the operation is in-place."
         stream: utils.AnyStream | int | None = None,
     ):
         """
-        Reset one or more operands held by this :class:`Matmul` instance. Only the operands
-        explicitly passed are updated; omitted operands retain their current values.
-
-        This method will perform various checks on the new operands to make sure:
-
-        - The shapes, strides, datatypes match those of the old ones.
-        - The packages that the operands belong to match those of the old ones.
-        - If input tensors are on GPU, the device must match.
+        Reset one or more operands held by this :class:`Matmul` instance.
 
         .. versionchanged:: 0.9
             All parameters are now keyword-only.
@@ -2997,6 +2778,17 @@ the operation is in-place."
             stream: {stream}
 
             quantization_scales: {quantization_scales}
+
+        Semantics:
+            - Only the operands explicitly passed are updated. At least one operand
+              is required (all of them after :meth:`release_operands`), otherwise
+              a :class:`ValueError` is raised.
+
+            - This method will perform various checks on the new operands to make sure:
+
+              - The shapes, strides, datatypes match those of the old ones.
+              - The packages that the operands belong to match those of the old ones.
+              - If input tensors are on GPU, the device must match.
 
         Examples:
 
@@ -3048,7 +2840,7 @@ the operation is in-place."
                 "The matrix multiplication problem specification does not include operand C, so it cannot be reset."
             )
 
-        # If operands have been released, all required operands must be provided
+        # If operands have been released, all required operands must be provided.
         if self._operands_released:
             # Check that all main operands are provided
             all_main_provided = a is not None and b is not None and (self.num_operands != 3 or c is not None)
@@ -3084,6 +2876,9 @@ the operation is in-place."
             self.epilog_operands = dict.fromkeys(epilog_names)
             if needs_scales:
                 self.quantization_scales = _configuration.MatmulQuantizationScales()
+        elif all(arg is None for arg in (a, b, c, alpha, beta, quantization_scales, epilog_inputs)):
+            # All arguments are None: there is nothing to update, so reject the call.
+            raise ValueError("reset_operands() requires at least one operand to be provided.")
 
         # Update alpha.
         if alpha is not None:
@@ -3106,20 +2901,7 @@ the operation is in-place."
                         f"The value provided for beta {beta} is not convertible to dtype '{self.beta.dtype}'."
                     ) from e
 
-        stream_holder = utils.get_or_create_stream(self.device_id, stream, self.package)
-
-        # Update quantization_scales.
-        if quantization_scales is not None:
-            quantization_scales = self._validate_operand_scales(quantization_scales, all_required=False)
-            if quantization_scales.a is not None:
-                self.quantization_scales.a = quantization_scales.a
-            if quantization_scales.b is not None:
-                self.quantization_scales.b = quantization_scales.b
-            if quantization_scales.c is not None:
-                self.quantization_scales.c = quantization_scales.c
-            if quantization_scales.d is not None:
-                self.quantization_scales.d = quantization_scales.d
-            self._prepare_operand_quantization_scales(self.quantization_scales, stream_holder)
+        stream_holder = utils.get_or_create_stream(self.device_id, stream, self.internal_op_package)
 
         if epilog_inputs is not None and "aux_quantization_scale" in epilog_inputs:
             epilog_inputs = epilog_inputs.copy()
@@ -3172,6 +2954,20 @@ the operation is in-place."
                 strides=self.operand_strides[index],
             )
 
+        # Update quantization_scales after operands are set, so _validate_operand_scales
+        # can read self.operands[i].size for block-scaling shape checks.
+        if quantization_scales is not None:
+            quantization_scales = self._validate_operand_scales(quantization_scales, all_required=False)
+            if quantization_scales.a is not None:
+                self.quantization_scales.a = quantization_scales.a
+            if quantization_scales.b is not None:
+                self.quantization_scales.b = quantization_scales.b
+            if quantization_scales.c is not None:
+                self.quantization_scales.c = quantization_scales.c
+            if quantization_scales.d is not None:
+                self.quantization_scales.d = quantization_scales.d
+            self._prepare_operand_quantization_scales(self.quantization_scales, stream_holder)
+
         # Reset the provided epilog inputs.
         if epilog_inputs is not None:
             for name in epilog_inputs:
@@ -3194,6 +2990,9 @@ the operation is in-place."
         """
         {release_operands}
         """
+        if self._operands_released:
+            self.logger.info("Operands have already been released; nothing to do.")
+            return
 
         # CUDA memory space:
         #   self.operands, self.epilog_operands, and
@@ -3236,7 +3035,6 @@ the operation is in-place."
     @utils.precondition(_check_valid_matmul)
     @utils.precondition(_check_planned, "Autotuning")
     @utils.precondition(_check_valid_operands, "Autotuning")
-    @utils.atomic(_release_workspace_memory_perhaps_wrapper, method=True)
     def autotune(
         self, iterations=10, prune=None, release_workspace=False, stream: utils.AnyStream | int | None = None
     ):  # Prune means keep top N of the algorithms only.
@@ -3281,10 +3079,7 @@ the operation is in-place."
         self.logger.info(f"The requested number of iterations is {iterations}.")
 
         # Autotune setup.
-        stream_holder = utils.get_or_create_stream(self.device_id, stream, self.package)
-
-        # Allocate workspace if needed.
-        self._allocate_workspace_memory_perhaps(stream_holder)
+        stream_holder = utils.get_or_create_stream(self.device_id, stream, self.internal_op_package)
 
         # Create empty tensors for auxiliary output.
         epilog_outputs = {}
@@ -3302,7 +3097,7 @@ the operation is in-place."
             )
 
             # Update the data pointer in the MM descriptor.
-            handler.update_ptr(self.mm_desc_ifc, aux.data_ptr)
+            handler.update_pointer(self.mm_desc_ifc, aux.data_ptr)
 
         # Take a copy of `c` for autotuning to avoid clobbering it if inplace=True.
         c = None
@@ -3335,7 +3130,6 @@ the operation is in-place."
         result_ptr = result.data_ptr
 
         a, b = self.operands[0], self.operands[1]
-        raw_workspace_ptr = utils.get_ptr_from_memory_pointer(self.workspace_ptr)
         alpha_ptr, a_ptr, b_ptr, beta_ptr = self.alpha.ctypes.data, a.data_ptr, b.data_ptr, self.beta.ctypes.data
         # If `c` is not provided, set c_ptr to nullptr.
         if self.num_operands == 3:
@@ -3343,26 +3137,6 @@ the operation is in-place."
         else:
             assert self.beta[0] == 0.0, "Internal error: beta must be zero if `c` is not specified."
             c_ptr = 0
-
-        def execute_matmul(algorithm_ptr):
-            cublaslt.matmul(
-                self.handle,
-                self.mm_desc,
-                alpha_ptr,
-                a_ptr,
-                self.a_layout_ptr,
-                b_ptr,
-                self.b_layout_ptr,
-                beta_ptr,
-                c_ptr,
-                self.c_layout_ptr,
-                result_ptr,
-                self.d_layout_ptr,
-                algorithm_ptr,
-                raw_workspace_ptr,
-                self.workspace_size,
-                stream_holder.ptr,
-            )
 
         def flush_cache():
             """
@@ -3378,39 +3152,65 @@ the operation is in-place."
             cpu_buffer = np.zeros(l2_cache_size, dtype=np.uint8)
             tensor_wrapper.wrap_operand(cpu_buffer).to(device_id=self.device_id, stream_holder=stream_holder)
 
-        # Tune.
-        with utils.cuda_call_ctx(stream_holder, blocking=False, timing=False) as (
-            self.last_compute_event,
-            _,
-        ):
-            gpu_times = np.empty(shape=(len(self.algorithms_buffer), iterations), dtype=float)
-            algorithm_idxs = list(range(len(self.algorithms_buffer)))
-            timing_enabled_options = EventOptions(enable_timing=True)
-            start0 = stream_holder.obj.device.create_event(options=timing_enabled_options)
-            end0 = stream_holder.obj.device.create_event(options=timing_enabled_options)
-            for i in range(iterations):
-                random.shuffle(algorithm_idxs)
-                for algorithm_idx in algorithm_idxs:
-                    algorithm_ptr = self.algorithms_buffer[algorithm_idx]["algo"].ctypes.data
-                    stream_holder.obj.record(start0)
-                    execute_matmul(algorithm_ptr=algorithm_ptr)
-                    stream_holder.obj.record(end0)
-                    # FIXME: @dching Calling sync() here could slow down tuning by forcing
-                    # the device to wait for the host to record the elapsed time. It may be
-                    # faster to store references to 2 * len(iterations) *
-                    # len(algorithms_buffer) Events and compute the elapsed time at the end.
-                    end0.sync()
-                    gpu_times[algorithm_idx, i] = end0 - start0
-                    # Avoid potential overflow for inplace operations.
-                    if self.inplace:
-                        c.copy_(self.operands[2], stream_holder)
-                    flush_cache()
+        with self.workspace.allocate_perhaps(
+            stream_holder,
+            get_last_event=lambda: self.last_compute_event,
+        ) as ws:
 
-        gpu_times = np.median(gpu_times, axis=1)
+            def execute_matmul(algorithm_ptr):
+                cublaslt.matmul(
+                    self.handle,
+                    self.mm_desc,
+                    alpha_ptr,
+                    a_ptr,
+                    self.a_layout_ptr,
+                    b_ptr,
+                    self.b_layout_ptr,
+                    beta_ptr,
+                    c_ptr,
+                    self.c_layout_ptr,
+                    result_ptr,
+                    self.d_layout_ptr,
+                    algorithm_ptr,
+                    ws.raw_ptr,
+                    ws.size,
+                    stream_holder.ptr,
+                )
 
-        # Establish ordering wrt the computation and free workspace if requested.
-        self._release_workspace_memory_perhaps(release_workspace=release_workspace)
-        self._reset_workspace_allocation_tracking()
+            # Tune.
+            with utils.cuda_call_ctx(stream_holder, blocking=False, timing=False) as (
+                self.last_compute_event,
+                _,
+            ):
+                gpu_times = np.empty(shape=(len(self.algorithms_buffer), iterations), dtype=float)
+                algorithm_idxs = list(range(len(self.algorithms_buffer)))
+                timing_enabled_options = {utils.timing_enabled_name(): True}
+                start0 = stream_holder.obj.device.create_event(options=timing_enabled_options)
+                end0 = stream_holder.obj.device.create_event(options=timing_enabled_options)
+                for i in range(iterations):
+                    random.shuffle(algorithm_idxs)
+                    for algorithm_idx in algorithm_idxs:
+                        algorithm_ptr = self.algorithms_buffer[algorithm_idx]["algo"].ctypes.data
+                        stream_holder.obj.record(start0)
+                        execute_matmul(algorithm_ptr=algorithm_ptr)
+                        stream_holder.obj.record(end0)
+                        # FIXME: @dching Calling sync() here could slow down tuning by
+                        # forcing the device to wait for the host to record the elapsed
+                        # time. It may be faster to store references to 2 * len(iterations)
+                        # * len(algorithms_buffer) Events and compute the elapsed time at
+                        # the end.
+                        end0.sync()
+                        gpu_times[algorithm_idx, i] = end0 - start0
+                        # Avoid potential overflow for inplace operations.
+                        if self.inplace:
+                            c.copy_(self.operands[2], stream_holder)
+                        flush_cache()
+
+            gpu_times = np.median(gpu_times, axis=1)
+
+            if release_workspace:
+                ws.release(self.last_compute_event)
+                self.last_compute_event = None
 
         # Get the sort order based on the GPU times.
         sorted_gpu_times, sort_order = zip(*sorted(zip(gpu_times, range(num_algorithms), strict=True)), strict=True)
@@ -3523,15 +3323,16 @@ the operation is in-place."
     @utils.precondition(_check_valid_matmul)
     @utils.precondition(_check_planned, "Execution")
     @utils.precondition(_check_valid_operands, "Execution")
-    @utils.atomic(_release_workspace_memory_perhaps_wrapper, method=True)
     def execute(self, *, algorithm=None, release_workspace=False, stream: utils.AnyStream | int | None = None):
         """
         Execute a prepared (planned and possibly autotuned) matrix multiplication.
 
         Args:
-            algorithm: (Experimental) An algorithm chosen from the sequence returned by
+            algorithm: An algorithm chosen from the sequence returned by
                 :meth:`plan` or :py:attr:`algorithms`. By default, the first algorithm in
                 the sequence is used.
+
+                .. experimental:: parameter
 
             release_workspace: {release_workspace}
 
@@ -3545,12 +3346,9 @@ the operation is in-place."
 
         if log_info:
             self.logger.info("= EXECUTION PHASE =")
-        stream_holder = utils.get_or_create_stream(self.device_id, stream, self.package)
+        stream_holder = utils.get_or_create_stream(self.device_id, stream, self.internal_op_package)
         if log_info:
             self.logger.info(f"The specified stream for execute() is {stream_holder.obj}.")
-
-        # Allocate workspace if needed.
-        self._allocate_workspace_memory_perhaps(stream_holder)
 
         # Create empty tensors for auxiliary output.
         for handler in self.epilog_output_handlers:
@@ -3584,7 +3382,7 @@ the operation is in-place."
                 self.mm_desc_ifc.epilogue_aux_amax_pointer = self.epilog_outputs[f"{name}_amax"].data_ptr
 
             # Update the data pointer in the MM descriptor.
-            handler.update_ptr(self.mm_desc_ifc, aux.data_ptr)
+            handler.update_pointer(self.mm_desc_ifc, aux.data_ptr)
 
         # Create empty tensor for the result, if the operation is not in-place.
         assert self.result_traits is not None, "Internal Error. self.result_traits should have been set by self.plan()"
@@ -3617,7 +3415,7 @@ the operation is in-place."
                 self.mm_traits.batch_count * self.result_traits.result_shape[-1] * self.result_traits.result_shape[-2]
             )
             d_out_scale, _ = _create_d_out_scale_and_scale_mode(
-                self.result_class, num_output_elements, self.using_fp4_ab, self.device_id, stream_holder
+                self.result_class, num_output_elements, self.d_dtype_width, self.device_id, stream_holder
             )
             self.aux_outputs["d_out_scale"] = d_out_scale
             self.mm_desc_ifc.d_out_scale_pointer = d_out_scale.data_ptr
@@ -3646,39 +3444,42 @@ the operation is in-place."
             assert self.beta[0] == 0.0, "Internal error: beta must be zero if `c` is not specified."
             c_ptr = 0
 
-        raw_workspace_ptr = utils.get_ptr_from_memory_pointer(self.workspace_ptr)
-        if log_info:
-            self.logger.info("Starting matrix multiplication...")
-            self.logger.info(f"{self.call_prologue}")
-        with utils.cuda_call_ctx(stream_holder, self.blocking, timing=log_info) as (
-            self.last_compute_event,
-            elapsed,
-        ):
-            cublaslt.matmul(
-                self.handle,
-                self.mm_desc,
-                self.alpha.ctypes.data,
-                a.data_ptr,
-                self.a_layout_ptr,
-                b.data_ptr,
-                self.b_layout_ptr,
-                self.beta.ctypes.data,
-                c_ptr,
-                self.c_layout_ptr,
-                self.result.data_ptr,
-                self.d_layout_ptr,
-                algorithm_struct.ctypes.data,
-                raw_workspace_ptr,
-                self.workspace_size,
-                stream_holder.ptr,
-            )
+        with self.workspace.allocate_perhaps(
+            stream_holder,
+            get_last_event=lambda: self.last_compute_event,
+        ) as ws:
+            if log_info:
+                self.logger.info("Starting matrix multiplication...")
+                self.logger.info(f"{self.call_prologue}")
+            with utils.cuda_call_ctx(stream_holder, self.blocking, timing=log_info) as (
+                self.last_compute_event,
+                elapsed,
+            ):
+                cublaslt.matmul(
+                    self.handle,
+                    self.mm_desc,
+                    self.alpha.ctypes.data,
+                    a.data_ptr,
+                    self.a_layout_ptr,
+                    b.data_ptr,
+                    self.b_layout_ptr,
+                    self.beta.ctypes.data,
+                    c_ptr,
+                    self.c_layout_ptr,
+                    self.result.data_ptr,
+                    self.d_layout_ptr,
+                    algorithm_struct.ctypes.data,
+                    ws.raw_ptr,
+                    ws.size,
+                    stream_holder.ptr,
+                )
 
-        if log_info and elapsed.data is not None:
-            self.logger.info(f"The matrix multiplication calculation took {elapsed.data:.3f} ms to complete.")
+            if log_info and elapsed.data is not None:
+                self.logger.info(f"The matrix multiplication calculation took {elapsed.data:.3f} ms to complete.")
 
-        # Establish ordering wrt the computation and free workspace if requested.
-        if release_workspace:
-            self._release_workspace_memory_perhaps(True)
+            if release_workspace:
+                ws.release(self.last_compute_event)
+                self.last_compute_event = None
 
         # Return the result and auxiliary outputs, if present.
         all_outputs = self.epilog_outputs | self.aux_outputs
@@ -3702,7 +3503,6 @@ the operation is in-place."
         self.result = None
         self.aux_outputs = {}
         self.epilog_outputs = {}
-        self._reset_workspace_allocation_tracking()
 
         if aux:
             return out, aux
@@ -3722,14 +3522,10 @@ the operation is in-place."
             return
 
         try:
-            # Ensure ordering with respect to the last computation
-            # to avoid race conditions when releasing internal resources.
-            if self.last_compute_event is not None:
-                if self.workspace_stream is not None:
-                    self.workspace_stream.wait(self.last_compute_event)
-                self.last_compute_event = None
-
-            self._free_workspace_memory()
+            # Ensure ordering with respect to the last computation to avoid
+            # race conditions when releasing internal resources.
+            self.workspace.release(self.last_compute_event)
+            self.last_compute_event = None
 
             self._free_plan_resources()
 
@@ -3770,14 +3566,15 @@ def matmul(
     epilog_inputs=None,
     qualifiers=None,
     quantization_scales=None,
-    options=None,
+    options: _configuration.MatmulOptions | dict[str, typing.Any] | None = None,
     preferences=None,
     algorithm=None,
     stream: utils.AnyStream | int | None = None,
 ):
     """
-    Perform the specified matrix multiplication computation :math:`F(\\alpha a @ b + \\beta
-    c)`, where :math:`F` is the epilog. This function-form is a wrapper around the stateful
+    Perform the specified matrix multiplication computation
+    :math:`\\mathcal{{F}}(\\alpha a @ b + \\beta c)`, where :math:`\\mathcal{{F}}` is
+    the epilog. This function-form is a wrapper around the stateful
     :class:`Matmul` object APIs and is meant for *single* use (the user needs to perform
     just one matrix multiplication, for example), in which case there is no possibility of
     amortizing preparatory costs.
@@ -3821,7 +3618,7 @@ def matmul(
         algorithm: An object of type :class:`Algorithm` objects can be directly provided to
             bypass planning, if desired. The algorithm object must be compatible with the
             matrix multiplication. A typical use for this option is to provide an algorithm
-            that has been serialized (pickled) from a previously planned and autotuned
+            that has been serialized (numpy) from a previously planned and autotuned
             matrix multiplication.
 
         stream: {stream}
@@ -3853,13 +3650,13 @@ def matmul(
         >>> b = cp.random.rand(K, N, dtype=cp.float32)
         >>> c = cp.random.rand(M, N, dtype=cp.float32)
 
-        Perform the operation :math:`\\alpha A @ B + \\beta C` using :func:`matmul`. The
+        Perform the operation :math:`\\alpha a @ b + \\beta c` using :func:`matmul`. The
         result `r` is also a CuPy float32 ndarray:
 
         >>> r = nvmath.linalg.advanced.matmul(a, b, c, alpha=1.23, beta=0.74)
 
         An epilog can be used as well. Here we perform
-        :math:`RELU(\\alpha A @ B + \\beta C)`:
+        :math:`\\operatorname{{RELU}}(\\alpha a @ b + \\beta c)`:
 
         >>> epilog = nvmath.linalg.advanced.MatmulEpilog.RELU
         >>> r = nvmath.linalg.advanced.matmul(a, b, c, alpha=1.23, beta=0.74, epilog=epilog)

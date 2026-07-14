@@ -1,0 +1,20 @@
+---
+# Uncomment a section header and replace with your own note.
+#release_summary:
+api:
+#  - Backward incompatible changes
+#features:
+#  - Non-breaking additions or performance improvements
+#deprecations:
+#  - Announcements of deprecations
+#fixes:
+#  - Bug fixes only
+#issues:
+#  - Known issues that are not yet fixed
+#security:
+#  - Non-breaking fixes of security issues
+#doc:
+#  - Notable documentation changes
+  - |
+    ``reset_operand(s)`` now requires at least one operand to be provided across
+    all stateful APIs; otherwise it raises a ``ValueError``.

@@ -6,6 +6,7 @@ import sys
 
 import numpy as np
 import pytest
+from cuda.core import system
 
 import nvmath.distributed
 from nvmath.distributed import free_symmetric_memory
@@ -14,13 +15,9 @@ from nvmath.distributed._internal.tensor_wrapper import wrap_operand as dist_wra
 from nvmath.distributed.distribution import Box, Slab
 from nvmath.internal.utils import device_ctx, get_or_create_stream
 
+from ..helpers import assert_reset_to_none_behavior
 from .helpers import assert_close, gather_array, generate_random_data, process_group_broadcast, to_host
 from .helpers_fft import calc_slab_shape
-
-try:
-    from cuda.core import system
-except ImportError:
-    from cuda.core.experimental import system
 
 package_name_to_package = {"numpy": np}
 
@@ -38,11 +35,7 @@ def nvmath_distributed(process_group):
     except ImportError:
         pass
 
-    try:
-        num_devices = system.get_num_devices()
-    except AttributeError:
-        num_devices = system.num_devices
-    device_id = process_group.rank % num_devices
+    device_id = process_group.rank % system.get_num_devices()
     nvmath.distributed.initialize(device_id, process_group, backends=["nvshmem"])
 
     yield
@@ -151,7 +144,7 @@ def test_inconsistent_options(nvmath_distributed, check_symmetric_memory_leaks):
     if nranks == 1:
         pytest.skip("This test requires multiple processes")
 
-    options = {"reshape": True} if rank == 0 else {"reshape": False}
+    options = {"redistribute": True} if rank == 0 else {"redistribute": False}
     data = np.ones((4, 4), dtype=np.complex64)
     with pytest.raises(ValueError, match="options are inconsistent across processes"):
         nvmath.distributed.fft.fft(data, distribution=Slab.Y, options=options)
@@ -249,6 +242,29 @@ def test_release_operand(input_memory_space, use_unchecked_reset, nvmath_distrib
 
     if input_memory_space == "gpu":
         free_symmetric_memory(data_in.tensor)
+
+
+@pytest.mark.parametrize("with_release", [False, True], ids=["without_release", "after_release"])
+def test_reset_operand_none(with_release, nvmath_distributed, check_symmetric_memory_leaks):
+    """reset_operand(None) always raises ValueError. See assert_reset_to_none_behavior."""
+    distributed_ctx = nvmath.distributed.get_context()
+    process_group = distributed_ctx.process_group
+    rank = process_group.rank
+    nranks = process_group.nranks
+
+    global_shape = (16, 16)
+    shape = calc_slab_shape(global_shape, 0, rank, nranks)
+    dtype = np.complex64
+    _, data_in = generate_random_data(np, "cpu", shape, dtype, stream=None)
+
+    with nvmath.distributed.fft.FFT(data_in.tensor, distribution=Slab.X) as fft:
+        fft.plan()
+        assert_reset_to_none_behavior(
+            with_release=with_release,
+            single_operand=True,
+            obj=fft,
+            distribution=Slab.X,
+        )
 
 
 @pytest.mark.parametrize("input_memory_space", ["cpu", "gpu"])
@@ -349,7 +365,7 @@ def skip_test_distributed_fft(
     global_shape,
     input_memory_space,
     fft_type,
-    reshape,
+    redistribute,
     direction,
     reset_inplace,
     blocking,
@@ -387,7 +403,7 @@ def skip_test_distributed_fft(
 )
 @pytest.mark.parametrize("input_memory_space", ["cpu", "gpu"])
 @pytest.mark.parametrize("fft_type", ["R2C", ("C2R", "even"), ("C2R", "odd"), "C2C"])
-@pytest.mark.parametrize("reshape", [True, False, "use_box"])
+@pytest.mark.parametrize("redistribute", [True, False, "use_box"])
 @pytest.mark.parametrize("direction", ["forward", "inverse"])
 @pytest.mark.parametrize("reset_inplace", [True, False])
 # For blocking we just test that it runs without error.
@@ -398,7 +414,7 @@ def test_distributed_fft(
     global_shape,
     input_memory_space,
     fft_type,
-    reshape,
+    redistribute,
     direction,
     reset_inplace,
     blocking,
@@ -414,10 +430,10 @@ def test_distributed_fft(
       - package: Package that the input operand belongs to: numpy/cupy or torch.
       - global_shape: Global shape of the input for distributed FFT.
       - input_memory_space: Whether the input operand is in CPU or GPU.
-      - reshape:
+      - redistribute:
             - If bool, this indicates whether to redistribute the result back to the
               original slab distribution or not, using the cuFFTMp reshape API.
-            - With reshape="use_box" we run the FFT using the custom slab/pencil
+            - With redistribute="use_box" we run the FFT using the custom slab/pencil
               distribution of cuFFTMp (by using the `box` option), and we have the
               output be the complementary slab distribution.
       - direction: initial FFT direction.
@@ -470,7 +486,7 @@ def test_distributed_fft(
         if last_axis_parity == "odd":
             global_output_shape[-1] += 1
 
-    if reshape == "use_box":
+    if redistribute == "use_box":
         # Use the FFT box distribution option to get the complementary slab distribution
         # as output.
         in_shapes = [calc_slab_shape(global_shape, partition_dim, i, nranks) for i in range(nranks)]
@@ -487,7 +503,7 @@ def test_distributed_fft(
         single_gpu_fft = None
 
     options = {
-        "reshape": reshape is True,
+        "redistribute": redistribute is True,
         "blocking": blocking,
         "fft_type": fft_type,
         "last_axis_parity": last_axis_parity,
@@ -502,7 +518,7 @@ def test_distributed_fft(
         # We do a sequence of distributed FFTs per test case, to test reset_operand
         # and different combinations of changing the direction and distribution.
         fft_count = 0
-        FFT_LIMIT = 2 if fft_type in ("R2C", "C2R") else 3 if reshape is True else 4
+        FFT_LIMIT = 2 if fft_type in ("R2C", "C2R") else 3 if redistribute is True else 4
         while True:
             # Run distributed FFT.
             result = fft.execute(direction=direction, release_workspace=(fft_count == 0))
@@ -513,9 +529,9 @@ def test_distributed_fft(
             if fft_type == "C2C":
                 assert result.dtype == np.dtype(in_dtype).name
             elif fft_type == "R2C":
-                assert result.dtype == "complex64" if np.dtype(in_dtype).name == "float32" else "complex128"
+                assert result.dtype == ("complex64" if np.dtype(in_dtype).name == "float32" else "complex128")
             else:
-                assert result.dtype == "float32" if np.dtype(in_dtype).name == "complex64" else "float64"
+                assert result.dtype == ("float32" if np.dtype(in_dtype).name == "complex64" else "float64")
 
             if data_in.shape == result.shape:
                 assert data_in.tensor is result.tensor
@@ -539,12 +555,12 @@ def test_distributed_fft(
             # Compare the result with single-GPU FFT
             data_in_cpu_global = gather_array(data_in_cpu, partition_dim, process_group, rank)
             del data_in_cpu
-            if reshape is True:
-                # With reshape, result must have the original distribution.
+            if redistribute is True:
+                # With redistribute, result must have the original distribution.
                 assert result_cpu.shape == calc_slab_shape(global_output_shape, partition_dim, rank, nranks)
                 result_cpu_global = gather_array(result_cpu, partition_dim, process_group, rank)
             else:
-                # Without reshape, the result shape must have the complementary
+                # Without redistribute, the result shape must have the complementary
                 # slab distribution.
                 complementary_partition_dim = 1 if partition_dim == 0 else 0
                 assert result_cpu.shape == calc_slab_shape(global_output_shape, complementary_partition_dim, rank, nranks)
@@ -593,9 +609,9 @@ def test_distributed_fft(
             call_reset_operand = True
 
             def swap_distribution():
-                assert reshape != True  # noqa: E712
+                assert redistribute != True  # noqa: E712
                 assert fft_type == "C2C"
-                if reshape == "use_box":
+                if redistribute == "use_box":
                     dist = (distribution[1], distribution[0])  # noqa: B023
                 else:
                     dist = Slab.X if distribution == Slab.Y else Slab.Y  # noqa: B023
@@ -605,11 +621,11 @@ def test_distributed_fft(
 
             if fft_count == 1 and reset_inplace:
                 call_reset_operand = False
-            elif fft_count == 2 and reshape is True:
+            elif fft_count == 2 and redistribute is True:
                 direction = "inverse" if direction == "forward" else "forward"  # change direction
-            elif fft_count == 2 and reshape in (False, "use_box"):
+            elif fft_count == 2 and redistribute in (False, "use_box"):
                 distribution, partition_dim, shape = swap_distribution()  # change distribution
-            elif fft_count == 3 and reshape in (False, "use_box"):
+            elif fft_count == 3 and redistribute in (False, "use_box"):
                 direction = "inverse" if direction == "forward" else "forward"  # change both
                 distribution, partition_dim, shape = swap_distribution()
 
@@ -652,12 +668,12 @@ def calculate_box(dim0, dim1, shapes, global_shape, rank):
 
 
 def gather_pencils(x, dim0, dim1, shape, global_shape, process_group, rank, nranks):
-    # First we use Reshape to convert pencil distribution to X-slab, then
+    # First we use Redistribute to convert pencil distribution to X-slab, then
     # we gather the array on rank 0.
     input_box = calculate_box(dim0, dim1, [shape] * nranks, global_shape, rank)
     slab_shape = calc_slab_shape(global_shape, 0, rank, nranks)
     output_box = calculate_box(0, None, [slab_shape] * nranks, global_shape, rank)
-    x = nvmath.distributed.reshape.reshape(x.tensor, input_box, output_box)
+    x = nvmath.distributed.distribution.redistribute(x.tensor, input_box, output_box)
     x = dist_wrap_operand(x)
     return gather_array(x, 0, process_group, rank)
 

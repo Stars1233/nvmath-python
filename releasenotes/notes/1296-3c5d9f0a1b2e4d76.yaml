@@ -1,0 +1,11 @@
+---
+# Uncomment a section header and replace with your own note.
+#release_summary:
+features:
+#api:
+#deprecations:
+#fixes:
+#issues:
+#security:
+#doc:
+ - Added distributed generic direct solver API including :class:`nvmath.distributed.linalg.DirectSolver` and :func:`nvmath.distributed.linalg.direct_solver`.

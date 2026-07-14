@@ -438,7 +438,7 @@ def framework_from_array(a):
         return Framework.cupy
     elif torch is not None and isinstance(a, torch.Tensor):
         return Framework.torch
-    elif sp is not None and isinstance(a, (sp.coo_matrix, sp.csr_matrix, sp.csc_matrix, sp.bsr_matrix, sp.dia_matrix)):
+    elif sp is not None and isinstance(a, (sp.spmatrix, sp.sparray)):
         return Framework.scipy
     elif csp is not None and isinstance(a, (csp.coo_matrix, csp.csr_matrix, csp.csc_matrix, csp.dia_matrix)):
         return Framework.cupyx

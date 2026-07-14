@@ -10,14 +10,18 @@ __all__ = [
 import dataclasses
 import logging
 import math
-from collections.abc import Sequence
-from typing import Final, TypeAlias
+from collections.abc import Generator, MutableSequence, Sequence
+from typing import Any, Final, Literal, TypeAlias
 
 import numpy as np
 
+from nvmath import memory
 from nvmath._internal import templates
+from nvmath._internal.utils import LoggerLike, get_addresses_of_elements
 from nvmath.bindings import cublas
 from nvmath.internal import formatters, tensor_wrapper, typemaps, utils
+from nvmath.internal._layout import StridedLayout
+from nvmath.internal.tensor_ifc_ndbuffer import NDBufferTensor
 from nvmath.linalg._internal.batch import BatchTraits
 from nvmath.linalg._internal.layout import BLASMatrixTraits, BLASMMTraitsView, InputMMTraits, check_extents, check_strides
 from nvmath.linalg.advanced.matmulmod import SHARED_MM_DOCUMENTATION
@@ -28,12 +32,14 @@ from nvmath.linalg.generic._configuration import (
     MatrixQualifier,
     matrix_qualifiers_dtype,
     mm_layout_checker_getter,
+    select_blas_group_mm_function,
     select_blas_mm_function,
     vector_to_square,
 )
 from nvmath.linalg.generic._dtype import check_dtype
 
-AnyTensor: TypeAlias = tensor_wrapper.AnyTensor
+AnyTensor: TypeAlias = utils.AnyTensor
+AnyStream: TypeAlias = utils.AnyStream
 SideMode: TypeAlias = cublas.SideMode
 FillMode: TypeAlias = cublas.FillMode
 DiagType: TypeAlias = cublas.DiagType
@@ -77,9 +83,24 @@ class InvalidMatmulState(Exception):
     pass
 
 
+class _PrefixedLoggerAdapter(logging.LoggerAdapter):
+    def process(self, msg, kwargs):
+        return f"[{self.extra['prefix']}] {msg}", kwargs
+
+
 GENERIC_MM_DOCUMENTATION = SHARED_MM_DOCUMENTATION.copy()
 GENERIC_MM_DOCUMENTATION.update(
     {
+        "a": SHARED_MM_DOCUMENTATION["a"].replace("tensor representing", "tensor or a sequence of tensors representing"),
+        #
+        "b": SHARED_MM_DOCUMENTATION["b"].replace("tensor representing", "tensor or a sequence of tensors representing"),
+        #
+        "c": SHARED_MM_DOCUMENTATION["c"].replace("tensor representing", "tensor or a sequence of tensors representing"),
+        #
+        "alpha": SHARED_MM_DOCUMENTATION["alpha"].replace("scale factor", "scale factor or a sequence of scale factors"),
+        #
+        "beta": SHARED_MM_DOCUMENTATION["beta"].replace("scale factor", "scale factor or a sequence of scale factors"),
+        #
         "qualifiers": """\
 If desired, specify the matrix qualifiers as a :class:`numpy.ndarray` of
 :class:`~nvmath.linalg.generic.matrix_qualifiers_dtype` objects of length <= 3 corresponding to the operands `a`, `b`, and
@@ -92,20 +113,31 @@ the execution space will be selected to match operand's storage (in GPU or host 
 :class:`ExecutionCUDA` or :class:`ExecutionCPU` object will be default-constructed.""".replace("\n", " "),
         #
         "options": """\
-Specify options for the matrix multiplication as a :class:`MatmulOptions` object. If not specified, the
-value will be set to the default-constructed ``MatmulOptions`` object.""".replace("\n", " "),
+Specify options for the matrix multiplication as a :class:`MatmulOptions` object. Alternatively,
+a `dict` containing the parameters for the ``MatmulOptions`` constructor can also be provided.
+If not specified, the value will be set to the default-constructed ``MatmulOptions`` object.""".replace("\n", " "),
         #
         "result": """\
-The result of the specified matrix multiplication, which remains on the same device and belong to the
+The result of the specified matrix multiplication, which remains on the same device and belongs to the
 same package as the input operands.""".replace("\n", " "),
         #
         "semantics": """\
         .. _semantics:
 
+        Inputs may be batched either **implicitly** and/or **explicitly**.
+
+        * An **implicitly-batched** input is a higher-dimensional :math:`N \\geq 3D` tensor.
+
+        * An **explicitly-batched** input is a Python sequence of tensors.
+
+        There may be only one explicitly-batched dimension, but there may be any number of implicitly-batched dimensions.
+        Explicitly-batched inputs are first broadcast to equal length along the explicitly-batched dimension,
+        then each explicit batch is treated as implicitly-batched inputs.
+
         The semantics of the matrix multiplication follows :external:py:data:`numpy.matmul` semantics, with some restrictions.
 
-        * Broadcasting `c` is not supported in this API, but may be supported in the future. See the advanced API
-          (:func:`nvmath.linalg.advanced.matmul`) for an API that supports broadcasting `c`.
+        * Broadcasting along implicitly-batched dimensions of `c` is not supported in this API, but may be supported in the
+          future. See the advanced API (:func:`nvmath.linalg.advanced.matmul`) for an API that supports broadcasting `c`.
 
         In addition, the semantics for the fused matrix addition are described below:
 
@@ -117,139 +149,173 @@ same package as the input operands.""".replace("\n", " "),
         * The operand for the matrix addition `c` must be the expected shape of the result of the matrix multiplication.
 
 """.strip(),
+        #
+        "reset_operands_unchecked": utils._reset_operand_unchecked_docstring(True, version_added="1.0"),
     }
 )
 
 
-@utils.docstring_decorator(GENERIC_MM_DOCUMENTATION, skip_missing=False)
-class Matmul(templates.StatefulAPI[MatmulOptions]):
+def _resolve_execution(
+    execution: ExecutionCPU | ExecutionCUDA | str | None,
+    operands_device_id: int | Literal["cpu"],
+) -> ExecutionCPU | ExecutionCUDA:
+    """Normalize the user-supplied ``execution`` argument to a concrete instance.
+
+    ``execution`` may be ``None``, the literal strings ``"cuda"``/``"cpu"``, or an
+    already-instantiated :class:`ExecutionCPU`/:class:`ExecutionCUDA`. The resolved
+    value's ``device_id`` is aligned with ``operands_device_id`` when both sides
+    pin a CUDA device.
     """
-    Create a stateful object encapsulating the specified matrix multiplication computation
-    :math:`\\alpha a @ b + \\beta c` and the required resources to perform the operation. A
-    stateful object can be used to amortize the cost of preparation (planning in the case of
-    matrix multiplication) across multiple executions (also see the :ref:`Stateful APIs
-    <host api types>` section).
-
-    The function-form API :func:`matmul` is a convenient alternative to using stateful
-    objects for *single* use (the user needs to perform just one matrix multiplication, for
-    example), in which case there is no possibility of amortizing preparatory costs. The
-    function-form APIs are just convenience wrappers around the stateful object APIs.
-
-    Using the stateful object typically involves the following steps:
-
-    1. **Problem Specification**: Initialize the object with a defined operation and
-       options.
-    2. **Preparation**: Use :meth:`plan` to determine the best algorithmic implementation
-       for this specific matrix multiplication operation.
-    3. **Execution**: Perform the matrix multiplication computation with :meth:`execute`.
-
-    Detailed information on what's happening in the various phases described above can be
-    obtained by passing in a :class:`logging.Logger` object to :class:`MatmulOptions` or by
-    setting the appropriate options in the root logger object, which is used by default:
-
-        >>> import logging
-        >>> logging.basicConfig(
-        ...     level=logging.INFO,
-        ...     format="%(asctime)s %(levelname)-8s %(message)s",
-        ...     datefmt="%m-%d %H:%M:%S",
-        ... )
-
-    A user can select the desired logging level and, in general, take advantage of all of
-    the functionality offered by the Python `logging` module.
-
-    Args:
-        a: {a}
-
-        b: {b}
-
-        c: {c}
-
-        alpha: {alpha}
-
-        beta: {beta}
-
-        qualifiers: {qualifiers}
-
-        options: {options}
-
-        execution: {execution}
-
-        stream: {stream}
-
-    Semantics:
-        {semantics}
-
-    .. seealso::
-        :meth:`reset_operands`, :meth:`execute`
-
-    Examples:
-
-        >>> import numpy as np
-        >>> import nvmath
-
-        Create two 2-D float64 ndarrays on the CPU:
-
-        >>> M, N, K = 1024, 1024, 1024
-        >>> a = np.random.rand(M, K)
-        >>> b = np.random.rand(K, N)
-
-        We will define a matrix multiplication operation using the generic matrix
-        multiplication interface.
-
-        Create a Matmul object encapsulating the problem specification above:
-
-        >>> mm = nvmath.linalg.Matmul(a, b)
-
-        Options can be provided above to control the behavior of the operation using the
-        `options` argument (see :class:`MatmulOptions`).
-
-        Next, plan the operation. The operands' layouts, qualifiers, and dtypes will be
-        considered to select an appropriate matrix multiplication:
-
-        >>> mm.plan()
-
-        Now execute the matrix multiplication, and obtain the result `r1` as a NumPy
-        ndarray.
-
-        >>> r1 = mm.execute()
-
-        Note that all :class:`Matmul` methods execute on the current stream by default.
-        Alternatively, the `stream` argument can be used to run a method on a specified
-        stream.
-
-        Let's now look at the same problem with CuPy ndarrays on the GPU.
-
-        Create a 3-D complex128 CuPy ndarray on the GPU:
-
-        >>> import cupy as cp
-        >>> a = cp.random.rand(M, K)
-        >>> b = cp.random.rand(K, N)
-
-        Create an Matmul object encapsulating the problem specification described earlier
-        and use it as a context manager.
-
-        >>> with nvmath.linalg.Matmul(a, b) as mm:
-        ...     # Plan the operation.
-        ...     mm.plan()
-        ...
-        ...     # Execute the operation to get the first result.
-        ...     r1 = mm.execute()
-        ...
-        ...     # Update operands A and B in-place (see reset_operands() for an
-        ...     # alternative).
-        ...     a[:] = cp.random.rand(M, K)
-        ...     b[:] = cp.random.rand(K, N)
-        ...
-        ...     # Execute the operation to get the new result.
-        ...     r2 = mm.execute()
+    match execution, operands_device_id:
+        case (None | "cuda", int()):
+            return ExecutionCUDA(device_id=operands_device_id)
+        case ("cuda", "cpu"):
+            return ExecutionCUDA()
+        case (None, "cpu") | ("cpu", _):
+            return ExecutionCPU()
+        case (ExecutionCUDA(), int()):
+            return dataclasses.replace(execution, device_id=operands_device_id)
+        case (ExecutionCPU(), _):
+            return execution
+        case (ExecutionCUDA(), "cpu"):
+            return execution
+        case _:
+            raise ValueError("Matmul.execution must be one of ExecutionCUDA, ExecutionCPU, None, 'cuda', or 'cpu'.")
 
 
-        All the resources used by the object are released at the end of the block.
+def _resolve_internal_operand_package(execution_name: str, operands_package: str) -> str:
+    """Map ``operands_package`` to the package name used internally for buffers/streams.
 
-        Further examples can be found in the `nvmath/examples/linalg/generic/matmul
-        <https://github.com/NVIDIA/nvmath-python/tree/main/examples/linalg/generic/matmul>`_
-        directory.
+    On CUDA execution, ``numpy`` operands are routed through ``cuda``; on CPU execution,
+    ``cupy`` operands are routed through ``cupy_host``. All other packages pass through.
     """
+    if execution_name == "cuda":
+        return operands_package if operands_package != "numpy" else "cuda"
+    return operands_package if operands_package != "cupy" else "cupy_host"
+
+
+def _get_or_create_stream_maybe(
+    execution: ExecutionCPU | ExecutionCUDA,
+    operands_device_id: int | Literal["cpu"],
+    operands_package: str,
+    internal_op_package: str,
+    stream: utils.AnyStream,
+) -> tuple[utils.StreamHolder | None, utils.StreamHolder | None]:
+    """Return ``(exec_stream_holder, operand_stream_holder)`` for the given spaces.
+
+    The first holder is used for execution-space work (compute, workspace, output
+    buffers). The second is used for input-space data movement. When both are
+    non-``None`` and the execution and input spaces coincide, they are the same
+    holder.
+    """
+    if execution.name == "cuda":
+        h = utils.get_or_create_stream(execution.device_id, stream, internal_op_package)
+        return h, h
+    if isinstance(operands_device_id, int):
+        return None, utils.get_or_create_stream(operands_device_id, stream, operands_package)
+    return None, None
+
+
+def _realloc_if_needed_and_copy_to_mirror(
+    src_holder: utils.TensorHolder,
+    dest_holder: utils.TensorHolder,
+    dest_device_id: int | Literal["cpu"],
+    stream_holder: utils.StreamHolder | None,
+) -> None:
+    """Copy a source operand into its mirror on ``dest_device_id``.
+
+    If ``dest_holder.tensor`` is still alive, do an in-place copy into it. Otherwise
+    (typically after :meth:`release_operands`), allocate a new buffer via
+    ``src_holder.to()`` and bind it to ``dest_holder.tensor``.
+    """
+    if dest_holder.tensor is not None:
+        dest_holder.copy_(src_holder, stream_holder=stream_holder)
+        return
+    dest_holder.tensor = src_holder.to(dest_device_id, stream_holder).tensor
+
+
+class _ImplicitlyBatchedMatmul:
+    """A Matmul object that supports implicitly batched operands.
+
+    This class has the same public API as :class:`Matmul`, except that the arguments may
+    only be implicitly batched.
+
+    .. important::
+
+        Explicit batches are always defined as a Python Sequence of the same type and
+        implicit batches are always leading dimension of tensors. Otherwise, broadcasting
+        behavior would be ambiguous. For example, if some arguments are sequences of tensors
+        and other arguments are non-sequence tensors with batch dimensions.
+
+    .. seealso:: :func:`_zip_broadcast`, :class:`Matmul`, :class:`_ExplicitlyBatchedMatmul`
+
+    """
+
+    __slots__ = (
+        "_allocator",
+        "_batch_traits",
+        "_blocking",
+        "_call_prologue",
+        "_execution_device_id",
+        "_function",
+        "_input_traits",
+        "_internal_op_package",
+        "_logger",
+        "_memspace_eq_exespace",
+        "_mm_traits",
+        "_operands_backup",
+        "_operands_device_id",
+        "_operands_package",
+        "_operands",
+        "_qualifiers",
+        "_result_class",
+        "a_dtype_name",
+        "a_dtype",
+        "alpha",
+        "b_dtype_name",
+        "b_dtype",
+        "beta",
+        "c_dtype_name",
+        "c_dtype",
+        "execution",
+        "is_complex",
+        "lazy_conjugation",
+        "num_operands",
+        "operand_extents",
+        "operand_strides",
+        "options",
+        "scale_type_name",
+    )
+
+    options: Final[MatmulOptions]
+    _allocator: Final[memory.BaseCUDAMemoryManager | memory.BaseCUDAMemoryManagerAsync | None]
+    _blocking: Final[bool]
+    _logger: Final[LoggerLike]
+
+    # Metadata related to execution space
+    execution: Final[ExecutionCPU | ExecutionCUDA]
+    """A class which describes the execution space parameters."""
+    _internal_op_package: Final[str]
+    """The package of the operands in the execution space."""
+    _operands: MutableSequence[utils.TensorHolder]
+    """A copy of the operands in execution space."""
+    _result_class: Final[type[utils.TensorHolder]]
+    """The type of TensorHolder to use for the execution space result."""
+
+    # Metadata about the input/output tensors
+    _operands_backup: MutableSequence[utils.TensorHolder | None]
+    """A reference to original operands in their input space."""
+    _operands_device_id: Final[int | Literal["cpu"]]
+    """The device_id of the input space."""
+    _execution_device_id: Final[int | Literal["cpu"]]
+    """The device_id of the execution space (``"cpu"`` for CPU execution)."""
+    _memspace_eq_exespace: Final[bool]
+    """Cached ``_operands_device_id == _execution_device_id``."""
+    _operands_package: Final[str]
+    """The package of the operands in the input space."""
+
+    _call_prologue: Final[str]
+    """Stores a message for logging about blocking behavior"""
 
     _input_traits: Final[InputMMTraits]
     _batch_traits: Final[tuple[BatchTraits, BatchTraits, BatchTraits, BatchTraits]]
@@ -265,15 +331,18 @@ class Matmul(templates.StatefulAPI[MatmulOptions]):
         alpha: float | complex | None = None,
         beta: float | complex | None = None,
         qualifiers: MatrixQualifier | None = None,
-        options: MatmulOptions | None = None,
-        execution: ExecutionCPU | ExecutionCUDA | None = None,
-        stream: utils.AnyStream | int | None = None,
+        options: MatmulOptions,
+        execution: ExecutionCPU | ExecutionCUDA,
+        exec_stream_holder: utils.StreamHolder | None,
+        operand_stream_holder: utils.StreamHolder | None,
+        _allow_mixed_batch_order: bool = False,
+        _logger: LoggerLike | None = None,
     ):
-        options = utils.check_or_create_options(MatmulOptions, options, "Matrix multiplication options")
-        assert options is not None
+        self.options = options
+        self._logger = _logger if _logger is not None else self.options.logger
+        self.execution = execution
 
-        if c is None and options.inplace:
-            raise ValueError("Operation cannot be inplace if operand C is not provided.")
+        assert not (c is None and options.inplace), "Internal Error: Matmul should have rejected inplace=True with c=None."
 
         a = tensor_wrapper.wrap_operand(a)
         check_dtype(a.dtype, "A")
@@ -295,7 +364,50 @@ class Matmul(templates.StatefulAPI[MatmulOptions]):
             check_strides(c.strides, "C")
             operands.append(c)
 
-        super().__init__(operands, options=options, execution=execution, stream=stream)
+        self._operands_device_id = utils.get_operands_device_id(operands)
+        self._execution_device_id = getattr(self.execution, "device_id", "cpu")
+        self._memspace_eq_exespace = self._operands_device_id == self._execution_device_id
+        self._operands_package = utils.get_operands_package(operands)
+        self._internal_op_package = _resolve_internal_operand_package(self.execution.name, self._operands_package)
+
+        operands_backup: list[utils.TensorHolder | None] = [None] * len(operands)
+        for i in range(len(operands)):
+            # Copy the operand to execution_space's device if needed.
+            operands[i], operands_backup[i] = templates.copy_operand_perhaps(
+                None,
+                operands[i],
+                operand_stream_holder,
+                self._execution_device_id,
+                self._operands_device_id,
+            )
+        self._operands = operands
+        self._operands_backup = operands_backup
+
+        # The result's package and device.
+        self._result_class = self._operands[0].__class__
+
+        # Set blocking or non-blocking behavior.
+        self._blocking = self.options.blocking != "auto" or self._operands_device_id == "cpu" or self.execution.name == "cpu"
+        if self._blocking:
+            call_prologue = "This call is blocking and will return only after the operation is complete."
+        else:
+            call_prologue = (
+                "This call is non-blocking and will return immediately after the operation is launched on the device."
+            )
+        self._call_prologue = call_prologue
+
+        # Set memory allocator.
+        allocator: memory.BaseCUDAMemoryManager | memory.BaseCUDAMemoryManagerAsync | None
+        match self.execution:
+            case ExecutionCUDA():
+                allocator = (
+                    memory._MEMORY_MANAGER[self._internal_op_package](self.execution.device_id, self._logger)
+                    if self.options.allocator is None
+                    else self.options.allocator
+                )
+            case ExecutionCPU() | _:
+                allocator = None  # currently, the nvpl/fftw does not support custom workspace allocation
+        self._allocator = allocator
 
         self._logger.info(f"The data type of operand A is '{a.dtype}', and that of operand B is '{b.dtype}'.")
         if c is not None:
@@ -303,6 +415,17 @@ class Matmul(templates.StatefulAPI[MatmulOptions]):
 
         if self.options.inplace:
             self._logger.info("The operation will be performed inplace with operand C.")
+            assert c is not None  # guaranteed by the inplace-with-c assertion above
+
+            # Inplace writes back into C, so the C layout must be unique.
+            # Otherwise distinct logical indices alias the same memory cell,
+            # producing overlapping writes / undefined behavior.
+            if not StridedLayout(c.shape, c.strides, itemsize=1).is_unique:
+                raise ValueError(
+                    f"The layout for C with shape = {c.shape} and strides = {c.strides} is not "
+                    f"supported for inplace operations: the index-to-memory mapping is not "
+                    f"injective, which would cause overlapping writes into the same memory."
+                )
 
         if c is not None and beta is None:
             raise ValueError("A value for beta must be provided if operand C is provided.")
@@ -446,7 +569,10 @@ class Matmul(templates.StatefulAPI[MatmulOptions]):
             )
         )
         # BatchTraits overloads the * operator with a batch combination behavior
-        abc_batch, axis_order = a_batch * (b_batch * c_batch)
+        abc_batch, axis_order = a_batch.combine(
+            b_batch.combine(c_batch, allow_mixed_axis_order=_allow_mixed_batch_order),
+            allow_mixed_axis_order=_allow_mixed_batch_order,
+        )
         d_batch = (
             c_batch
             if self.options.inplace
@@ -462,78 +588,43 @@ class Matmul(templates.StatefulAPI[MatmulOptions]):
         self._logger.info("Result D has batch traits of %s.", d_batch)
         self._batch_traits = (a_batch, b_batch, c_batch, d_batch)
 
-        # Track whether user-provided operands have been released
-        self._operands_released = False
+    def _get_or_create_stream_maybe(
+        self, stream: utils.AnyStream
+    ) -> tuple[utils.StreamHolder | None, utils.StreamHolder | None]:
+        return _get_or_create_stream_maybe(
+            self.execution,
+            self._operands_device_id,
+            self._operands_package,
+            self._internal_op_package,
+            stream,
+        )
 
-        self.valid_state = True
-        self._logger.info("The Matmul operation has been created.")
+    def plan(self, *, stream: AnyStream | int | None = None, log_info=False) -> None:
+        # NOTE: timing context called from Matmul.plan to avoid redundancy
+        mm_layout_checker = mm_layout_checker_getter(self._qualifiers)
 
-    def _check_valid_matmul(self, *args, **kwargs):
-        """
-        Check if the Matmul object is alive and well.
-        """
-        if not self.valid_state:
-            raise InvalidMatmulState("The Matmul object cannot be used after resources are free'd")
+        mm_traits = BLASMMTraitsView.from_input_traits(
+            self._input_traits,
+            mm_layout_checker,
+            self._logger,
+            lookup_table_table=CACHED_LAYOUT_CHECKERS,
+        )
 
-    def _check_valid_operands(self, *args, **kwargs):
-        """
-        Check if operands are available for operations.
-        """
-        if self._operands_released:
-            raise ValueError(
-                "Operands have been released. Call reset_operands() to provide new operands before using this method."
-            )
+        self._mm_traits = mm_traits
 
-    @utils.precondition(_check_valid_matmul)
-    def plan(self, *, stream: utils.AnyStream | int | None = None) -> None:
-        """
-        Plan the matrix multiplication operation.
-
-        Unlike :py:meth:`nvmath.linalg.advanced.Matmul.plan`, this method takes no
-        tuning parameters. Its primary function is to find the correct matrix multiplication
-        implementation based on the operands and options provided to the constructor.
-
-        Args:
-            stream: {stream}
-
-        Returns:
-            Nothing.
-        """
-        log_info = self._logger.isEnabledFor(logging.INFO)
+        self._function, function_name = select_blas_mm_function(
+            (*self._batch_traits[:2], self._batch_traits[3]),
+            mm_traits,
+            self._qualifiers,
+            self._logger,
+            self.execution,
+        )
 
         if log_info:
-            self._logger.info("= PLANNING PHASE =")
-            self._logger.info("Starting matrix multiplication planning...")
+            flop_count = 2 * mm_traits.M * mm_traits.N * mm_traits.K
 
-        with utils.host_call_ctx(timing=log_info) as elapsed:
-            mm_layout_checker = mm_layout_checker_getter(self._qualifiers)
-
-            mm_traits = BLASMMTraitsView.from_input_traits(
-                self._input_traits,
-                mm_layout_checker,
-                self._logger,
-                lookup_table_table=CACHED_LAYOUT_CHECKERS,
-            )
-
-            self._function, function_name = select_blas_mm_function(
-                (*self._batch_traits[:2], self._batch_traits[3]),
-                mm_traits,
-                self._qualifiers,
-                self._logger,
-                self.execution,
-            )
-
-        if log_info and elapsed.data is not None:
             self._logger.info(f"The plan found 1 suitable algorithm named {function_name}.")
-            self._logger.info(f"The matrix multiplication planning phase took {elapsed.data:.3f} ms to complete.")
-
-        # Base FLOP count.
-        self.flop_count = 2 * mm_traits.M * mm_traits.N * mm_traits.K
-        self._logger.info(f"The base matrix multiplication FLOP count is {formatters.FLOPSStr(self.flop_count, 'FLOP')}.")
-
-        self._has_plan = True
-
-        return
+            self._logger.info(f"The base matrix multiplication FLOP count is {formatters.FLOPSStr(flop_count, 'FLOP')}.")
 
     def _check_and_set_operand(
         self,
@@ -571,24 +662,32 @@ class Matmul(templates.StatefulAPI[MatmulOptions]):
         if self.lazy_conjugation[operand_index] != new_operand.is_conjugate:
             raise ValueError(f"The provided operand {operand_name} has different conjugate flag than the original operand")
 
-        self._operands[operand_index], self._operands_backup[operand_index] = templates.copy_operand_perhaps(
-            internal_operand=self._operands[operand_index],
-            operand=new_operand,
-            stream_holder=stream_holder,
-            execution_device_id=getattr(self.execution, "device_id", "cpu"),
-            operands_device_id=new_operand.device_id,
-        )
+        # Wrappers in self._operands / self._operands_backup are preserved for the
+        # lifetime of this object (release_operands clears only their .tensor); rebind
+        # in same-space and use the realloc-or-copy helper in cross-space, mirroring
+        # the unchecked path so both reset flavors maintain that invariant.
+        if self._memspace_eq_exespace:
+            self._operands[operand_index].tensor = new_operand.tensor
+        else:
+            _realloc_if_needed_and_copy_to_mirror(
+                new_operand,
+                self._operands[operand_index],
+                self._execution_device_id,
+                stream_holder,
+            )
+            self._operands_backup[operand_index] = new_operand
 
-        # Check strides after copying because copy could affect data layout?
-        # FIXME: Could end up with a broken operand state if user catches error raised here?
-        # But if we don't use copy_operand_perhaps, we can't do inplace operand reset.
+        # After the rebind/copy above, check that the strides of the buffer the matmul
+        # will actually read (the user's tensor in same-space, the mirror in cross-space)
+        # still match what was planned for at construction.
+        # FIXME: a stride mismatch here leaves _operands[operand_index] already mutated;
+        # if the caller catches this they can observe a half-applied reset.
         utils.check_attribute_match(strides, self._operands[operand_index].strides, "strides")
 
         self._logger.info(f"Operand '{operand_name}' has been reset to the new value.")
 
         return
 
-    @utils.precondition(_check_valid_matmul)
     def reset_operands(
         self,
         *,
@@ -597,95 +696,22 @@ class Matmul(templates.StatefulAPI[MatmulOptions]):
         c=None,
         alpha=None,
         beta=None,
-        stream: utils.AnyStream | int | None = None,
+        stream: AnyStream | int | None = None,
+        _operands_released=True,
     ):
-        """
-        Reset one or more of the operands held by this :class:`Matmul` instance.
-        Only the operands explicitly passed are updated; omitted operands retain
-        their current values.
-
-        This method will perform various checks on the new operands to make sure:
-
-        - The shapes, strides, datatypes match those of the old ones.
-        - The packages that the operands belong to match those of the old ones.
-        - If input tensors are on GPU, the device must match.
-
-        .. versionchanged:: 0.9
-            All parameters are now keyword-only.
-
-        Args:
-            a: {a}
-
-            b: {b}
-
-            c: {c}
-
-            alpha: {alpha}
-
-            beta: {beta}
-
-            stream: {stream}
-
-        Examples:
-
-            >>> import cupy as cp
-            >>> import nvmath
-
-            Create two 3-D float64 ndarrays on the GPU:
-
-            >>> M, N, K = 128, 128, 256
-            >>> a = cp.random.rand(M, K)
-            >>> b = cp.random.rand(K, N)
-
-            Create an matrix multiplication object as a context manager
-
-            >>> with nvmath.linalg.Matmul(a, b) as mm:
-            ...     # Plan the operation.
-            ...     mm.plan()
-            ...
-            ...     # Execute the MM to get the first result.
-            ...     r1 = mm.execute()
-            ...
-            ...     # Reset the operands to new CuPy ndarrays.
-            ...     a_new = cp.random.rand(M, K)
-            ...     b_new = cp.random.rand(K, N)
-            ...     mm.reset_operands(a=a_new, b=b_new)
-            ...
-            ...     # Execute to get the new result corresponding to the updated operands.
-            ...     r2 = mm.execute()
-
-            Note that if only a subset of operands are reset, the operands that are not
-            reset hold their original values.
-
-            With :meth:`reset_operands`, minimal overhead is achieved as problem
-            specification and planning are only performed once.
-
-            For the particular example above, a slower alternative to calling
-            :meth:`reset_operands` would be to modify the operands in-place (e.g.,
-            ``a[:] = a_new`` and ``b[:] = b_new``), but this approach is less efficient
-            as it involves copying data rather than just updating pointers.
-
-            For more details, please refer to `inplace update example
-            <https://github.com/NVIDIA/nvmath-python/tree/main/examples/linalg/advanced/matmul/example05_stateful_inplace.py>`_.
-        """
-
         if c is not None and self.num_operands == 2:
             raise ValueError(
                 "The matrix multiplication problem specification does not include operand C, so it cannot be reset."
             )
 
         # If operands have been released, all required operands must be provided
-        if self._operands_released:
+        if _operands_released:
             all_provided = a is not None and b is not None and (self.num_operands != 3 or c is not None)
             if not all_provided:
                 raise ValueError(
                     "After release_operands(), all required operands must be provided to reset_operands(). "
                     f"Required: a, b{', c' if self.num_operands == 3 else ''}"
                 )
-
-            # Initialize operands to prepare for new values
-            self._operands = [None] * self.num_operands  # type: ignore[list-item]
-            self._operands_backup = [None] * self.num_operands
 
         # Update alpha.
         if alpha is not None:
@@ -699,7 +725,7 @@ class Matmul(templates.StatefulAPI[MatmulOptions]):
         # Update beta.
         if beta is not None:
             if self.num_operands == 2:
-                self._logger.warning(f"Matmul: The provided beta value {beta} is ignored since operand C is not specified.")
+                self._logger.warning("Matmul: The provided beta value %s is ignored since operand C is not specified.", beta)
             else:
                 try:
                     self.beta[0] = beta
@@ -750,39 +776,43 @@ class Matmul(templates.StatefulAPI[MatmulOptions]):
                 strides=self.operand_strides[index],
             )
 
-        # Clear the released flag since we now have valid operands
-        self._operands_released = False
+    def reset_operands_unchecked(
+        self,
+        *,
+        a=None,
+        b=None,
+        c=None,
+        alpha=None,
+        beta=None,
+        stream: AnyStream | int | None = None,
+    ):
+        if alpha is not None:
+            self.alpha[0] = alpha
+        if beta is not None:
+            self.beta[0] = beta
 
-    @utils.precondition(_check_valid_matmul)
-    @utils.precondition(templates.StatefulAPI._check_planned, "Execution")
-    @utils.precondition(_check_valid_operands)
-    def execute(self, *, stream: utils.AnyStream | int | None = None) -> utils.AnyTensor:
-        """
-        Execute a prepared (planned) matrix multiplication.
+        if self._memspace_eq_exespace:
+            if a is not None:
+                self._operands[0].tensor = a
+            if b is not None:
+                self._operands[1].tensor = b
+            if c is not None and self.num_operands == 3:
+                self._operands[2].tensor = c
+            return
 
-        This method is a wrapper around :py:meth:`_execute`, which takes the same arguments,
-        but skips as many correctness and safety checks as possible.
-
-        Args:
-            stream: {stream}
-
-        Returns:
-           {result}
-        """
-        return self._execute(stream=stream)
-
-    def _execute(self, *, stream: utils.AnyStream | int | None = None) -> utils.AnyTensor:
-        log_info = self._logger.isEnabledFor(logging.INFO)
-        log_debug = self._logger.isEnabledFor(logging.DEBUG)
-        if log_info:
-            self._logger.info("= EXECUTION PHASE =")
-        exec_stream_holder, operand_stream_holder = self._get_or_create_stream_maybe(stream)
-        if log_info:
-            self._logger.info(
-                "The specified stream for execute() is "
-                f"{getattr(exec_stream_holder or operand_stream_holder, 'obj', 'no stream')}."
+        operands = ((0, a), (1, b)) if self.num_operands == 2 else ((0, a), (1, b), (2, c))
+        _, operand_stream_holder = self._get_or_create_stream_maybe(stream)
+        for idx, value in operands:
+            if value is None:
+                continue
+            wrapped = tensor_wrapper.wrap_operand(value)
+            _realloc_if_needed_and_copy_to_mirror(
+                wrapped, self._operands[idx], self._execution_device_id, operand_stream_holder
             )
+            self._operands_backup[idx] = wrapped
 
+    def _allocate_result_tensor_perhaps(self, *, stream_holder: utils.StreamHolder | None) -> utils.TensorHolder:
+        log_debug = self._logger.isEnabledFor(logging.DEBUG)
         # We must handle all valid combinations of:
         # - c-provided and c-not-provided
         # - results in-place and out-of-place
@@ -803,8 +833,8 @@ class Matmul(templates.StatefulAPI[MatmulOptions]):
                 self._result_class,
                 (*self._batch_traits[3].shape, *self._input_traits.d_layout_traits.shape),
                 self.c_dtype_name,
-                getattr(self.execution, "device_id", "cpu"),
-                exec_stream_holder,
+                self._execution_device_id,
+                stream_holder,
                 # verify_strides=False because we need strides to be exactly what we
                 # request; not arbitrary if the strides aren't contiguous and dense.
                 # Otherwise, the layout parameters will mismatch what we pass to the matmul
@@ -819,12 +849,37 @@ class Matmul(templates.StatefulAPI[MatmulOptions]):
             self._logger.debug("The output tensor is C (in-place execution).")
 
         if self.num_operands == 3 and not self.options.inplace:
-            result.copy_(self._operands[2], exec_stream_holder)
+            result.copy_(self._operands[2], stream_holder)
             self._logger.debug("Operand C copied to result tensor (out-of-place execution).")
+
+        return result
+
+    def _copy_result_tensor_perhaps(self, *, result: utils.TensorHolder, stream_holder: utils.StreamHolder | None) -> AnyTensor:
+        # Return the result and auxiliary outputs, if present.
+        if self._memspace_eq_exespace:
+            out = result.tensor
+        else:
+            if self.options.inplace:
+                c = self._operands_backup[2]
+                assert c is not None and c.tensor is not None, (
+                    "Internal Error. "
+                    "Inplace operation was requested, but the execution space was different from the input space, "
+                    "and we didn't keep a reference to the input tensor."
+                )
+                c.copy_(result, stream_holder=stream_holder)
+                out = c.tensor
+            else:
+                out = result.to(self._operands_device_id, stream_holder=stream_holder).tensor
+
+        return out
+
+    def execute(self, *, log_info, exec_stream_holder, operand_stream_holder) -> AnyTensor:
+        result = self._allocate_result_tensor_perhaps(stream_holder=exec_stream_holder)
 
         a, b = self._operands[0], self._operands[1]
         if log_info:
             self._logger.info("Starting matrix multiplication...")
+            self._logger.info(f"{self._call_prologue}")
 
         if self.execution.name == "cuda":
             assert exec_stream_holder is not None
@@ -854,38 +909,1030 @@ class Matmul(templates.StatefulAPI[MatmulOptions]):
         if log_info and elapsed.data is not None:
             self._logger.info(f"The matrix multiplication calculation took {elapsed.data:.3f} ms to complete.")
 
-        # Return the result and auxiliary outputs, if present.
-        if self._operands_device_id != getattr(self.execution, "device_id", "cpu"):
-            if self.options.inplace:
-                c = self._operands_backup[2]
-                assert c is not None, (
-                    "Internal Error. "
-                    "Inplace operation was requested, but the execution space was different from the input space, "
-                    "and we didn't keep a reference to the input tensor."
-                )
-                c.copy_(result, stream_holder=operand_stream_holder)
-                out = c.tensor
-            else:
-                out = result.to(self._operands_device_id, stream_holder=operand_stream_holder).tensor
-        else:
-            out = result.tensor
+        return self._copy_result_tensor_perhaps(result=result, stream_holder=operand_stream_holder)
 
-        return out
+    def release_operands(self):
+        # Same space: _operands hold direct user references.
+        # Cross space: _operands hold internal device mirrors,
+        #   _operands_backup hold direct user references.
+        # We preserve the TensorHolder wrappers and only clear the underlying tensor
+        # reference. This lets reset_operands_unchecked subsequently reuse the existing
+        # wrappers (and, in cross space, an existing device buffer) when present.
+        for op in self._operands:
+            op.tensor = None
+        if not self._memspace_eq_exespace:
+            for op in self._operands_backup:
+                op.tensor = None
+
+    def free(self):
+        # No ordering needed: CPU execution is blocking, and GPU execution operates on
+        # user-owned operands (use-after-free is the user's responsibility).
+        for attr in self.__slots__:
+            if attr != "_logger":
+                setattr(self, attr, None)
+
+
+def _effective_batch_len(value: Any) -> int | None:
+    """Effective broadcast length: None for None, len() for a non-str Sequence, else 1."""
+    if value is None:
+        return None
+    if isinstance(value, Sequence) and not isinstance(value, str):
+        return len(value)
+    return 1
+
+
+def _inplace_singleton_c_with_broadcast(a, b, c, *, alpha, beta, qualifiers) -> bool:
+    """Return True iff ``c`` is a singleton but at least one of ``a``/``b``/
+    ``qualifiers``/``alpha``/``beta`` would drive ``_zip_broadcast`` to create
+    more than one group. In that case the same ``C`` buffer is reused across
+    groups; under ``inplace=True`` the per-group updates would alias that buffer
+    and overlap, so the constructor must reject the configuration."""
+    c_is_singleton = not isinstance(c, Sequence) or len(c) == 1
+    if not c_is_singleton:
+        return False
+    return any(isinstance(x, Sequence) and len(x) > 1 for x in (a, b, qualifiers, alpha, beta))
+
+
+def _zip_broadcast(*args: Any, **kwargs: Any) -> Generator[tuple[tuple[Any, ...], dict[str, Any]], None, None]:
+    """Like zip(), but handles keyword args and broadcasts inputs to the longest length.
+
+    Raises:
+        ValueError: If the inputs are not singleton or the same length as longest input.
+
+    Returns:
+        A generator that yields tuples of (args, kwargs), broadcasted to longest length.
+    """
+    # Pre-process args such that all args are a sequence and they are all the same length or
+    # singleton.
+    arg_items: list[Sequence[Any]] = []
+    kwarg_items: dict[str, Sequence[Any]] = {}
+    lengths: list[int] = []
+
+    # Process positional arguments
+    for arg in args:
+        item = arg if isinstance(arg, Sequence) and not isinstance(arg, str) else [arg]
+        arg_items.append(item)
+        lengths.append(len(item))
+
+    # Process keyword arguments
+    for key, value in kwargs.items():
+        item = value if isinstance(value, Sequence) else [value]
+        kwarg_items[key] = item
+        lengths.append(len(item))
+
+    # lengths may be empty if no args or kwargs are provided
+    if not lengths:
+        return
+
+    # num_batch may be 0 if empty sequences are passed to args and kwargs
+    # num_batch may be positive if at least one non-empty args or kwargs are provided
+    num_batch = max(lengths)
+
+    # Check that all lengths are either 1 or num_batch; if num_batch is 0, then we already
+    # know all args will have length 0.
+    if num_batch != 0:
+        illegal_args = []
+        for i, item in enumerate(arg_items):
+            if len(item) not in (1, num_batch):
+                illegal_args.append(i)
+
+        illegal_kwargs = []
+        for key, item in kwarg_items.items():
+            if len(item) not in (1, num_batch):
+                illegal_kwargs.append(key)
+
+        if illegal_args or illegal_kwargs:
+            error_parts = []
+            if illegal_args:
+                error_parts.append(f"positional args at indices {illegal_args}")
+            if illegal_kwargs:
+                error_parts.append(f"keyword args {illegal_kwargs}")
+            raise ValueError(
+                f"All inputs must have the same length or be a singleton. "
+                f"The following do not satisfy this condition: {' and '.join(error_parts)}."
+            )
+
+    # Yield tuples of (args, kwargs) for each batch
+    for batch_idx in range(num_batch):
+        batch_args = tuple(item[batch_idx] if len(item) > 1 else item[0] for item in arg_items)
+        batch_kwargs = {key: item[batch_idx] if len(item) > 1 else item[0] for key, item in kwarg_items.items()}
+        yield (batch_args, batch_kwargs)
+
+
+class _ExplicitlyBatchedMatmul:
+    """A Matmul object that supports explicitly batched operands.
+
+    This class has the same public API as :class:`Matmul`, except that the arguments may
+    only be explicitly batched. Internally, this class just delegates to
+    :class:`_ImplicitlyBatchedMatmul` for each batch.
+
+    .. important::
+
+        Explicit batches are always defined as a Python Sequence of the same type and
+        implicit batches are always leading dimension of tensors. Otherwise, broadcasting
+        behavior would be ambiguous. For example, if some arguments are sequences of tensors
+        and other arguments are non-sequence tensors with batch dimensions.
+
+    .. seealso:: :func:`_zip_broadcast`, :class:`Matmul`, :class:`_ImplicitlyBatchedMatmul`
+
+    """
+
+    __slots__ = (
+        "_function",
+        "_logger",
+        "_original_batch_lens",
+        "batches",
+        "d_Aarray",
+        "d_Barray",
+        "d_Carray",
+        "execution",
+        "h_Aarray",
+        "h_Barray",
+        "h_Carray",
+        "last_compute_event",
+        "options",
+        "workspace_stream",
+    )
+
+    batches: Final[Sequence[_ImplicitlyBatchedMatmul]]
+    _logger: Final[LoggerLike]
+    execution: ExecutionCPU | ExecutionCUDA
+
+    def _get_or_create_stream_maybe(
+        self, stream: utils.AnyStream
+    ) -> tuple[utils.StreamHolder | None, utils.StreamHolder | None]:
+        return self.batches[0]._get_or_create_stream_maybe(stream)
+
+    def __init__(
+        self,
+        a: Sequence[AnyTensor] | AnyTensor,
+        b: Sequence[AnyTensor] | AnyTensor,
+        /,
+        c: Sequence[AnyTensor] | AnyTensor | None = None,
+        *,
+        alpha: float | complex | Sequence[float | complex] | None = None,
+        beta: float | complex | Sequence[float | complex] | None = None,
+        qualifiers: Sequence[MatrixQualifier] | MatrixQualifier | None = None,
+        options: MatmulOptions,
+        execution: ExecutionCPU | ExecutionCUDA,
+        exec_stream_holder: utils.StreamHolder | None,
+        operand_stream_holder: utils.StreamHolder | None,
+    ):
+        self.options = options
+        self._logger = self.options.logger
+        self.execution = execution
+
+        assert not (options.inplace and c is None), "Internal Error: Matmul should have rejected inplace=True with c=None."
+        assert not (
+            options.inplace and _inplace_singleton_c_with_broadcast(a, b, c, alpha=alpha, beta=beta, qualifiers=qualifiers)
+        ), "Internal Error: Matmul should have rejected inplace with broadcast c."
+
+        # None entries record "operand not provided" — distinguishable from a length-1
+        # supply, so reset_operands can reject attempts to add an operand that wasn't there
+        # originally.
+        self._original_batch_lens: dict[str, int | None] = {
+            "a": _effective_batch_len(a),
+            "b": _effective_batch_len(b),
+            "c": _effective_batch_len(c),
+            "alpha": _effective_batch_len(alpha),
+            "beta": _effective_batch_len(beta),
+        }
+
+        batches: list[_ImplicitlyBatchedMatmul] = []
+        package: str = ""
+        device_id: str | int = ""
+        dtype: str = ""
+        # Our zip functionality needs to be kwarg aware because some args are keyword only!
+        for i, (batch_args, batch_kwargs) in enumerate(
+            _zip_broadcast(
+                a,
+                b,
+                c,
+                qualifiers=qualifiers,
+                alpha=alpha,
+                beta=beta,
+            )
+        ):
+            batch = _ImplicitlyBatchedMatmul(
+                *batch_args,
+                **batch_kwargs,
+                options=options,
+                execution=execution,
+                exec_stream_holder=exec_stream_holder,
+                operand_stream_holder=operand_stream_holder,
+                _allow_mixed_batch_order=True,
+                _logger=_PrefixedLoggerAdapter(options.logger, {"prefix": f"batch {i}"}),
+            )
+            if package == "":
+                package = batch._operands_package
+            elif package != batch._operands_package:
+                raise TypeError(
+                    f"Library package mismatch: All operands must come from the same package ({batch._operands_package}) "
+                    f"as the original operand ({package})."
+                )
+            if device_id == "":
+                device_id = batch._operands_device_id
+            elif device_id != batch._operands_device_id:
+                raise TypeError(
+                    f"All operands must come from the same device ({batch._operands_device_id}) "
+                    f"as the original operand ({device_id})."
+                )
+            if dtype == "":
+                dtype = batch.a_dtype_name
+            elif dtype != batch.a_dtype_name:
+                raise ValueError(
+                    f"All batches must have the same dtype. Batch {i} has dtype "
+                    f"'{batch.a_dtype_name}', but an earlier batch has dtype '{dtype}'."
+                )
+            batches.append(batch)
+        self.batches = batches
+
+        num_pointers_all_groups = sum([max(1, batch._batch_traits[3].count) for batch in self.batches])
+        self.h_Aarray = tensor_wrapper.wrap_operand(np.empty(num_pointers_all_groups, dtype=np.int64))
+        self.h_Barray = tensor_wrapper.wrap_operand(np.empty(num_pointers_all_groups, dtype=np.int64))
+        self.h_Carray = tensor_wrapper.wrap_operand(np.empty(num_pointers_all_groups, dtype=np.int64))
+
+        if self.execution.name == "cuda":
+            # exec_stream_holder.package may be cupy/torch/etc. (not "cuda") for non-numpy
+            # operands. Safe here because NDBufferTensor.empty only reads .obj.
+            assert exec_stream_holder is not None
+            self.d_Aarray = NDBufferTensor.empty(
+                (num_pointers_all_groups,), device_id=self.execution.device_id, dtype="int64", stream_holder=exec_stream_holder
+            )
+            self.d_Barray = NDBufferTensor.empty(
+                (num_pointers_all_groups,), device_id=self.execution.device_id, dtype="int64", stream_holder=exec_stream_holder
+            )
+            self.d_Carray = NDBufferTensor.empty(
+                (num_pointers_all_groups,), device_id=self.execution.device_id, dtype="int64", stream_holder=exec_stream_holder
+            )
+            self.workspace_stream = exec_stream_holder.obj
+        else:
+            self.workspace_stream = None
+        self.last_compute_event = None
+
+    def plan(self, *, stream: AnyStream | int | None = None, log_info=False) -> None:
+        # NOTE: timing context called from Matmul.plan to avoid redundancy
+        group_batch_traits = []
+        group_mm_traits = []
+        group_qualifiers = []
+        flop_count = 0
+
+        for batch in self.batches:
+            mm_layout_checker = mm_layout_checker_getter(batch._qualifiers)
+
+            mm_traits = BLASMMTraitsView.from_input_traits(
+                batch._input_traits,
+                mm_layout_checker,
+                batch._logger,
+                lookup_table_table=CACHED_LAYOUT_CHECKERS,
+            )
+
+            batch._mm_traits = mm_traits
+
+            group_batch_traits.append(batch._batch_traits[3])
+            group_mm_traits.append(batch._mm_traits)
+            group_qualifiers.append(batch._qualifiers)
+
+            if log_info:
+                flop_count += 2 * mm_traits.M * mm_traits.N * mm_traits.K
+
+        self._function, function_name = select_blas_group_mm_function(
+            group_batch_traits,
+            group_mm_traits,
+            group_qualifiers,
+            self._logger,
+            self.execution,
+        )
+
+        if log_info:
+            self._logger.info(f"The plan found 1 suitable algorithm named {function_name}.")
+            self._logger.info(f"The base matrix multiplication FLOP count is {formatters.FLOPSStr(flop_count, 'FLOP')}.")
+
+    def reset_operands(
+        self,
+        *,
+        a=None,
+        b=None,
+        c=None,
+        alpha=None,
+        beta=None,
+        stream: AnyStream | int | None = None,
+        _operands_released=True,
+    ):
+        # An operand value of None means "skip"; otherwise its effective length must equal
+        # what was supplied at construction time, since changing the broadcast type of an
+        # operand may be unsafe.
+        unprovided: list[str] = []
+        mismatches: list[tuple[str, int, int]] = []
+        for name, value in (("a", a), ("b", b), ("c", c), ("alpha", alpha), ("beta", beta)):
+            if value is None:
+                continue
+            new_len = _effective_batch_len(value)
+            orig_len = self._original_batch_lens[name]
+            if orig_len is None:
+                unprovided.append(name)
+            elif new_len != orig_len:
+                assert new_len is not None  # value is not None implies new_len is int (mypy)
+                mismatches.append((name, orig_len, new_len))
+        if unprovided:
+            details = ", ".join(unprovided)
+            raise ValueError(
+                f"reset_operands cannot set operand(s) {details} because they were not "
+                "provided to the constructor; reset_operands may only update operands "
+                "that were originally supplied."
+            )
+        if mismatches:
+            details = ", ".join(
+                f"{name} was originally length {orig} but reset_operands received length {new}"
+                for name, orig, new in mismatches
+            )
+            raise ValueError(
+                "reset_operands received operands whose explicit-batch length does not "
+                f"match the original construction: {details}. Each operand's effective "
+                "length (len(seq) for a sequence, otherwise 1) must equal the length "
+                "supplied at construction time; broadcasting cannot be introduced or "
+                "removed by reset_operands."
+            )
+
+        # NOTE: self.batches is included in the zip, so operands are broadcast correctly
+        # when reset.
+        for batch_args, batch_kwargs in _zip_broadcast(
+            self.batches,
+            a=a,
+            b=b,
+            c=c,
+            alpha=alpha,
+            beta=beta,
+        ):
+            batch_args[0].reset_operands(
+                *batch_args[1:],
+                **batch_kwargs,
+                stream=stream,
+                _operands_released=_operands_released,
+            )
+
+    def reset_operands_unchecked(
+        self,
+        *,
+        a=None,
+        b=None,
+        c=None,
+        alpha=None,
+        beta=None,
+        stream: AnyStream | int | None = None,
+    ):
+        for batch_args, batch_kwargs in _zip_broadcast(
+            self.batches,
+            a=a,
+            b=b,
+            c=c,
+            alpha=alpha,
+            beta=beta,
+        ):
+            batch_args[0].reset_operands_unchecked(
+                *batch_args[1:],
+                **batch_kwargs,
+                stream=stream,
+            )
+
+    def execute(self, *, log_info, exec_stream_holder, operand_stream_holder) -> Sequence[AnyTensor]:
+        # Get the data type to determine which function to call
+        dtype = self.batches[0].a_dtype_name
+
+        results: list[utils.TensorHolder] = []
+
+        lo, hi = (0, 0)
+
+        for batch in self.batches:
+            # Allocate result tensors and collect their pointers
+            result = batch._allocate_result_tensor_perhaps(stream_holder=exec_stream_holder)
+            results.append(result)
+
+            # Collect all matrix pointers from each batch
+            num_pointers_this_batch = max(1, batch._batch_traits[3].count)
+            hi += num_pointers_this_batch
+            A_pointers = get_addresses_of_elements(
+                batch._batch_traits[0].shape,
+                batch._batch_traits[0].strides,
+                batch._operands[0].data_ptr,
+                itemsize=batch._operands[0].itemsize,
+            )
+            B_pointers = get_addresses_of_elements(
+                batch._batch_traits[1].shape,
+                batch._batch_traits[1].strides,
+                batch._operands[1].data_ptr,
+                itemsize=batch._operands[1].itemsize,
+            )
+            C_pointers = get_addresses_of_elements(
+                batch._batch_traits[3].shape,
+                batch._batch_traits[3].strides,
+                result.data_ptr,
+                itemsize=result.itemsize,
+            )
+
+            # Handle broadcast operands within an implicit batch
+            if len(A_pointers) < num_pointers_this_batch:
+                A_pointers = np.tile(A_pointers, num_pointers_this_batch)
+            if len(B_pointers) < num_pointers_this_batch:
+                B_pointers = np.tile(B_pointers, num_pointers_this_batch)
+
+            # Swap A and B pointers if the matrices are swapped because of layout
+            # compatibility
+            if batch._mm_traits.is_swapped_AB:
+                A_pointers, B_pointers = B_pointers, A_pointers
+
+            self.h_Aarray.tensor[lo:hi] = A_pointers
+            self.h_Barray.tensor[lo:hi] = B_pointers
+            self.h_Carray.tensor[lo:hi] = C_pointers
+
+            lo = hi
+
+        # Collect alpha and beta values
+        alpha_array = np.array([batch.alpha[0] for batch in self.batches], dtype=dtype)
+        beta_array = np.array([batch.beta[0] for batch in self.batches], dtype=dtype)
+
+        if log_info:
+            self._logger.info("Starting matrix multiplication...")
+            self._logger.info(f"{self.batches[0]._call_prologue}")
+
+        # Call the appropriate grouped batched gemm function based on dtype
+        if self.execution.name == "cpu":
+            with utils.host_call_ctx(timing=log_info) as elapsed:
+                self._function(
+                    self.h_Aarray,
+                    self.h_Barray,
+                    self.h_Carray,
+                    alpha_array,
+                    beta_array,
+                    exec_stream_holder,
+                )
+        else:
+            assert exec_stream_holder is not None
+
+            # Copy pointer arrays to device using the appropriate wrapper
+            self.d_Aarray.copy_(self.h_Aarray, exec_stream_holder)
+            self.d_Barray.copy_(self.h_Barray, exec_stream_holder)
+            self.d_Carray.copy_(self.h_Carray, exec_stream_holder)
+
+            with utils.cuda_call_ctx(exec_stream_holder, self.batches[0]._blocking, timing=log_info) as (
+                self.last_compute_event,
+                elapsed,
+            ):
+                self._function(
+                    self.d_Aarray,
+                    self.d_Barray,
+                    self.d_Carray,
+                    alpha_array,
+                    beta_array,
+                    exec_stream_holder,
+                )
+
+        if log_info and elapsed.data is not None:
+            self._logger.info(f"The matrix multiplication calculation took {elapsed.data:.3f} ms to complete.")
+
+        # Return results (copy if needed)
+        return [
+            batch._copy_result_tensor_perhaps(result=result, stream_holder=operand_stream_holder)
+            for batch, result in zip(self.batches, results, strict=True)
+        ]
+
+    def release_operands(self):
+        for b in self.batches:
+            b.release_operands()
+
+    def free(self):
+        # Ensure ordering with respect to the last computation
+        # to avoid race conditions when releasing internal resources.
+        if self.last_compute_event is not None:
+            if self.workspace_stream is not None:
+                self.workspace_stream.wait(self.last_compute_event)
+            self.last_compute_event = None
+
+        for batch in self.batches:
+            batch.free()
+
+        for attr in self.__slots__:
+            if attr != "_logger":
+                setattr(self, attr, None)
+
+
+@utils.docstring_decorator(GENERIC_MM_DOCUMENTATION, skip_missing=False)
+class Matmul:
+    """
+    Create a stateful object encapsulating the specified matrix multiplication computation
+    :math:`\\alpha a @ b + \\beta c` and the required resources to perform the operation. A
+    stateful object can be used to amortize the cost of preparation (planning in the case of
+    matrix multiplication) across multiple executions (also see the :ref:`Stateful APIs
+    <host api types>` section).
+
+    The function-form API :func:`matmul` is a convenient alternative to using stateful
+    objects for *single* use (the user needs to perform just one matrix multiplication, for
+    example), in which case there is no possibility of amortizing preparatory costs. The
+    function-form APIs are just convenience wrappers around the stateful object APIs.
+
+    Using the stateful object typically involves the following steps:
+
+    1. **Problem Specification**: Initialize the object with a defined operation and
+       options.
+    2. **Preparation**: Use :meth:`plan` to determine the best algorithmic implementation
+       for this specific matrix multiplication operation.
+    3. **Execution**: Perform the matrix multiplication computation with :meth:`execute`.
+
+    Detailed information on what's happening in the various phases described above can be
+    obtained by passing in a :class:`logging.Logger` object to :class:`MatmulOptions` or by
+    setting the appropriate options in the root logger object, which is used by default:
+
+        >>> import logging
+        >>> logging.basicConfig(
+        ...     level=logging.INFO,
+        ...     format="%(asctime)s %(levelname)-8s %(message)s",
+        ...     datefmt="%m-%d %H:%M:%S",
+        ... )
+
+    A user can select the desired logging level and, in general, take advantage of all of
+    the functionality offered by the Python `logging` module.
+
+    Args:
+        a: {a}
+
+        b: {b}
+
+        c: {c}
+
+        alpha: {alpha}
+
+        beta: {beta}
+
+        qualifiers: {qualifiers}
+
+        options: {options}
+
+        execution: {execution}
+
+        stream: {stream}
+
+    Semantics:
+        {semantics}
+
+    Thread Safety:
+        {thread_safety}
+
+    .. seealso::
+        :meth:`reset_operands`, :meth:`reset_operands_unchecked`, :meth:`execute`
+
+    Examples:
+
+        >>> import numpy as np
+        >>> import nvmath
+
+        Create two 2-D float64 ndarrays on the CPU:
+
+        >>> M, N, K = 1024, 1024, 1024
+        >>> a = np.random.rand(M, K)
+        >>> b = np.random.rand(K, N)
+
+        We will define a matrix multiplication operation using the generic matrix
+        multiplication interface.
+
+        Create a Matmul object encapsulating the problem specification above:
+
+        >>> mm = nvmath.linalg.Matmul(a, b)
+
+        Options can be provided above to control the behavior of the operation using the
+        `options` argument (see :class:`MatmulOptions`).
+
+        Next, plan the operation. The operands' layouts, qualifiers, and dtypes will be
+        considered to select an appropriate matrix multiplication:
+
+        >>> mm.plan()
+
+        Now execute the matrix multiplication, and obtain the result `r1` as a NumPy
+        ndarray.
+
+        >>> r1 = mm.execute()
+
+        Note that all :class:`Matmul` methods execute on the current stream by default.
+        Alternatively, the `stream` argument can be used to run a method on a specified
+        stream.
+
+        Let's now look at the same problem with CuPy ndarrays on the GPU.
+
+        Create a 2-D CuPy ndarray on the GPU:
+
+        >>> import cupy as cp
+        >>> a = cp.random.rand(M, K)
+        >>> b = cp.random.rand(K, N)
+
+        Create an Matmul object encapsulating the problem specification described earlier
+        and use it as a context manager.
+
+        >>> with nvmath.linalg.Matmul(a, b) as mm:
+        ...     # Plan the operation.
+        ...     mm.plan()
+        ...
+        ...     # Execute the operation to get the first result.
+        ...     r1 = mm.execute()
+        ...
+        ...     # Update operands 'a' and 'b' in-place (see reset_operands() for an
+        ...     # alternative).
+        ...     a[:] = cp.random.rand(M, K)
+        ...     b[:] = cp.random.rand(K, N)
+        ...
+        ...     # Execute the operation to get the new result.
+        ...     r2 = mm.execute()
+
+
+        All the resources used by the object are released at the end of the block.
+
+        Further examples can be found in the `examples/linalg/generic/matmul
+        <https://github.com/NVIDIA/nvmath-python/tree/main/examples/linalg/generic/matmul>`_
+        directory.
+    """
+
+    __slots__ = (
+        "_delegate",
+        "_has_plan",
+        "_logger",
+        "_operands_released",
+        "options",
+        "valid_state",
+    )
+
+    _delegate: Final[_ImplicitlyBatchedMatmul | _ExplicitlyBatchedMatmul]
+
+    def __init__(
+        self,
+        a: AnyTensor | Sequence[AnyTensor],
+        b: AnyTensor | Sequence[AnyTensor],
+        /,
+        c: AnyTensor | Sequence[AnyTensor] | None = None,
+        *,
+        alpha: float | complex | Sequence[float | complex] | None = None,
+        beta: float | complex | Sequence[float | complex] | None = None,
+        qualifiers: MatrixQualifier | Sequence[MatrixQualifier] | None = None,
+        options: MatmulOptions | dict[str, Any] | None = None,
+        execution: ExecutionCPU | ExecutionCUDA | str | None = None,
+        stream: AnyStream | int | None = None,
+    ):
+        if isinstance(options, Sequence):
+            raise TypeError("options must be a single value.")
+        if isinstance(execution, Sequence) and not isinstance(execution, str):
+            raise TypeError("execution must be a single value.")
+        if isinstance(stream, Sequence):
+            raise TypeError("stream must be a single value.")
+
+        options = utils.check_or_create_options(MatmulOptions, options, "Matrix multiplication options")
+        assert options is not None
+        self.options = options
+        self._logger = self.options.logger
+        self._logger.info("= SPECIFICATION PHASE =")
+
+        if (
+            isinstance(a, Sequence)
+            and isinstance(b, Sequence)
+            and (c is None or isinstance(c, Sequence))
+            and (qualifiers is None or isinstance(qualifiers, Sequence))
+        ):
+            self._logger.info("The matrix multiplication is explicitly batched.")
+            delegate_class: type = _ExplicitlyBatchedMatmul
+        elif (
+            not isinstance(a, Sequence)
+            and not isinstance(b, Sequence)
+            and (c is None or not isinstance(c, Sequence))
+            and (qualifiers is None or not isinstance(qualifiers, Sequence))
+        ):
+            self._logger.info("The matrix multiplication is implicitly batched.")
+            delegate_class = _ImplicitlyBatchedMatmul
+        else:
+            raise ValueError(
+                "All arguments a, b, c, and qualifiers must be either "
+                "implicitly batched (tensors) or explicitly batched (sequences of tensors). "
+                f"a is a {type(a)}, "
+                f"b is a {type(b)}, "
+                f"c is a {type(c)}, and "
+                f"qualifiers is a {type(qualifiers)}."
+            )
+
+        empty = [
+            name
+            for name, value in (("a", a), ("b", b), ("c", c), ("qualifiers", qualifiers))
+            if isinstance(value, Sequence) and len(value) == 0
+        ]
+        if empty:
+            raise ValueError(
+                "At least one batch must be provided for explicitly batched matrix multiplication. "
+                f"The following argument(s) are empty: {', '.join(empty)}."
+            )
+
+        nested = [
+            name
+            for name, value in (("a", a), ("b", b), ("c", c), ("qualifiers", qualifiers))
+            if isinstance(value, Sequence) and isinstance(value[0], Sequence)
+        ]
+        if nested:
+            raise ValueError(
+                "Explicitly batched operands cannot be nested (sequence of sequences). "
+                f"The following argument(s) are nested: {', '.join(nested)}."
+            )
+
+        if options.inplace:
+            if c is None:
+                raise ValueError("Operation cannot be inplace if operand C is not provided.")
+            if delegate_class is _ExplicitlyBatchedMatmul and _inplace_singleton_c_with_broadcast(
+                a, b, c, alpha=alpha, beta=beta, qualifiers=qualifiers
+            ):
+                raise ValueError("Operation cannot be inplace if operand C is broadcast.")
+
+        representatives = []
+        for operand in (a, b, c):
+            if operand is None:
+                continue
+            representative = operand[0] if isinstance(operand, Sequence) else operand
+            representatives.append(tensor_wrapper.wrap_operand(representative))
+        operands_device_id = utils.get_operands_device_id(representatives)
+
+        execution = _resolve_execution(execution, operands_device_id)
+
+        self._logger.info(
+            f"The input tensors are located on device {operands_device_id}, and the execution space "
+            f"is {execution.name}, with device {getattr(execution, 'device_id', 'cpu')}."
+        )
+
+        operands_package = utils.get_operands_package(representatives)
+        internal_op_package = _resolve_internal_operand_package(execution.name, operands_package)
+        exec_stream_holder, operand_stream_holder = _get_or_create_stream_maybe(
+            execution,
+            operands_device_id,
+            operands_package,
+            internal_op_package,
+            stream,
+        )
+        holder = exec_stream_holder or operand_stream_holder
+        self._logger.info(f"The specified stream for the Matmul ctor is {holder.obj if holder else None}.")
+
+        self._delegate = delegate_class(
+            a,
+            b,
+            c=c,
+            alpha=alpha,
+            beta=beta,
+            qualifiers=qualifiers,
+            options=options,
+            execution=execution,
+            exec_stream_holder=exec_stream_holder,
+            operand_stream_holder=operand_stream_holder,
+        )
+        self._has_plan = False
+        # Track whether user-provided operands have been released
+        self._operands_released = False
+        self.valid_state = True
+        self._logger.info("The Matmul operation has been created.")
+
+    def _check_valid_matmul(self, *args, **kwargs):
+        """
+        Check if the Matmul object is alive and well.
+        """
+        if not self.valid_state:
+            raise InvalidMatmulState("The Matmul object cannot be used after resources are free'd")
+
+    def _check_planned(self, *args, **kwargs):
+        """
+        Check if plan() has been called on this Matmul object.
+        """
+        what = kwargs["what"]
+        if not self._has_plan:
+            raise RuntimeError(f"{what} cannot be performed before plan() has been called.")
+
+    def _check_valid_operands(self, *args, **kwargs):
+        """
+        Check if operands are available for operations.
+        """
+        if self._operands_released:
+            raise ValueError(
+                "Operands have been released. Call reset_operands() to provide new operands before using this method."
+            )
+
+    @utils.precondition(_check_valid_matmul)
+    @utils.precondition(_check_planned, "Execution")
+    @utils.precondition(_check_valid_operands)
+    def execute(self, *, stream: AnyStream | int | None = None) -> AnyTensor | Sequence[AnyTensor]:
+        """
+        Execute a prepared (planned) matrix multiplication.
+
+        Args:
+            stream: {stream}
+
+        Returns:
+           {result}
+        """
+        exec_stream_holder, operand_stream_holder = self._delegate._get_or_create_stream_maybe(stream)
+
+        if log_info := self._logger.isEnabledFor(logging.INFO):
+            self._logger.info("= EXECUTION PHASE =")
+            self._logger.info(
+                "The specified stream for execute() is "
+                f"{getattr(exec_stream_holder or operand_stream_holder, 'obj', 'no stream')}."
+            )
+
+        return self._delegate.execute(
+            log_info=log_info,
+            exec_stream_holder=exec_stream_holder,
+            operand_stream_holder=operand_stream_holder,
+        )
+
+    def execute_unchecked(self, *, stream: AnyStream | int | None = None) -> AnyTensor | Sequence[AnyTensor]:
+        """
+        .. experimental:: method
+
+        .. versionadded:: 1.0
+
+        This method is a performance-optimized alternative to :meth:`execute` that
+        eliminates validation and logging overhead, making it ideal for performance-critical
+        loops where operand compatibility is guaranteed by the caller.
+
+        Args:
+            stream: {stream}
+
+        Returns:
+           {result}
+
+        .. seealso::
+            :meth:`execute`: Safe, validated method for executing the matrix multiplication.
+        """
+        exec_stream_holder, operand_stream_holder = self._delegate._get_or_create_stream_maybe(stream)
+
+        return self._delegate.execute(
+            log_info=False, exec_stream_holder=exec_stream_holder, operand_stream_holder=operand_stream_holder
+        )
+
+    @utils.precondition(_check_valid_matmul)
+    def plan(self, *, stream: AnyStream | int | None = None) -> None:
+        """
+        Plan the matrix multiplication operation.
+
+        Unlike :py:meth:`nvmath.linalg.advanced.Matmul.plan`, this method takes no
+        tuning parameters. Its primary function is to find the correct matrix multiplication
+        implementation based on the operands and options provided to the constructor.
+
+        Args:
+            stream: {stream}
+
+        Returns:
+            None
+        """
+        if log_info := self._logger.isEnabledFor(logging.INFO):
+            self._logger.info("= PLANNING PHASE =")
+            if self._has_plan:
+                self._logger.info("Matmul is already planned. Replanning is skipped.")
+            else:
+                self._logger.info("Starting matrix multiplication planning...")
+
+        if self._has_plan:
+            return
+
+        with utils.host_call_ctx(timing=log_info) as elapsed:
+            self._delegate.plan(stream=stream, log_info=log_info)
+
+        if log_info and elapsed.data is not None:
+            self._logger.info(f"The matrix multiplication planning phase took {elapsed.data:.3f} ms to complete.")
+
+        self._has_plan = True
+
+    @utils.precondition(_check_valid_matmul)
+    def reset_operands(
+        self,
+        *,
+        a=None,
+        b=None,
+        c=None,
+        alpha=None,
+        beta=None,
+        stream: AnyStream | int | None = None,
+    ):
+        """
+        Reset one or more of the operands held by this :class:`Matmul` instance.
+
+        .. versionchanged:: 0.9
+            All parameters are now keyword-only.
+
+        Args:
+            a: {a}
+
+            b: {b}
+
+            c: {c}
+
+            alpha: {alpha}
+
+            beta: {beta}
+
+            stream: {stream}
+
+        Semantics:
+            - Only the operands explicitly passed are updated. At least one operand
+              is required (all of them after :meth:`release_operands`), otherwise
+              a :class:`ValueError` is raised.
+
+            - This method will perform various checks on the new operands to make sure:
+
+              - The explicit batch counts, shapes, strides, datatypes match
+                those of the old ones.
+              - The packages that the operands belong to match those of the old ones.
+              - If input tensors are on GPU, the device must match.
+
+        Examples:
+
+            >>> import cupy as cp
+            >>> import nvmath
+
+            Create two 3-D float64 ndarrays on the GPU:
+
+            >>> M, N, K = 128, 128, 256
+            >>> a = cp.random.rand(M, K)
+            >>> b = cp.random.rand(K, N)
+
+            Create an matrix multiplication object as a context manager
+
+            >>> with nvmath.linalg.Matmul(a, b) as mm:
+            ...     # Plan the operation.
+            ...     mm.plan()
+            ...
+            ...     # Execute the MM to get the first result.
+            ...     r1 = mm.execute()
+            ...
+            ...     # Reset the operands to new CuPy ndarrays.
+            ...     a_new = cp.random.rand(M, K)
+            ...     b_new = cp.random.rand(K, N)
+            ...     mm.reset_operands(a=a_new, b=b_new)
+            ...
+            ...     # Execute to get the new result corresponding to the updated operands.
+            ...     r2 = mm.execute()
+
+            Note that if only a subset of operands are reset, the operands that are not
+            reset hold their original values.
+
+            With :meth:`reset_operands`, minimal overhead is achieved as problem
+            specification and planning are only performed once.
+
+            For the particular example above, a slower alternative to calling
+            :meth:`reset_operands` would be to modify the operands in-place (e.g.,
+            ``a[:] = a_new`` and ``b[:] = b_new``), but this approach is less efficient
+            as it involves copying data rather than just updating pointers.
+
+            For more details, please refer to `inplace update example
+            <https://github.com/NVIDIA/nvmath-python/tree/main/examples/linalg/generic/matmul/example05_stateful_inplace.py>`_.
+        """
+        # When operands have not been released and all arguments are None, there is
+        # nothing to update, so reject the call. In the released state we fall through to
+        # the delegate, which enforces post-release completeness.
+        if not self._operands_released and all(arg is None for arg in (a, b, c, alpha, beta)):
+            raise ValueError("reset_operands() requires at least one operand to be provided.")
+
+        self._delegate.reset_operands(
+            a=a,
+            b=b,
+            c=c,
+            alpha=alpha,
+            beta=beta,
+            stream=stream,
+            # _operands_released is forwarded to the delegate so it can enforce
+            # the post-release requirement that reset_operands() must receive every
+            # operand so the operation has a fully valid state to execute on.
+            _operands_released=self._operands_released,
+        )
+        # Clear the released flag since we now have valid operands, this is
+        # guaranteed since the delegate above raised if the post-release
+        # contract was violated.
+        self._operands_released = False
+
+    def reset_operands_unchecked(
+        self,
+        *,
+        a=None,
+        b=None,
+        c=None,
+        alpha=None,
+        beta=None,
+        stream: AnyStream | int | None = None,
+    ):
+        """
+        {reset_operands_unchecked}
+        """
+        # The unchecked path waives all validation, so forwarding _operands_released
+        # is not needed because the parameter would go unused anyway.
+        # The caller is responsible for providing a complete and consistent operand set.
+        self._delegate.reset_operands_unchecked(a=a, b=b, c=c, alpha=alpha, beta=beta, stream=stream)
+        self._operands_released = False
 
     @utils.precondition(_check_valid_matmul)
     def release_operands(self):
         """
         {release_operands}
         """
-        # Same space: _operands hold direct user references.
-        # Cross space: _operands hold internal device mirrors,
-        #   _operands_backup hold direct user references.
-        # In both cases, release _operands.
-        # Also release _operands_backup in cross-space.
-        self._operands = [None] * len(self._operands)  # type: ignore[list-item]
-        if getattr(self.execution, "device_id", "cpu") != self._operands_device_id:
-            self._operands_backup = [None] * len(self._operands_backup)
-
+        if self._operands_released:
+            self._logger.info("Operands have already been released; nothing to do.")
+            return
+        self._delegate.release_operands()
         self._operands_released = True
         self._logger.info("User-provided operands have been released.")
 
@@ -898,24 +1945,8 @@ class Matmul(templates.StatefulAPI[MatmulOptions]):
         """
         if not self.valid_state:
             return
-
         try:
-            # Note that here we don't need to enforce any ordering:
-            # - for CPU operands, the execution is blocking so this method
-            # will only be called after the execution is complete.
-            # - for GPU operands, the execution is non-blocking, but
-            # it operates on the user's operands and they are responsible
-            # to ensure use-after-free does not happen.
-
-            # Call parent class free
-            super().free()
-
-            # Set all attributes to None except for logger and valid_state
-            _keep = {"_logger", "valid_state"}
-            for attr in list(vars(self)):
-                if attr not in _keep:
-                    setattr(self, attr, None)
-
+            self._delegate.free()
         except Exception as e:
             self._logger.critical("Internal error: only part of the Matmul object's resources have been released.")
             self._logger.critical(str(e))
@@ -925,24 +1956,27 @@ class Matmul(templates.StatefulAPI[MatmulOptions]):
 
         self._logger.info("The Matmul object's resources have been released.")
 
+    def __enter__(self):
+        return self
+
     def __exit__(self, *args, **kwargs):
         self.free()
 
 
 @utils.docstring_decorator(GENERIC_MM_DOCUMENTATION, skip_missing=False)
 def matmul(
-    a: AnyTensor,
-    b: AnyTensor,
+    a: AnyTensor | Sequence[AnyTensor],
+    b: AnyTensor | Sequence[AnyTensor],
     /,
-    c: AnyTensor | None = None,
+    c: AnyTensor | Sequence[AnyTensor] | None = None,
     *,
-    alpha: float | complex | None = None,
-    beta: float | complex | None = None,
-    qualifiers: MatrixQualifier | None = None,
-    options: MatmulOptions | None = None,
-    execution: ExecutionCPU | ExecutionCUDA | None = None,
-    stream: utils.AnyStream | int | None = None,
-):
+    alpha: float | complex | Sequence[float | complex] | None = None,
+    beta: float | complex | Sequence[float | complex] | None = None,
+    qualifiers: MatrixQualifier | Sequence[MatrixQualifier] | None = None,
+    options: MatmulOptions | dict[str, Any] | None = None,
+    execution: ExecutionCPU | ExecutionCUDA | str | None = None,
+    stream: AnyStream | int | None = None,
+) -> AnyTensor | Sequence[AnyTensor]:
     """
     Perform the specified matrix multiplication computation :math:`\\alpha a @ b + \\beta
     c`. This function-form is a wrapper around the stateful :class:`Matmul` object APIs and
@@ -1004,8 +2038,8 @@ def matmul(
         >>> b = cp.random.rand(K, N, dtype=cp.float32)
         >>> c = cp.random.rand(M, N, dtype=cp.float32)
 
-        Perform the operation :math:`\\alpha A @ B + \\beta C` using :func:`matmul`. The
-        result `r` is also a CuPy float64 ndarray:
+        Perform the operation :math:`\\alpha a @ b + \\beta c` using :func:`matmul`. The
+        result `r` is also a CuPy float32 ndarray:
 
         >>> r = nvmath.linalg.matmul(a, b, c, alpha=1.23, beta=0.74)
 
@@ -1022,7 +2056,7 @@ def matmul(
         The operation above runs on stream `s` and is ordered with respect to the input
         computation.
 
-        Create  NumPy ndarrays on the CPU.
+        Create NumPy ndarrays on the CPU.
 
         >>> import numpy as np
         >>> a = np.random.rand(M, K)
@@ -1034,10 +2068,10 @@ def matmul(
         >>> r = nvmath.linalg.matmul(a, b)
 
     Notes:
-        - This function is a convenience wrapper around :class:`Matmul` and and is
+        - This function is a convenience wrapper around :class:`Matmul` and is
           specifically meant for *single* use.
 
-    Further examples can be found in the `nvmath/examples/linalg/generic/matmul
+    Further examples can be found in the `examples/linalg/generic/matmul
     <https://github.com/NVIDIA/nvmath-python/tree/main/examples/linalg/generic/matmul>`_
     directory.
     """

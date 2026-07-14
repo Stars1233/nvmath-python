@@ -16,6 +16,8 @@ from nvmath.tensor.contract import (
     binary_contraction,
 )
 
+from ..helpers import assert_reset_to_none_behavior
+
 try:
     import torch
 except Exception:
@@ -96,6 +98,11 @@ def test_contraction_invalid_compute_type():
     message = f"Invalid compute type: {invalid_compute_type}"
     with pytest.raises(ValueError, match=message):
         nvmath.tensor.binary_contraction(expr, a, b, options=options)
+
+
+def test_contraction_options_invalid_result_layout():
+    with pytest.raises(ValueError, match="result_layout"):
+        nvmath.tensor.ContractionOptions(result_layout="invalid")
 
 
 def test_binary_contraction_invalid_qualifiers_length():
@@ -241,8 +248,8 @@ def test_binary_contraction_allocator_invalid_alloc_interface():
 
     with nvmath.tensor.BinaryContraction(expr, a, b, options=options) as contraction:
         contraction.plan()
-        if contraction.workspace_size == 0:
-            contraction.workspace_size = 1024
+        if contraction.workspace.size == 0:
+            contraction.workspace.set_size(1024)
 
         message = "The method 'memalloc' in the allocator object must conform to the interface"
         with pytest.raises(TypeError, match=message):
@@ -448,6 +455,20 @@ def test_binary_contraction_rejects_incompatible_compute_type():
         binary_contraction("ij,jk->ik", a, b, options=options)
 
 
+def test_binary_contraction_rejects_optimized_result_layout_with_addend():
+    message = "Optimized result layout is not supported when an addend is specified."
+
+    with pytest.raises(ValueError, match=message):
+        binary_contraction("ij,jk->ik", a, b, c=c, beta=1.0, options={"result_layout": "optimized"})
+
+
+def test_ternary_contraction_rejects_optimized_result_layout():
+    message = "Optimized result layout is not supported for ternary contraction."
+
+    with pytest.raises(ValueError, match=message):
+        nvmath.tensor.ternary_contraction("ij,jk,kl->il", a, b, c, options={"result_layout": "optimized"})
+
+
 def test_typemap_invalid_dtype_errors():
     invalid_dtype = "float256"
 
@@ -462,3 +483,22 @@ def test_plan_preference_rejects_invalid_contraction():
 
     with pytest.raises(RuntimeError, match=re.escape(error_message)):
         _ = plan_pref.autotune_mode
+
+
+@pytest.mark.parametrize("with_release", [False, True])
+def test_binary_contraction_reset_operands_all_none(with_release):
+    """reset_operands() with all-None always raises ValueError.
+    See assert_reset_to_none_behavior."""
+    cp = pytest.importorskip("cupy")
+
+    shape = (2, 2)
+    a_cp = cp.ones(shape, dtype=cp.float32)
+    b_cp = cp.ones(shape, dtype=cp.float32)
+
+    with nvmath.tensor.BinaryContraction("ij,jk->ik", a_cp, b_cp) as contraction:
+        contraction.plan()
+        assert_reset_to_none_behavior(
+            with_release=with_release,
+            single_operand=False,
+            obj=contraction,
+        )

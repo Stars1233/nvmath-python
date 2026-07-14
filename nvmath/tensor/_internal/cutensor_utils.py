@@ -2,6 +2,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+import math
 import weakref
 from collections.abc import Sequence
 
@@ -55,6 +56,66 @@ def compute_strides(shape: Sequence[int], order: str = "C") -> Sequence[int]:
     else:
         raise ValueError(f"Invalid order: {order}")
     return strides
+
+
+def get_optimized_strides(
+    input_modes: Sequence[Sequence[str]],
+    output_modes: Sequence[str],
+    output_shape: Sequence[int],
+) -> Sequence[int]:
+    """
+    Get the optimized strides for a **binary** contraction output.
+
+    Output modes are split into three groups:
+        - hypermodes in both operands,
+        - un-contracted modes from operand A,
+        - un-contracted modes from operand B.
+
+    In the optimized/canonical output layout, the hyper modes are
+    placed at the beginning, followed by the group of modes with larger
+    combined size, then the other group of modes.
+
+    For example, "Pijab,Pabcd->Picjd" labels hypermode "P", A-only modes "i,j",
+    and B-only modes "c,d". The canonical mode order is either "Pijcd" or "Pcdij",
+    depending on which group has the larger combined size.
+
+    Args:
+        input_modes: Two sequences of mode labels (typically characters), one per operand.
+        output_modes: Output subscript aligned with ``output_shape``.
+        output_shape: Extent along each output mode.
+
+    Returns:
+        Strides in elements matching the memory order implied by ``output_modes``.
+    """
+    if len(input_modes) != 2:
+        raise ValueError("Only binary contraction is supported for optimized strides")
+    a_modes, b_modes = input_modes
+
+    size_dict = dict(zip(output_modes, output_shape, strict=True))
+
+    output_set = set(output_modes)
+    b_set = set(b_modes)
+
+    hyper_modes = [m for m in a_modes if m in output_set and m in b_set]
+    a_remaining_modes = [m for m in a_modes if m in output_set and m not in b_set]
+    b_remaining_modes = [m for m in b_modes if m in output_set and m not in hyper_modes]
+
+    combined_size_a = math.prod(size_dict[mode] for mode in a_remaining_modes)
+    combined_size_b = math.prod(size_dict[mode] for mode in b_remaining_modes)
+
+    if combined_size_a >= combined_size_b:
+        canonical_output_modes = hyper_modes + a_remaining_modes + b_remaining_modes
+    else:
+        canonical_output_modes = hyper_modes + b_remaining_modes + a_remaining_modes
+
+    canonical_output_shape = [size_dict[mode] for mode in canonical_output_modes]
+    canonical_strides = compute_strides(canonical_output_shape, order="C")
+
+    stride_map = dict(zip(canonical_output_modes, canonical_strides, strict=True))
+
+    # Permute strides back to the caller's output mode order.
+    optimized_strides = [stride_map[mode] for mode in output_modes]
+    return optimized_strides
 
 
 class TensorDescriptor:
@@ -137,26 +198,33 @@ class TensorDescriptor:
         )
 
     @classmethod
-    def from_shape_and_dtype(
-        cls, handle: int, shape: Sequence[int], dtype: str, order: str = "C", alignment: int = DEFAULT_ALIGNMENT_REQUIREMENT
+    def from_metadata(
+        cls,
+        handle: int,
+        shape: Sequence[int],
+        dtype: str,
+        strides: Sequence[int] | None = None,
+        alignment: int = DEFAULT_ALIGNMENT_REQUIREMENT,
     ) -> "TensorDescriptor":
         """
-        Create a TensorDescriptor for the given shape, data type, order, and alignment.
+        Create a TensorDescriptor for the given shape, data type, strides, and alignment.
 
         Args:
             handle: The cuTensor library handle.
             shape: The shape (extents) of the tensor.
             dtype: The data type of the tensor as a string.
-            order: The memory layout order. Defaults to ``"C"``.
+            strides: The strides of the tensor. Defaults to C order strides.
             alignment: The alignment requirement in bytes. Defaults to 256.
 
         Returns:
             A TensorDescriptor with the specified properties.
         """
+        if strides is None:
+            strides = compute_strides(shape, order="C")
         return cls(
             handle=handle,
             extents=shape,
-            strides=compute_strides(shape, order),
+            strides=strides,
             dtype=dtype,
             alignment=alignment,
         )

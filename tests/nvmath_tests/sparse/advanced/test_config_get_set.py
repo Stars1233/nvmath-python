@@ -24,29 +24,28 @@ sp = pytest.importorskip("cupyx.scipy.sparse")
 
 
 PLAN_CONFIG_CASES = {
-    "reordering_algorithm": (cudss.AlgType.ALG_2,),
-    "matching_algorithm": (cudss.AlgType.ALG_2,),
-    "pivot_type": (cudss.PivotType.PIVOT_ROW,),
+    "reordering_algorithm": (cudss.ReorderingAlg.COLAMD,),
+    "matching_algorithm": (cudss.MatchingAlg.MAX_MIN_DIAG,),
+    "pivot_type": (cudss.PivotType.PIVOT_GLOBAL_ROW,),
     "pivot_threshold": (0.5,),
     "max_nnz": (13,),
-    "use_matching": (1, 0),
     "nd_min_levels": (3,),
     "use_superpanels": (0, 1),
 }
 
 FACTORIZATION_CONFIG_CASES = {
-    "factorization_algorithm": (cudss.AlgType.ALG_2,),
-    "pivot_eps_algorithm": (cudss.AlgType.ALG_1,),
+    "factorization_algorithm": (cudss.FactorizationAlg.GENERAL,),
+    "pivot_eps_algorithm": (cudss.PivotEpsilonAlg.SCALED,),
     "pivot_eps": (0.25,),
 }
 
 SOLUTION_CONFIG_CASES = {
-    "solution_algorithm": (cudss.AlgType.ALG_1,),
+    "solution_algorithm": (cudss.SolveAlg.GENERAL,),
     "ir_num_steps": (10,),
 }
 
 INTERNAL_CONFIG_CASES = {
-    "hybrid_mode": (1,),
+    "hybrid_memory_mode": (1,),
     "hybrid_device_memory_limit": (3 * 2**20,),
     "use_cuda_register_memory": (0,),
     "hybrid_execute_mode": (1,),

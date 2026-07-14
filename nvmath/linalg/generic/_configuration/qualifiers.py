@@ -45,11 +45,10 @@ class MatmulOptions(StatefulAPIOptions):
         inplace: Whether the matrix multiplication is performed in-place (operand C is
             overwritten).
 
+            .. experimental:: attribute
+
         logger: Python Logger object. The root logger will be used if a
             logger object is not provided.
-
-    .. seealso::
-       :class:`StatefulAPI`
     """
 
     inplace: bool = False

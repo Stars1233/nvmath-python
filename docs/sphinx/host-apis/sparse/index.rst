@@ -2,6 +2,8 @@
 Sparse Linear Algebra
 *********************
 
+.. experimental:: module
+
 .. _sparse-overview:
 
 Overview
@@ -15,7 +17,7 @@ Higher-dimensional sparse tensors may occur in deep learning.
 
 The sparse linear algebra module :mod:`nvmath.sparse` in nvmath-python leverages various
 NVIDIA math libraries to support sparse [#]_ linear algebra computations. As of the current
-Beta release, we offer the Universal Sparse Tensor (UST) to simplify managing sparsity as
+release, we offer the Universal Sparse Tensor (UST) to simplify managing sparsity as
 well as specialized sparse direct solver API based on the `cuDSS library
 <https://docs.nvidia.com/cuda/cudss/>`_. Distributed (multi-node multi-GPU) execution is not
 currently supported.
@@ -242,7 +244,11 @@ Specialized Linear Algebra APIs (:mod:`nvmath.sparse.advanced`)
    :toctree: generated/
    :template: dataclass
 
-   DirectSolverAlgType
+   DirectSolverReorderingAlg
+   DirectSolverFactorizationAlg
+   DirectSolverSolveAlg
+   DirectSolverPivotEpsilonAlg
+   DirectSolverMatchingAlg
    DirectSolverMatrixType
    DirectSolverMatrixViewType
    DirectSolverOptions

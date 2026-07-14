@@ -37,9 +37,8 @@ print(f"The shape of c = {c.shape}.")
 # Create a stateful object that specifies the operation c := alpha a @ b + beta c
 alpha, beta = 1.2, 2.4
 with nvmath.sparse.Matmul(a, b, c, alpha=alpha, beta=beta) as mm:
-    # Plan the SpMM operation. As we will see in later examples, planning
-    # can be customized by providing prologs, epilog, and semiring operations.
-    # The planning needs to be done only once for each problem specification.
+    # Plan the SpMM operation. The planning needs to be done only
+    # once for each problem specification.
     mm.plan()
 
     # Execute the operation.

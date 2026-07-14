@@ -41,9 +41,35 @@ repos:
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: "v1.18.1"
     hooks:
+      # We split the mypy run into two separate hooks to avoid a "Duplicate module named..."
+      # error. Some files in examples/device/numba_cuda_mlir/ have exactly the same name
+      # as files in examples/device/, and mypy treats them as identical modules if
+      # passed together.
       - id: mypy
-        # Envorce only one source of configuration.
+        name: mypy (main and examples)
+        # Enforce only one source of configuration.
         args: ["--config-file", "pyproject.toml"]
+        exclude: ^examples/device/numba_cuda_mlir/
+        additional_dependencies:
+          - cuda-core
+          - cuda-bindings>=12.9.2,<13
+          - cupy-cuda12x
+          - mpi4py>=4.1.0
+          - numba
+          - numba-cuda
+          - numpy
+          - pytest
+          - scipy
+          - torch
+          - types-cffi
+          - invoke
+          - cython>=3.0.4,!=3.1.0,!=3.1.1
+          - tomli
+      - id: mypy
+        name: mypy (numba-cuda-mlir examples)
+        # Enforce only one source of configuration.
+        args: ["--config-file", "pyproject.toml"]
+        files: ^examples/device/numba_cuda_mlir/
         additional_dependencies:
           - cuda-core
           - cuda-bindings>=12.9.2,<13
@@ -105,6 +131,15 @@ repos:
         language_version: "22.14.0"
       # Ignore old internal README that will not be rendered as docs page
         args: ["--fix", "--ignore", "internal/gtc2024/README.md"]
+
+  - repo: local
+    hooks:
+      - id: check-lock-urls
+        name: Check that lock files use internal registries
+        entry: python .ci/check_locks.py
+        language: python
+        files: ^\.ci/locks/.*\.toml$
+        pass_filenames: true
 
   - repo: https://github.com/sphinx-contrib/sphinx-lint
     rev: v1.0.0

@@ -2,12 +2,23 @@
 Distributed runtime
 *******************
 
+.. Use ``group`` here rather than ``module``. These runtime-management APIs are
+   effectively a group of APIs that lives in the umbrella ``nvmath.distributed``
+   module (registered in the API Reference section below). ``module`` would
+   deduce that umbrella name for the banner, which overstates the scope (only
+   these runtime APIs are experimental, not all of ``nvmath.distributed``).
+
+.. experimental:: group
+
+   The APIs for managing the distributed runtime are experimental
+   and potentially subject to future changes.
+
 .. _distributed-api-initialize:
 
 Initializing the distributed runtime
 ====================================
 
-To use the distributed APIs, you must first initialize the distributed runtime.
+To use the distributed host APIs, you must first initialize the distributed runtime.
 This is done by having each process provide a local CUDA device ID (referring
 to a GPU on the host on which that process runs), the process group, and the
 desired communication backends. For example:
@@ -40,11 +51,11 @@ calls to distributed APIs. The process group *type* is tied to the bootstrapping
 
     Distributed FFT requires the NVSHMEM backend.
 
-    Distributed matrix multiplication requires the NCCL backend.
+    Distributed dense linear algebra operations require the NCCL backend.
 
 After initializing the distributed runtime you may use the distributed APIs.
-Certain APIs such as FFT and Reshape require GPU operands to be allocated on the
-NVSHMEM *symmetric memory heap*. Refer to :doc:`Distributed API Utilities <utils>` for
+Certain APIs such as FFT and Redistribute require GPU operands to be allocated on the
+NVSHMEM *symmetric memory heap*. Refer to :doc:`Distributed Host API Utilities <utils>` for
 examples and details of how to manage GPU operands on this type of symmetric memory.
 
 Initialize with MPI process group

@@ -1,0 +1,11 @@
+---
+# Uncomment a section header and replace with your own note.
+#release_summary:
+#features:
+#api:
+#deprecations:
+fixes:
+#issues:
+#security:
+#doc:
+ - Fixed :mod:`nvmath.bindings.nvpl` compatibility with MKL 2026.0.0.

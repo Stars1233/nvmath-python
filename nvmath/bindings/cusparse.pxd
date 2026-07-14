@@ -2,10 +2,11 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 #
-# This code was automatically generated across versions from 12.0.1 to 13.2.0, generator version 0.3.1.dev1380+g2c74a7741. Do not modify it directly.
+# This code was automatically generated across versions from 12.0.1 to 13.2.0, generator version 0.3.1.dev1471+g7122059e9. Do not modify it directly.
 
 cimport cython
 
+from libc.stddef cimport size_t
 from libc.stdint cimport intptr_t
 
 from .cycusparse cimport *
@@ -17,6 +18,15 @@ from .cycusparse cimport *
 
 ctypedef cusparseHandle_t Handle
 ctypedef cusparseMatDescr_t MatDescr
+ctypedef bsrsv2Info_t bsrsv2Info
+ctypedef bsrsm2Info_t bsrsm2Info
+ctypedef csric02Info_t csric02Info
+ctypedef bsric02Info_t bsric02Info
+ctypedef csrilu02Info_t csrilu02Info
+ctypedef bsrilu02Info_t bsrilu02Info
+ctypedef csru2csrInfo_t csru2csrInfo
+ctypedef cusparseColorInfo_t cusparseColorInfo
+ctypedef pruneInfo_t pruneInfo
 ctypedef cusparseSpVecDescr_t SpVecDescr
 ctypedef cusparseDnVecDescr_t DnVecDescr
 ctypedef cusparseSpMatDescr_t SpMatDescr
@@ -75,6 +85,10 @@ ctypedef cusparseSpSMUpdate_t _SpSMUpdate
 # Functions
 ###############################################################################
 
+cpdef size_t sp_gemm_estimate_memory_buffersize3(intptr_t handle, int op_a, int op_b, intptr_t alpha, intptr_t mat_a, intptr_t mat_b, intptr_t beta, intptr_t mat_c, int compute_type, int alg, intptr_t spgemm_descr, float chunk_fraction)
+
+cpdef size_t sp_gemm_estimate_memory_buffersize2(intptr_t handle, int op_a, int op_b, intptr_t alpha, intptr_t mat_a, intptr_t mat_b, intptr_t beta, intptr_t mat_c, int compute_type, int alg, intptr_t spgemm_descr, float chunk_fraction, size_t buffer_size3, intptr_t external_buffer3)
+
 cpdef intptr_t create() except? 0
 cpdef destroy(intptr_t handle)
 cpdef int get_version(intptr_t handle) except? -1
@@ -99,6 +113,26 @@ cpdef set_mat_diag_type(intptr_t descr_a, int diag_type)
 cpdef int get_mat_diag_type(intptr_t descr_a) except? -1
 cpdef set_mat_index_base(intptr_t descr_a, int base)
 cpdef int get_mat_index_base(intptr_t descr_a) except? -1
+cpdef intptr_t create_csric02_info() except? 0
+cpdef destroy_csric02_info(intptr_t info)
+cpdef intptr_t create_bsric02_info() except? 0
+cpdef destroy_bsric02_info(intptr_t info)
+cpdef intptr_t create_csrilu02_info() except? 0
+cpdef destroy_csrilu02_info(intptr_t info)
+cpdef intptr_t create_bsrilu02_info() except? 0
+cpdef destroy_bsrilu02_info(intptr_t info)
+cpdef intptr_t create_bsrsv2_info() except? 0
+cpdef destroy_bsrsv2_info(intptr_t info)
+cpdef intptr_t create_bsrsm2_info() except? 0
+cpdef destroy_bsrsm2_info(intptr_t info)
+cpdef intptr_t create_csru2csr_info() except? 0
+cpdef destroy_csru2csr_info(intptr_t info)
+cpdef intptr_t create_color_info() except? 0
+cpdef destroy_color_info(intptr_t info)
+cpdef set_color_algs(intptr_t info, int alg)
+cpdef int get_color_algs(intptr_t info) except? -1
+cpdef intptr_t create_prune_info() except? 0
+cpdef destroy_prune_info(intptr_t info)
 cpdef sgemvi(intptr_t handle, int trans_a, int m, int n, intptr_t alpha, intptr_t a, int lda, int nnz, intptr_t x_val, intptr_t x_ind, intptr_t beta, intptr_t y, int idx_base, intptr_t p_buffer)
 cpdef int sgemvi_buffer_size(intptr_t handle, int trans_a, int m, int n, int nnz) except? -1
 cpdef dgemvi(intptr_t handle, int trans_a, int m, int n, intptr_t alpha, intptr_t a, int lda, int nnz, intptr_t x_val, intptr_t x_ind, intptr_t beta, intptr_t y, int idx_base, intptr_t p_buffer)
@@ -111,10 +145,124 @@ cpdef sbsrmv(intptr_t handle, int dir_a, int trans_a, int mb, int nb, int nnzb, 
 cpdef dbsrmv(intptr_t handle, int dir_a, int trans_a, int mb, int nb, int nnzb, intptr_t alpha, intptr_t descr_a, intptr_t bsr_sorted_val_a, intptr_t bsr_sorted_row_ptr_a, intptr_t bsr_sorted_col_ind_a, int block_dim, intptr_t x, intptr_t beta, intptr_t y)
 cpdef cbsrmv(intptr_t handle, int dir_a, int trans_a, int mb, int nb, int nnzb, intptr_t alpha, intptr_t descr_a, intptr_t bsr_sorted_val_a, intptr_t bsr_sorted_row_ptr_a, intptr_t bsr_sorted_col_ind_a, int block_dim, intptr_t x, intptr_t beta, intptr_t y)
 cpdef zbsrmv(intptr_t handle, int dir_a, int trans_a, int mb, int nb, int nnzb, intptr_t alpha, intptr_t descr_a, intptr_t bsr_sorted_val_a, intptr_t bsr_sorted_row_ptr_a, intptr_t bsr_sorted_col_ind_a, int block_dim, intptr_t x, intptr_t beta, intptr_t y)
+cpdef sbsrxmv(intptr_t handle, int dir_a, int trans_a, int size_of_mask, int mb, int nb, int nnzb, intptr_t alpha, intptr_t descr_a, intptr_t bsr_sorted_val_a, intptr_t bsr_sorted_mask_ptr_a, intptr_t bsr_sorted_row_ptr_a, intptr_t bsr_sorted_end_ptr_a, intptr_t bsr_sorted_col_ind_a, int block_dim, intptr_t x, intptr_t beta, intptr_t y)
+cpdef dbsrxmv(intptr_t handle, int dir_a, int trans_a, int size_of_mask, int mb, int nb, int nnzb, intptr_t alpha, intptr_t descr_a, intptr_t bsr_sorted_val_a, intptr_t bsr_sorted_mask_ptr_a, intptr_t bsr_sorted_row_ptr_a, intptr_t bsr_sorted_end_ptr_a, intptr_t bsr_sorted_col_ind_a, int block_dim, intptr_t x, intptr_t beta, intptr_t y)
+cpdef cbsrxmv(intptr_t handle, int dir_a, int trans_a, int size_of_mask, int mb, int nb, int nnzb, intptr_t alpha, intptr_t descr_a, intptr_t bsr_sorted_val_a, intptr_t bsr_sorted_mask_ptr_a, intptr_t bsr_sorted_row_ptr_a, intptr_t bsr_sorted_end_ptr_a, intptr_t bsr_sorted_col_ind_a, int block_dim, intptr_t x, intptr_t beta, intptr_t y)
+cpdef zbsrxmv(intptr_t handle, int dir_a, int trans_a, int size_of_mask, int mb, int nb, int nnzb, intptr_t alpha, intptr_t descr_a, intptr_t bsr_sorted_val_a, intptr_t bsr_sorted_mask_ptr_a, intptr_t bsr_sorted_row_ptr_a, intptr_t bsr_sorted_end_ptr_a, intptr_t bsr_sorted_col_ind_a, int block_dim, intptr_t x, intptr_t beta, intptr_t y)
+cpdef int xbsrsv2_zero_pivot(intptr_t handle, intptr_t info) except? -1
+cpdef int sbsrsv2_buffer_size(intptr_t handle, int dir_a, int trans_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val_a, intptr_t bsr_sorted_row_ptr_a, intptr_t bsr_sorted_col_ind_a, int block_dim, intptr_t info) except? -1
+cpdef int dbsrsv2_buffer_size(intptr_t handle, int dir_a, int trans_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val_a, intptr_t bsr_sorted_row_ptr_a, intptr_t bsr_sorted_col_ind_a, int block_dim, intptr_t info) except? -1
+cpdef int cbsrsv2_buffer_size(intptr_t handle, int dir_a, int trans_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val_a, intptr_t bsr_sorted_row_ptr_a, intptr_t bsr_sorted_col_ind_a, int block_dim, intptr_t info) except? -1
+cpdef int zbsrsv2_buffer_size(intptr_t handle, int dir_a, int trans_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val_a, intptr_t bsr_sorted_row_ptr_a, intptr_t bsr_sorted_col_ind_a, int block_dim, intptr_t info) except? -1
+cpdef size_t sbsrsv2_buffer_size_ext(intptr_t handle, int dir_a, int trans_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val_a, intptr_t bsr_sorted_row_ptr_a, intptr_t bsr_sorted_col_ind_a, int block_size, intptr_t info) except? 0
+cpdef size_t dbsrsv2_buffer_size_ext(intptr_t handle, int dir_a, int trans_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val_a, intptr_t bsr_sorted_row_ptr_a, intptr_t bsr_sorted_col_ind_a, int block_size, intptr_t info) except? 0
+cpdef size_t cbsrsv2_buffer_size_ext(intptr_t handle, int dir_a, int trans_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val_a, intptr_t bsr_sorted_row_ptr_a, intptr_t bsr_sorted_col_ind_a, int block_size, intptr_t info) except? 0
+cpdef size_t zbsrsv2_buffer_size_ext(intptr_t handle, int dir_a, int trans_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val_a, intptr_t bsr_sorted_row_ptr_a, intptr_t bsr_sorted_col_ind_a, int block_size, intptr_t info) except? 0
+cpdef sbsrsv2_analysis(intptr_t handle, int dir_a, int trans_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val_a, intptr_t bsr_sorted_row_ptr_a, intptr_t bsr_sorted_col_ind_a, int block_dim, intptr_t info, int policy, intptr_t p_buffer)
+cpdef dbsrsv2_analysis(intptr_t handle, int dir_a, int trans_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val_a, intptr_t bsr_sorted_row_ptr_a, intptr_t bsr_sorted_col_ind_a, int block_dim, intptr_t info, int policy, intptr_t p_buffer)
+cpdef cbsrsv2_analysis(intptr_t handle, int dir_a, int trans_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val_a, intptr_t bsr_sorted_row_ptr_a, intptr_t bsr_sorted_col_ind_a, int block_dim, intptr_t info, int policy, intptr_t p_buffer)
+cpdef zbsrsv2_analysis(intptr_t handle, int dir_a, int trans_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val_a, intptr_t bsr_sorted_row_ptr_a, intptr_t bsr_sorted_col_ind_a, int block_dim, intptr_t info, int policy, intptr_t p_buffer)
+cpdef sbsrsv2_solve(intptr_t handle, int dir_a, int trans_a, int mb, int nnzb, intptr_t alpha, intptr_t descr_a, intptr_t bsr_sorted_val_a, intptr_t bsr_sorted_row_ptr_a, intptr_t bsr_sorted_col_ind_a, int block_dim, intptr_t info, intptr_t f, intptr_t x, int policy, intptr_t p_buffer)
+cpdef dbsrsv2_solve(intptr_t handle, int dir_a, int trans_a, int mb, int nnzb, intptr_t alpha, intptr_t descr_a, intptr_t bsr_sorted_val_a, intptr_t bsr_sorted_row_ptr_a, intptr_t bsr_sorted_col_ind_a, int block_dim, intptr_t info, intptr_t f, intptr_t x, int policy, intptr_t p_buffer)
+cpdef cbsrsv2_solve(intptr_t handle, int dir_a, int trans_a, int mb, int nnzb, intptr_t alpha, intptr_t descr_a, intptr_t bsr_sorted_val_a, intptr_t bsr_sorted_row_ptr_a, intptr_t bsr_sorted_col_ind_a, int block_dim, intptr_t info, intptr_t f, intptr_t x, int policy, intptr_t p_buffer)
+cpdef zbsrsv2_solve(intptr_t handle, int dir_a, int trans_a, int mb, int nnzb, intptr_t alpha, intptr_t descr_a, intptr_t bsr_sorted_val_a, intptr_t bsr_sorted_row_ptr_a, intptr_t bsr_sorted_col_ind_a, int block_dim, intptr_t info, intptr_t f, intptr_t x, int policy, intptr_t p_buffer)
 cpdef sbsrmm(intptr_t handle, int dir_a, int trans_a, int trans_b, int mb, int n, int kb, int nnzb, intptr_t alpha, intptr_t descr_a, intptr_t bsr_sorted_val_a, intptr_t bsr_sorted_row_ptr_a, intptr_t bsr_sorted_col_ind_a, int block_size, intptr_t b, int ldb, intptr_t beta, intptr_t c, int ldc)
 cpdef dbsrmm(intptr_t handle, int dir_a, int trans_a, int trans_b, int mb, int n, int kb, int nnzb, intptr_t alpha, intptr_t descr_a, intptr_t bsr_sorted_val_a, intptr_t bsr_sorted_row_ptr_a, intptr_t bsr_sorted_col_ind_a, int block_size, intptr_t b, int ldb, intptr_t beta, intptr_t c, int ldc)
 cpdef cbsrmm(intptr_t handle, int dir_a, int trans_a, int trans_b, int mb, int n, int kb, int nnzb, intptr_t alpha, intptr_t descr_a, intptr_t bsr_sorted_val_a, intptr_t bsr_sorted_row_ptr_a, intptr_t bsr_sorted_col_ind_a, int block_size, intptr_t b, int ldb, intptr_t beta, intptr_t c, int ldc)
 cpdef zbsrmm(intptr_t handle, int dir_a, int trans_a, int trans_b, int mb, int n, int kb, int nnzb, intptr_t alpha, intptr_t descr_a, intptr_t bsr_sorted_val_a, intptr_t bsr_sorted_row_ptr_a, intptr_t bsr_sorted_col_ind_a, int block_size, intptr_t b, int ldb, intptr_t beta, intptr_t c, int ldc)
+cpdef int xbsrsm2_zero_pivot(intptr_t handle, intptr_t info) except? -1
+cpdef int sbsrsm2_buffer_size(intptr_t handle, int dir_a, int trans_a, int trans_xy, int mb, int n, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_size, intptr_t info) except? -1
+cpdef int dbsrsm2_buffer_size(intptr_t handle, int dir_a, int trans_a, int trans_xy, int mb, int n, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_size, intptr_t info) except? -1
+cpdef int cbsrsm2_buffer_size(intptr_t handle, int dir_a, int trans_a, int trans_xy, int mb, int n, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_size, intptr_t info) except? -1
+cpdef int zbsrsm2_buffer_size(intptr_t handle, int dir_a, int trans_a, int trans_xy, int mb, int n, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_size, intptr_t info) except? -1
+cpdef size_t sbsrsm2_buffer_size_ext(intptr_t handle, int dir_a, int trans_a, int trans_b, int mb, int n, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_size, intptr_t info) except? 0
+cpdef size_t dbsrsm2_buffer_size_ext(intptr_t handle, int dir_a, int trans_a, int trans_b, int mb, int n, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_size, intptr_t info) except? 0
+cpdef size_t cbsrsm2_buffer_size_ext(intptr_t handle, int dir_a, int trans_a, int trans_b, int mb, int n, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_size, intptr_t info) except? 0
+cpdef size_t zbsrsm2_buffer_size_ext(intptr_t handle, int dir_a, int trans_a, int trans_b, int mb, int n, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_size, intptr_t info) except? 0
+cpdef sbsrsm2_analysis(intptr_t handle, int dir_a, int trans_a, int trans_xy, int mb, int n, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_size, intptr_t info, int policy, intptr_t p_buffer)
+cpdef dbsrsm2_analysis(intptr_t handle, int dir_a, int trans_a, int trans_xy, int mb, int n, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_size, intptr_t info, int policy, intptr_t p_buffer)
+cpdef cbsrsm2_analysis(intptr_t handle, int dir_a, int trans_a, int trans_xy, int mb, int n, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_size, intptr_t info, int policy, intptr_t p_buffer)
+cpdef zbsrsm2_analysis(intptr_t handle, int dir_a, int trans_a, int trans_xy, int mb, int n, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_size, intptr_t info, int policy, intptr_t p_buffer)
+cpdef sbsrsm2_solve(intptr_t handle, int dir_a, int trans_a, int trans_xy, int mb, int n, int nnzb, intptr_t alpha, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_size, intptr_t info, intptr_t b, int ldb, intptr_t x, int ldx, int policy, intptr_t p_buffer)
+cpdef dbsrsm2_solve(intptr_t handle, int dir_a, int trans_a, int trans_xy, int mb, int n, int nnzb, intptr_t alpha, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_size, intptr_t info, intptr_t b, int ldb, intptr_t x, int ldx, int policy, intptr_t p_buffer)
+cpdef cbsrsm2_solve(intptr_t handle, int dir_a, int trans_a, int trans_xy, int mb, int n, int nnzb, intptr_t alpha, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_size, intptr_t info, intptr_t b, int ldb, intptr_t x, int ldx, int policy, intptr_t p_buffer)
+cpdef zbsrsm2_solve(intptr_t handle, int dir_a, int trans_a, int trans_xy, int mb, int n, int nnzb, intptr_t alpha, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_size, intptr_t info, intptr_t b, int ldb, intptr_t x, int ldx, int policy, intptr_t p_buffer)
+cpdef scsrilu02_numeric_boost(intptr_t handle, intptr_t info, int enable_boost, intptr_t tol, intptr_t boost_val)
+cpdef dcsrilu02_numeric_boost(intptr_t handle, intptr_t info, int enable_boost, intptr_t tol, intptr_t boost_val)
+cpdef ccsrilu02_numeric_boost(intptr_t handle, intptr_t info, int enable_boost, intptr_t tol, intptr_t boost_val)
+cpdef zcsrilu02_numeric_boost(intptr_t handle, intptr_t info, int enable_boost, intptr_t tol, intptr_t boost_val)
+cpdef int xcsrilu02_zero_pivot(intptr_t handle, intptr_t info) except? -1
+cpdef int scsrilu02_buffer_size(intptr_t handle, int m, int nnz, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, intptr_t info) except? -1
+cpdef int dcsrilu02_buffer_size(intptr_t handle, int m, int nnz, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, intptr_t info) except? -1
+cpdef int ccsrilu02_buffer_size(intptr_t handle, int m, int nnz, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, intptr_t info) except? -1
+cpdef int zcsrilu02_buffer_size(intptr_t handle, int m, int nnz, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, intptr_t info) except? -1
+cpdef size_t scsrilu02_buffer_size_ext(intptr_t handle, int m, int nnz, intptr_t descr_a, intptr_t csr_sorted_val, intptr_t csr_sorted_row_ptr, intptr_t csr_sorted_col_ind, intptr_t info) except? 0
+cpdef size_t dcsrilu02_buffer_size_ext(intptr_t handle, int m, int nnz, intptr_t descr_a, intptr_t csr_sorted_val, intptr_t csr_sorted_row_ptr, intptr_t csr_sorted_col_ind, intptr_t info) except? 0
+cpdef size_t ccsrilu02_buffer_size_ext(intptr_t handle, int m, int nnz, intptr_t descr_a, intptr_t csr_sorted_val, intptr_t csr_sorted_row_ptr, intptr_t csr_sorted_col_ind, intptr_t info) except? 0
+cpdef size_t zcsrilu02_buffer_size_ext(intptr_t handle, int m, int nnz, intptr_t descr_a, intptr_t csr_sorted_val, intptr_t csr_sorted_row_ptr, intptr_t csr_sorted_col_ind, intptr_t info) except? 0
+cpdef scsrilu02_analysis(intptr_t handle, int m, int nnz, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, intptr_t info, int policy, intptr_t p_buffer)
+cpdef dcsrilu02_analysis(intptr_t handle, int m, int nnz, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, intptr_t info, int policy, intptr_t p_buffer)
+cpdef ccsrilu02_analysis(intptr_t handle, int m, int nnz, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, intptr_t info, int policy, intptr_t p_buffer)
+cpdef zcsrilu02_analysis(intptr_t handle, int m, int nnz, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, intptr_t info, int policy, intptr_t p_buffer)
+cpdef scsrilu02(intptr_t handle, int m, int nnz, intptr_t descr_a, intptr_t csr_sorted_val_a_val_m, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, intptr_t info, int policy, intptr_t p_buffer)
+cpdef dcsrilu02(intptr_t handle, int m, int nnz, intptr_t descr_a, intptr_t csr_sorted_val_a_val_m, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, intptr_t info, int policy, intptr_t p_buffer)
+cpdef ccsrilu02(intptr_t handle, int m, int nnz, intptr_t descr_a, intptr_t csr_sorted_val_a_val_m, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, intptr_t info, int policy, intptr_t p_buffer)
+cpdef zcsrilu02(intptr_t handle, int m, int nnz, intptr_t descr_a, intptr_t csr_sorted_val_a_val_m, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, intptr_t info, int policy, intptr_t p_buffer)
+cpdef sbsrilu02_numeric_boost(intptr_t handle, intptr_t info, int enable_boost, intptr_t tol, intptr_t boost_val)
+cpdef dbsrilu02_numeric_boost(intptr_t handle, intptr_t info, int enable_boost, intptr_t tol, intptr_t boost_val)
+cpdef cbsrilu02_numeric_boost(intptr_t handle, intptr_t info, int enable_boost, intptr_t tol, intptr_t boost_val)
+cpdef zbsrilu02_numeric_boost(intptr_t handle, intptr_t info, int enable_boost, intptr_t tol, intptr_t boost_val)
+cpdef int xbsrilu02_zero_pivot(intptr_t handle, intptr_t info) except? -1
+cpdef int sbsrilu02_buffer_size(intptr_t handle, int dir_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_dim, intptr_t info) except? -1
+cpdef int dbsrilu02_buffer_size(intptr_t handle, int dir_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_dim, intptr_t info) except? -1
+cpdef int cbsrilu02_buffer_size(intptr_t handle, int dir_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_dim, intptr_t info) except? -1
+cpdef int zbsrilu02_buffer_size(intptr_t handle, int dir_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_dim, intptr_t info) except? -1
+cpdef size_t sbsrilu02_buffer_size_ext(intptr_t handle, int dir_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_size, intptr_t info) except? 0
+cpdef size_t dbsrilu02_buffer_size_ext(intptr_t handle, int dir_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_size, intptr_t info) except? 0
+cpdef size_t cbsrilu02_buffer_size_ext(intptr_t handle, int dir_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_size, intptr_t info) except? 0
+cpdef size_t zbsrilu02_buffer_size_ext(intptr_t handle, int dir_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_size, intptr_t info) except? 0
+cpdef sbsrilu02_analysis(intptr_t handle, int dir_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_dim, intptr_t info, int policy, intptr_t p_buffer)
+cpdef dbsrilu02_analysis(intptr_t handle, int dir_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_dim, intptr_t info, int policy, intptr_t p_buffer)
+cpdef cbsrilu02_analysis(intptr_t handle, int dir_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_dim, intptr_t info, int policy, intptr_t p_buffer)
+cpdef zbsrilu02_analysis(intptr_t handle, int dir_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_dim, intptr_t info, int policy, intptr_t p_buffer)
+cpdef sbsrilu02(intptr_t handle, int dir_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_dim, intptr_t info, int policy, intptr_t p_buffer)
+cpdef dbsrilu02(intptr_t handle, int dir_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_dim, intptr_t info, int policy, intptr_t p_buffer)
+cpdef cbsrilu02(intptr_t handle, int dir_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_dim, intptr_t info, int policy, intptr_t p_buffer)
+cpdef zbsrilu02(intptr_t handle, int dir_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_dim, intptr_t info, int policy, intptr_t p_buffer)
+cpdef int xcsric02_zero_pivot(intptr_t handle, intptr_t info) except? -1
+cpdef int scsric02_buffer_size(intptr_t handle, int m, int nnz, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, intptr_t info) except? -1
+cpdef int dcsric02_buffer_size(intptr_t handle, int m, int nnz, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, intptr_t info) except? -1
+cpdef int ccsric02_buffer_size(intptr_t handle, int m, int nnz, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, intptr_t info) except? -1
+cpdef int zcsric02_buffer_size(intptr_t handle, int m, int nnz, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, intptr_t info) except? -1
+cpdef size_t scsric02_buffer_size_ext(intptr_t handle, int m, int nnz, intptr_t descr_a, intptr_t csr_sorted_val, intptr_t csr_sorted_row_ptr, intptr_t csr_sorted_col_ind, intptr_t info) except? 0
+cpdef size_t dcsric02_buffer_size_ext(intptr_t handle, int m, int nnz, intptr_t descr_a, intptr_t csr_sorted_val, intptr_t csr_sorted_row_ptr, intptr_t csr_sorted_col_ind, intptr_t info) except? 0
+cpdef size_t ccsric02_buffer_size_ext(intptr_t handle, int m, int nnz, intptr_t descr_a, intptr_t csr_sorted_val, intptr_t csr_sorted_row_ptr, intptr_t csr_sorted_col_ind, intptr_t info) except? 0
+cpdef size_t zcsric02_buffer_size_ext(intptr_t handle, int m, int nnz, intptr_t descr_a, intptr_t csr_sorted_val, intptr_t csr_sorted_row_ptr, intptr_t csr_sorted_col_ind, intptr_t info) except? 0
+cpdef scsric02_analysis(intptr_t handle, int m, int nnz, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, intptr_t info, int policy, intptr_t p_buffer)
+cpdef dcsric02_analysis(intptr_t handle, int m, int nnz, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, intptr_t info, int policy, intptr_t p_buffer)
+cpdef ccsric02_analysis(intptr_t handle, int m, int nnz, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, intptr_t info, int policy, intptr_t p_buffer)
+cpdef zcsric02_analysis(intptr_t handle, int m, int nnz, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, intptr_t info, int policy, intptr_t p_buffer)
+cpdef scsric02(intptr_t handle, int m, int nnz, intptr_t descr_a, intptr_t csr_sorted_val_a_val_m, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, intptr_t info, int policy, intptr_t p_buffer)
+cpdef dcsric02(intptr_t handle, int m, int nnz, intptr_t descr_a, intptr_t csr_sorted_val_a_val_m, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, intptr_t info, int policy, intptr_t p_buffer)
+cpdef ccsric02(intptr_t handle, int m, int nnz, intptr_t descr_a, intptr_t csr_sorted_val_a_val_m, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, intptr_t info, int policy, intptr_t p_buffer)
+cpdef zcsric02(intptr_t handle, int m, int nnz, intptr_t descr_a, intptr_t csr_sorted_val_a_val_m, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, intptr_t info, int policy, intptr_t p_buffer)
+cpdef int xbsric02_zero_pivot(intptr_t handle, intptr_t info) except? -1
+cpdef int sbsric02_buffer_size(intptr_t handle, int dir_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_dim, intptr_t info) except? -1
+cpdef int dbsric02_buffer_size(intptr_t handle, int dir_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_dim, intptr_t info) except? -1
+cpdef int cbsric02_buffer_size(intptr_t handle, int dir_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_dim, intptr_t info) except? -1
+cpdef int zbsric02_buffer_size(intptr_t handle, int dir_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_dim, intptr_t info) except? -1
+cpdef size_t sbsric02_buffer_size_ext(intptr_t handle, int dir_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_size, intptr_t info) except? 0
+cpdef size_t dbsric02_buffer_size_ext(intptr_t handle, int dir_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_size, intptr_t info) except? 0
+cpdef size_t cbsric02_buffer_size_ext(intptr_t handle, int dir_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_size, intptr_t info) except? 0
+cpdef size_t zbsric02_buffer_size_ext(intptr_t handle, int dir_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_size, intptr_t info) except? 0
+cpdef sbsric02_analysis(intptr_t handle, int dir_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_dim, intptr_t info, int policy, intptr_t p_input_buffer)
+cpdef dbsric02_analysis(intptr_t handle, int dir_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_dim, intptr_t info, int policy, intptr_t p_input_buffer)
+cpdef cbsric02_analysis(intptr_t handle, int dir_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_dim, intptr_t info, int policy, intptr_t p_input_buffer)
+cpdef zbsric02_analysis(intptr_t handle, int dir_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_dim, intptr_t info, int policy, intptr_t p_input_buffer)
+cpdef sbsric02(intptr_t handle, int dir_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_dim, intptr_t info, int policy, intptr_t p_buffer)
+cpdef dbsric02(intptr_t handle, int dir_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_dim, intptr_t info, int policy, intptr_t p_buffer)
+cpdef cbsric02(intptr_t handle, int dir_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_dim, intptr_t info, int policy, intptr_t p_buffer)
+cpdef zbsric02(intptr_t handle, int dir_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_dim, intptr_t info, int policy, intptr_t p_buffer)
 cpdef size_t sgtsv2_buffer_size_ext(intptr_t handle, int m, int n, intptr_t dl, intptr_t d, intptr_t du, intptr_t b, int ldb) except? 0
 cpdef size_t dgtsv2_buffer_size_ext(intptr_t handle, int m, int n, intptr_t dl, intptr_t d, intptr_t du, intptr_t b, int ldb) except? 0
 cpdef size_t cgtsv2_buffer_size_ext(intptr_t handle, int m, int n, intptr_t dl, intptr_t d, intptr_t du, intptr_t b, int ldb) except? 0
@@ -164,12 +312,29 @@ cpdef scsrgeam2(intptr_t handle, int m, int n, intptr_t alpha, intptr_t descr_a,
 cpdef dcsrgeam2(intptr_t handle, int m, int n, intptr_t alpha, intptr_t descr_a, int nnz_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, intptr_t beta, intptr_t descr_b, int nnz_b, intptr_t csr_sorted_val_b, intptr_t csr_sorted_row_ptr_b, intptr_t csr_sorted_col_ind_b, intptr_t descr_c, intptr_t csr_sorted_val_c, intptr_t csr_sorted_row_ptr_c, intptr_t csr_sorted_col_ind_c, intptr_t p_buffer)
 cpdef ccsrgeam2(intptr_t handle, int m, int n, intptr_t alpha, intptr_t descr_a, int nnz_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, intptr_t beta, intptr_t descr_b, int nnz_b, intptr_t csr_sorted_val_b, intptr_t csr_sorted_row_ptr_b, intptr_t csr_sorted_col_ind_b, intptr_t descr_c, intptr_t csr_sorted_val_c, intptr_t csr_sorted_row_ptr_c, intptr_t csr_sorted_col_ind_c, intptr_t p_buffer)
 cpdef zcsrgeam2(intptr_t handle, int m, int n, intptr_t alpha, intptr_t descr_a, int nnz_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, intptr_t beta, intptr_t descr_b, int nnz_b, intptr_t csr_sorted_val_b, intptr_t csr_sorted_row_ptr_b, intptr_t csr_sorted_col_ind_b, intptr_t descr_c, intptr_t csr_sorted_val_c, intptr_t csr_sorted_row_ptr_c, intptr_t csr_sorted_col_ind_c, intptr_t p_buffer)
+cpdef scsrcolor(intptr_t handle, int m, int nnz, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, intptr_t fraction_to_color, intptr_t ncolors, intptr_t coloring, intptr_t reordering, intptr_t info)
+cpdef dcsrcolor(intptr_t handle, int m, int nnz, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, intptr_t fraction_to_color, intptr_t ncolors, intptr_t coloring, intptr_t reordering, intptr_t info)
+cpdef ccsrcolor(intptr_t handle, int m, int nnz, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, intptr_t fraction_to_color, intptr_t ncolors, intptr_t coloring, intptr_t reordering, intptr_t info)
+cpdef zcsrcolor(intptr_t handle, int m, int nnz, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, intptr_t fraction_to_color, intptr_t ncolors, intptr_t coloring, intptr_t reordering, intptr_t info)
 cpdef snnz(intptr_t handle, int dir_a, int m, int n, intptr_t descr_a, intptr_t a, int lda, intptr_t nnz_per_row_col, intptr_t nnz_total_dev_host_ptr)
 cpdef dnnz(intptr_t handle, int dir_a, int m, int n, intptr_t descr_a, intptr_t a, int lda, intptr_t nnz_per_row_col, intptr_t nnz_total_dev_host_ptr)
 cpdef cnnz(intptr_t handle, int dir_a, int m, int n, intptr_t descr_a, intptr_t a, int lda, intptr_t nnz_per_row_col, intptr_t nnz_total_dev_host_ptr)
 cpdef znnz(intptr_t handle, int dir_a, int m, int n, intptr_t descr_a, intptr_t a, int lda, intptr_t nnz_per_row_col, intptr_t nnz_total_dev_host_ptr)
+cpdef snnz_compress(intptr_t handle, int m, intptr_t descr, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t nnz_per_row, intptr_t nnz_c, float tol)
+cpdef dnnz_compress(intptr_t handle, int m, intptr_t descr, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t nnz_per_row, intptr_t nnz_c, double tol)
+cpdef cnnz_compress(intptr_t handle, int m, intptr_t descr, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t nnz_per_row, intptr_t nnz_c, complex tol)
+cpdef znnz_compress(intptr_t handle, int m, intptr_t descr, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t nnz_per_row, intptr_t nnz_c, complex tol)
+cpdef scsr2csr_compress(intptr_t handle, int m, int n, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_col_ind_a, intptr_t csr_sorted_row_ptr_a, int nnz_a, intptr_t nnz_per_row, intptr_t csr_sorted_val_c, intptr_t csr_sorted_col_ind_c, intptr_t csr_sorted_row_ptr_c, float tol)
+cpdef dcsr2csr_compress(intptr_t handle, int m, int n, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_col_ind_a, intptr_t csr_sorted_row_ptr_a, int nnz_a, intptr_t nnz_per_row, intptr_t csr_sorted_val_c, intptr_t csr_sorted_col_ind_c, intptr_t csr_sorted_row_ptr_c, double tol)
+cpdef ccsr2csr_compress(intptr_t handle, int m, int n, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_col_ind_a, intptr_t csr_sorted_row_ptr_a, int nnz_a, intptr_t nnz_per_row, intptr_t csr_sorted_val_c, intptr_t csr_sorted_col_ind_c, intptr_t csr_sorted_row_ptr_c, complex tol)
+cpdef zcsr2csr_compress(intptr_t handle, int m, int n, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_col_ind_a, intptr_t csr_sorted_row_ptr_a, int nnz_a, intptr_t nnz_per_row, intptr_t csr_sorted_val_c, intptr_t csr_sorted_col_ind_c, intptr_t csr_sorted_row_ptr_c, complex tol)
 cpdef xcoo2csr(intptr_t handle, intptr_t coo_row_ind, int nnz, int m, intptr_t csr_sorted_row_ptr, int idx_base)
 cpdef xcsr2coo(intptr_t handle, intptr_t csr_sorted_row_ptr, int nnz, int m, intptr_t coo_row_ind, int idx_base)
+cpdef xcsr2bsr_nnz(intptr_t handle, int dir_a, int m, int n, intptr_t descr_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, int block_dim, intptr_t descr_c, intptr_t bsr_sorted_row_ptr_c, intptr_t nnz_total_dev_host_ptr)
+cpdef scsr2bsr(intptr_t handle, int dir_a, int m, int n, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, int block_dim, intptr_t descr_c, intptr_t bsr_sorted_val_c, intptr_t bsr_sorted_row_ptr_c, intptr_t bsr_sorted_col_ind_c)
+cpdef dcsr2bsr(intptr_t handle, int dir_a, int m, int n, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, int block_dim, intptr_t descr_c, intptr_t bsr_sorted_val_c, intptr_t bsr_sorted_row_ptr_c, intptr_t bsr_sorted_col_ind_c)
+cpdef ccsr2bsr(intptr_t handle, int dir_a, int m, int n, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, int block_dim, intptr_t descr_c, intptr_t bsr_sorted_val_c, intptr_t bsr_sorted_row_ptr_c, intptr_t bsr_sorted_col_ind_c)
+cpdef zcsr2bsr(intptr_t handle, int dir_a, int m, int n, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, int block_dim, intptr_t descr_c, intptr_t bsr_sorted_val_c, intptr_t bsr_sorted_row_ptr_c, intptr_t bsr_sorted_col_ind_c)
 cpdef sbsr2csr(intptr_t handle, int dir_a, int mb, int nb, intptr_t descr_a, intptr_t bsr_sorted_val_a, intptr_t bsr_sorted_row_ptr_a, intptr_t bsr_sorted_col_ind_a, int block_dim, intptr_t descr_c, intptr_t csr_sorted_val_c, intptr_t csr_sorted_row_ptr_c, intptr_t csr_sorted_col_ind_c)
 cpdef dbsr2csr(intptr_t handle, int dir_a, int mb, int nb, intptr_t descr_a, intptr_t bsr_sorted_val_a, intptr_t bsr_sorted_row_ptr_a, intptr_t bsr_sorted_col_ind_a, int block_dim, intptr_t descr_c, intptr_t csr_sorted_val_c, intptr_t csr_sorted_row_ptr_c, intptr_t csr_sorted_col_ind_c)
 cpdef cbsr2csr(intptr_t handle, int dir_a, int mb, int nb, intptr_t descr_a, intptr_t bsr_sorted_val_a, intptr_t bsr_sorted_row_ptr_a, intptr_t bsr_sorted_col_ind_a, int block_dim, intptr_t descr_c, intptr_t csr_sorted_val_c, intptr_t csr_sorted_row_ptr_c, intptr_t csr_sorted_col_ind_c)
@@ -186,6 +351,11 @@ cpdef sgebsr2gebsc(intptr_t handle, int mb, int nb, int nnzb, intptr_t bsr_sorte
 cpdef dgebsr2gebsc(intptr_t handle, int mb, int nb, int nnzb, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int row_block_dim, int col_block_dim, intptr_t bsc_val, intptr_t bsc_row_ind, intptr_t bsc_col_ptr, int copy_values, int idx_base, intptr_t p_buffer)
 cpdef cgebsr2gebsc(intptr_t handle, int mb, int nb, int nnzb, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int row_block_dim, int col_block_dim, intptr_t bsc_val, intptr_t bsc_row_ind, intptr_t bsc_col_ptr, int copy_values, int idx_base, intptr_t p_buffer)
 cpdef zgebsr2gebsc(intptr_t handle, int mb, int nb, int nnzb, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int row_block_dim, int col_block_dim, intptr_t bsc_val, intptr_t bsc_row_ind, intptr_t bsc_col_ptr, int copy_values, int idx_base, intptr_t p_buffer)
+cpdef xgebsr2csr(intptr_t handle, int dir_a, int mb, int nb, intptr_t descr_a, intptr_t bsr_sorted_row_ptr_a, intptr_t bsr_sorted_col_ind_a, int row_block_dim, int col_block_dim, intptr_t descr_c, intptr_t csr_sorted_row_ptr_c, intptr_t csr_sorted_col_ind_c)
+cpdef sgebsr2csr(intptr_t handle, int dir_a, int mb, int nb, intptr_t descr_a, intptr_t bsr_sorted_val_a, intptr_t bsr_sorted_row_ptr_a, intptr_t bsr_sorted_col_ind_a, int row_block_dim, int col_block_dim, intptr_t descr_c, intptr_t csr_sorted_val_c, intptr_t csr_sorted_row_ptr_c, intptr_t csr_sorted_col_ind_c)
+cpdef dgebsr2csr(intptr_t handle, int dir_a, int mb, int nb, intptr_t descr_a, intptr_t bsr_sorted_val_a, intptr_t bsr_sorted_row_ptr_a, intptr_t bsr_sorted_col_ind_a, int row_block_dim, int col_block_dim, intptr_t descr_c, intptr_t csr_sorted_val_c, intptr_t csr_sorted_row_ptr_c, intptr_t csr_sorted_col_ind_c)
+cpdef cgebsr2csr(intptr_t handle, int dir_a, int mb, int nb, intptr_t descr_a, intptr_t bsr_sorted_val_a, intptr_t bsr_sorted_row_ptr_a, intptr_t bsr_sorted_col_ind_a, int row_block_dim, int col_block_dim, intptr_t descr_c, intptr_t csr_sorted_val_c, intptr_t csr_sorted_row_ptr_c, intptr_t csr_sorted_col_ind_c)
+cpdef zgebsr2csr(intptr_t handle, int dir_a, int mb, int nb, intptr_t descr_a, intptr_t bsr_sorted_val_a, intptr_t bsr_sorted_row_ptr_a, intptr_t bsr_sorted_col_ind_a, int row_block_dim, int col_block_dim, intptr_t descr_c, intptr_t csr_sorted_val_c, intptr_t csr_sorted_row_ptr_c, intptr_t csr_sorted_col_ind_c)
 cpdef int scsr2gebsr_buffer_size(intptr_t handle, int dir_a, int m, int n, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, int row_block_dim, int col_block_dim) except? -1
 cpdef int dcsr2gebsr_buffer_size(intptr_t handle, int dir_a, int m, int n, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, int row_block_dim, int col_block_dim) except? -1
 cpdef int ccsr2gebsr_buffer_size(intptr_t handle, int dir_a, int m, int n, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, int row_block_dim, int col_block_dim) except? -1
@@ -212,6 +382,7 @@ cpdef sgebsr2gebsr(intptr_t handle, int dir_a, int mb, int nb, int nnzb, intptr_
 cpdef dgebsr2gebsr(intptr_t handle, int dir_a, int mb, int nb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val_a, intptr_t bsr_sorted_row_ptr_a, intptr_t bsr_sorted_col_ind_a, int row_block_dim_a, int col_block_dim_a, intptr_t descr_c, intptr_t bsr_sorted_val_c, intptr_t bsr_sorted_row_ptr_c, intptr_t bsr_sorted_col_ind_c, int row_block_dim_c, int col_block_dim_c, intptr_t p_buffer)
 cpdef cgebsr2gebsr(intptr_t handle, int dir_a, int mb, int nb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val_a, intptr_t bsr_sorted_row_ptr_a, intptr_t bsr_sorted_col_ind_a, int row_block_dim_a, int col_block_dim_a, intptr_t descr_c, intptr_t bsr_sorted_val_c, intptr_t bsr_sorted_row_ptr_c, intptr_t bsr_sorted_col_ind_c, int row_block_dim_c, int col_block_dim_c, intptr_t p_buffer)
 cpdef zgebsr2gebsr(intptr_t handle, int dir_a, int mb, int nb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val_a, intptr_t bsr_sorted_row_ptr_a, intptr_t bsr_sorted_col_ind_a, int row_block_dim_a, int col_block_dim_a, intptr_t descr_c, intptr_t bsr_sorted_val_c, intptr_t bsr_sorted_row_ptr_c, intptr_t bsr_sorted_col_ind_c, int row_block_dim_c, int col_block_dim_c, intptr_t p_buffer)
+cpdef create_identity_permutation(intptr_t handle, int n, intptr_t p)
 cpdef size_t xcoosort_buffer_size_ext(intptr_t handle, int m, int n, int nnz, intptr_t coo_rows_a, intptr_t coo_cols_a) except? 0
 cpdef xcoosort_by_row(intptr_t handle, int m, int n, int nnz, intptr_t coo_rows_a, intptr_t coo_cols_a, intptr_t p, intptr_t p_buffer)
 cpdef xcoosort_by_column(intptr_t handle, int m, int n, int nnz, intptr_t coo_rows_a, intptr_t coo_cols_a, intptr_t p, intptr_t p_buffer)
@@ -219,6 +390,42 @@ cpdef size_t xcsrsort_buffer_size_ext(intptr_t handle, int m, int n, int nnz, in
 cpdef xcsrsort(intptr_t handle, int m, int n, int nnz, intptr_t descr_a, intptr_t csr_row_ptr_a, intptr_t csr_col_ind_a, intptr_t p, intptr_t p_buffer)
 cpdef size_t xcscsort_buffer_size_ext(intptr_t handle, int m, int n, int nnz, intptr_t csc_col_ptr_a, intptr_t csc_row_ind_a) except? 0
 cpdef xcscsort(intptr_t handle, int m, int n, int nnz, intptr_t descr_a, intptr_t csc_col_ptr_a, intptr_t csc_row_ind_a, intptr_t p, intptr_t p_buffer)
+cpdef size_t scsru2csr_buffer_size_ext(intptr_t handle, int m, int n, int nnz, intptr_t csr_val, intptr_t csr_row_ptr, intptr_t csr_col_ind, intptr_t info) except? 0
+cpdef size_t dcsru2csr_buffer_size_ext(intptr_t handle, int m, int n, int nnz, intptr_t csr_val, intptr_t csr_row_ptr, intptr_t csr_col_ind, intptr_t info) except? 0
+cpdef size_t ccsru2csr_buffer_size_ext(intptr_t handle, int m, int n, int nnz, intptr_t csr_val, intptr_t csr_row_ptr, intptr_t csr_col_ind, intptr_t info) except? 0
+cpdef size_t zcsru2csr_buffer_size_ext(intptr_t handle, int m, int n, int nnz, intptr_t csr_val, intptr_t csr_row_ptr, intptr_t csr_col_ind, intptr_t info) except? 0
+cpdef scsru2csr(intptr_t handle, int m, int n, int nnz, intptr_t descr_a, intptr_t csr_val, intptr_t csr_row_ptr, intptr_t csr_col_ind, intptr_t info, intptr_t p_buffer)
+cpdef dcsru2csr(intptr_t handle, int m, int n, int nnz, intptr_t descr_a, intptr_t csr_val, intptr_t csr_row_ptr, intptr_t csr_col_ind, intptr_t info, intptr_t p_buffer)
+cpdef ccsru2csr(intptr_t handle, int m, int n, int nnz, intptr_t descr_a, intptr_t csr_val, intptr_t csr_row_ptr, intptr_t csr_col_ind, intptr_t info, intptr_t p_buffer)
+cpdef zcsru2csr(intptr_t handle, int m, int n, int nnz, intptr_t descr_a, intptr_t csr_val, intptr_t csr_row_ptr, intptr_t csr_col_ind, intptr_t info, intptr_t p_buffer)
+cpdef scsr2csru(intptr_t handle, int m, int n, int nnz, intptr_t descr_a, intptr_t csr_val, intptr_t csr_row_ptr, intptr_t csr_col_ind, intptr_t info, intptr_t p_buffer)
+cpdef dcsr2csru(intptr_t handle, int m, int n, int nnz, intptr_t descr_a, intptr_t csr_val, intptr_t csr_row_ptr, intptr_t csr_col_ind, intptr_t info, intptr_t p_buffer)
+cpdef ccsr2csru(intptr_t handle, int m, int n, int nnz, intptr_t descr_a, intptr_t csr_val, intptr_t csr_row_ptr, intptr_t csr_col_ind, intptr_t info, intptr_t p_buffer)
+cpdef zcsr2csru(intptr_t handle, int m, int n, int nnz, intptr_t descr_a, intptr_t csr_val, intptr_t csr_row_ptr, intptr_t csr_col_ind, intptr_t info, intptr_t p_buffer)
+cpdef size_t sprune_dense2csr_buffer_size_ext(intptr_t handle, int m, int n, intptr_t a, int lda, intptr_t threshold, intptr_t descr_c, intptr_t csr_sorted_val_c, intptr_t csr_sorted_row_ptr_c, intptr_t csr_sorted_col_ind_c) except? 0
+cpdef size_t dprune_dense2csr_buffer_size_ext(intptr_t handle, int m, int n, intptr_t a, int lda, intptr_t threshold, intptr_t descr_c, intptr_t csr_sorted_val_c, intptr_t csr_sorted_row_ptr_c, intptr_t csr_sorted_col_ind_c) except? 0
+cpdef sprune_dense2csr_nnz(intptr_t handle, int m, int n, intptr_t a, int lda, intptr_t threshold, intptr_t descr_c, intptr_t csr_row_ptr_c, intptr_t nnz_total_dev_host_ptr, intptr_t p_buffer)
+cpdef dprune_dense2csr_nnz(intptr_t handle, int m, int n, intptr_t a, int lda, intptr_t threshold, intptr_t descr_c, intptr_t csr_sorted_row_ptr_c, intptr_t nnz_total_dev_host_ptr, intptr_t p_buffer)
+cpdef sprune_dense2csr(intptr_t handle, int m, int n, intptr_t a, int lda, intptr_t threshold, intptr_t descr_c, intptr_t csr_sorted_val_c, intptr_t csr_sorted_row_ptr_c, intptr_t csr_sorted_col_ind_c, intptr_t p_buffer)
+cpdef dprune_dense2csr(intptr_t handle, int m, int n, intptr_t a, int lda, intptr_t threshold, intptr_t descr_c, intptr_t csr_sorted_val_c, intptr_t csr_sorted_row_ptr_c, intptr_t csr_sorted_col_ind_c, intptr_t p_buffer)
+cpdef size_t sprune_csr2csr_buffer_size_ext(intptr_t handle, int m, int n, int nnz_a, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, intptr_t threshold, intptr_t descr_c, intptr_t csr_sorted_val_c, intptr_t csr_sorted_row_ptr_c, intptr_t csr_sorted_col_ind_c) except? 0
+cpdef size_t dprune_csr2csr_buffer_size_ext(intptr_t handle, int m, int n, int nnz_a, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, intptr_t threshold, intptr_t descr_c, intptr_t csr_sorted_val_c, intptr_t csr_sorted_row_ptr_c, intptr_t csr_sorted_col_ind_c) except? 0
+cpdef sprune_csr2csr_nnz(intptr_t handle, int m, int n, int nnz_a, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, intptr_t threshold, intptr_t descr_c, intptr_t csr_sorted_row_ptr_c, intptr_t nnz_total_dev_host_ptr, intptr_t p_buffer)
+cpdef dprune_csr2csr_nnz(intptr_t handle, int m, int n, int nnz_a, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, intptr_t threshold, intptr_t descr_c, intptr_t csr_sorted_row_ptr_c, intptr_t nnz_total_dev_host_ptr, intptr_t p_buffer)
+cpdef sprune_csr2csr(intptr_t handle, int m, int n, int nnz_a, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, intptr_t threshold, intptr_t descr_c, intptr_t csr_sorted_val_c, intptr_t csr_sorted_row_ptr_c, intptr_t csr_sorted_col_ind_c, intptr_t p_buffer)
+cpdef dprune_csr2csr(intptr_t handle, int m, int n, int nnz_a, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, intptr_t threshold, intptr_t descr_c, intptr_t csr_sorted_val_c, intptr_t csr_sorted_row_ptr_c, intptr_t csr_sorted_col_ind_c, intptr_t p_buffer)
+cpdef size_t sprune_dense2csr_by_percentage_buffer_size_ext(intptr_t handle, int m, int n, intptr_t a, int lda, float percentage, intptr_t descr_c, intptr_t csr_sorted_val_c, intptr_t csr_sorted_row_ptr_c, intptr_t csr_sorted_col_ind_c, intptr_t info) except? 0
+cpdef size_t dprune_dense2csr_by_percentage_buffer_size_ext(intptr_t handle, int m, int n, intptr_t a, int lda, float percentage, intptr_t descr_c, intptr_t csr_sorted_val_c, intptr_t csr_sorted_row_ptr_c, intptr_t csr_sorted_col_ind_c, intptr_t info) except? 0
+cpdef sprune_dense2csr_nnz_by_percentage(intptr_t handle, int m, int n, intptr_t a, int lda, float percentage, intptr_t descr_c, intptr_t csr_row_ptr_c, intptr_t nnz_total_dev_host_ptr, intptr_t info, intptr_t p_buffer)
+cpdef dprune_dense2csr_nnz_by_percentage(intptr_t handle, int m, int n, intptr_t a, int lda, float percentage, intptr_t descr_c, intptr_t csr_row_ptr_c, intptr_t nnz_total_dev_host_ptr, intptr_t info, intptr_t p_buffer)
+cpdef sprune_dense2csr_by_percentage(intptr_t handle, int m, int n, intptr_t a, int lda, float percentage, intptr_t descr_c, intptr_t csr_sorted_val_c, intptr_t csr_sorted_row_ptr_c, intptr_t csr_sorted_col_ind_c, intptr_t info, intptr_t p_buffer)
+cpdef dprune_dense2csr_by_percentage(intptr_t handle, int m, int n, intptr_t a, int lda, float percentage, intptr_t descr_c, intptr_t csr_sorted_val_c, intptr_t csr_sorted_row_ptr_c, intptr_t csr_sorted_col_ind_c, intptr_t info, intptr_t p_buffer)
+cpdef size_t sprune_csr2csr_by_percentage_buffer_size_ext(intptr_t handle, int m, int n, int nnz_a, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, float percentage, intptr_t descr_c, intptr_t csr_sorted_val_c, intptr_t csr_sorted_row_ptr_c, intptr_t csr_sorted_col_ind_c, intptr_t info) except? 0
+cpdef size_t dprune_csr2csr_by_percentage_buffer_size_ext(intptr_t handle, int m, int n, int nnz_a, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, float percentage, intptr_t descr_c, intptr_t csr_sorted_val_c, intptr_t csr_sorted_row_ptr_c, intptr_t csr_sorted_col_ind_c, intptr_t info) except? 0
+cpdef sprune_csr2csr_nnz_by_percentage(intptr_t handle, int m, int n, int nnz_a, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, float percentage, intptr_t descr_c, intptr_t csr_sorted_row_ptr_c, intptr_t nnz_total_dev_host_ptr, intptr_t info, intptr_t p_buffer)
+cpdef dprune_csr2csr_nnz_by_percentage(intptr_t handle, int m, int n, int nnz_a, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, float percentage, intptr_t descr_c, intptr_t csr_sorted_row_ptr_c, intptr_t nnz_total_dev_host_ptr, intptr_t info, intptr_t p_buffer)
+cpdef sprune_csr2csr_by_percentage(intptr_t handle, int m, int n, int nnz_a, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, float percentage, intptr_t descr_c, intptr_t csr_sorted_val_c, intptr_t csr_sorted_row_ptr_c, intptr_t csr_sorted_col_ind_c, intptr_t info, intptr_t p_buffer)
+cpdef dprune_csr2csr_by_percentage(intptr_t handle, int m, int n, int nnz_a, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, float percentage, intptr_t descr_c, intptr_t csr_sorted_val_c, intptr_t csr_sorted_row_ptr_c, intptr_t csr_sorted_col_ind_c, intptr_t info, intptr_t p_buffer)
 cpdef csr2csc_ex2(intptr_t handle, int m, int n, int nnz, intptr_t csr_val, intptr_t csr_row_ptr, intptr_t csr_col_ind, intptr_t csc_val, intptr_t csc_col_ptr, intptr_t csc_row_ind, int val_type, int copy_values, int idx_base, int alg, intptr_t buffer)
 cpdef size_t csr2csc_ex2_buffer_size(intptr_t handle, int m, int n, int nnz, intptr_t csr_val, intptr_t csr_row_ptr, intptr_t csr_col_ind, intptr_t csc_val, intptr_t csc_col_ptr, intptr_t csc_row_ind, int val_type, int copy_values, int idx_base, int alg) except? 0
 cpdef intptr_t create_sp_vec(int64_t size, int64_t nnz, intptr_t indices, intptr_t values, int idx_type, int idx_base, int value_type) except? 0
@@ -283,6 +490,7 @@ cpdef tuple dn_mat_get_strided_batch(intptr_t dn_mat_descr)
 cpdef axpby(intptr_t handle, intptr_t alpha, intptr_t vec_x, intptr_t beta, intptr_t vec_y)
 cpdef gather(intptr_t handle, intptr_t vec_y, intptr_t vec_x)
 cpdef scatter(intptr_t handle, intptr_t vec_x, intptr_t vec_y)
+cpdef rot(intptr_t handle, intptr_t c_coeff, intptr_t s_coeff, intptr_t vec_x, intptr_t vec_y)
 cpdef size_t sp_vv_buffer_size(intptr_t handle, int op_x, intptr_t vec_x, intptr_t vec_y, intptr_t result, int compute_type) except? 0
 cpdef sp_vv(intptr_t handle, int op_x, intptr_t vec_x, intptr_t vec_y, intptr_t result, int compute_type, intptr_t external_buffer)
 cpdef size_t sparse_to_dense_buffer_size(intptr_t handle, intptr_t mat_a, intptr_t mat_b, int alg) except? 0

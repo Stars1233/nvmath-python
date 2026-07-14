@@ -3,10 +3,15 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """
-This example illustrates how to perform distributed in-place matrix multiplication, where
-the result overwrites operand `c`:
+This example illustrates the use of the inplace option with distributed
+matrix multiplication when operand 'c' is provided. The default is
+inplace=True where the result overwrites operand 'c':
 
     c := a.T @ b + beta c
+
+With inplace=False, the result is newly allocated:
+
+    d := a.T @ b + beta c
 
 $ mpiexec -n 4 python example09_cupy_inplace.py
 """
@@ -33,14 +38,14 @@ m, n, k = 128, 512, 1024
 # Prepare sample input data (CuPy matrices, on the GPU).
 
 # Specify distribution of input and output matrices.
-# Note: The choice of distribution for a, b and output, as well as whether a and b are
-# transposed influences the distributed algorithm used by cuBLASMp and can have a
+# Note: The choice of distribution for 'a', 'b' and output, as well as whether 'a' and 'b'
+# are transposed influences the distributed algorithm used by cuBLASMp and can have a
 # substantial impact on performance.
 # Refer to https://docs.nvidia.com/cuda/cublasmp/usage/tp.html for more information.
 #
-# In this example we use TN layout (A transposed, B non-transposed).
+# In this example we use TN layout ('a' transposed, 'b' non-transposed).
 # With TN, this configuration will run AllGather+GEMM.
-distributions = [Slab.Y, Slab.Y, Slab.X]  # distribution of A, B and C/D
+distributions = [Slab.Y, Slab.Y, Slab.X]  # distribution of 'a', 'b' and 'c'/'d'
 
 # cuBLASMp requires Fortran memory layout. CuPy allocates C-ordered arrays by default,
 # so in this example we allocate transposed shapes and then take the transpose to obtain
@@ -54,15 +59,15 @@ c_shape = Slab.Y.shape(rank, (n, m))
 # requirements.
 
 with cp.cuda.Device(device_id):
-    a = cp.random.rand(*a_shape).T  # a is now Slab.Y with global shape (k, m)
-    b = cp.random.rand(*b_shape).T  # b is now Slab.Y with global shape (k, n)
-    c = cp.random.rand(*c_shape).T  # c is now Slab.X with global shape (m, n)
+    a = cp.random.rand(*a_shape).T  # 'a' is now Slab.Y with global shape (k, m)
+    b = cp.random.rand(*b_shape).T  # 'b' is now Slab.Y with global shape (k, n)
+    c = cp.random.rand(*c_shape).T  # 'c' is now Slab.X with global shape (m, n)
 
 beta = 1.0
 
 # Perform the distributed matrix multiplication.
 qualifiers = np.zeros((3,), dtype=matrix_qualifiers_dtype)
-qualifiers[0]["is_transpose"] = True  # a is transposed
+qualifiers[0]["is_transpose"] = True  # 'a' is transposed
 result = nvmath.distributed.linalg.advanced.matmul(
     a,
     b,
@@ -70,15 +75,27 @@ result = nvmath.distributed.linalg.advanced.matmul(
     beta=beta,
     distributions=distributions,
     qualifiers=qualifiers,
-    options={"inplace": True},
 )
+
+# By default inplace=True and the result is stored in 'c'.
+assert result is c, "This example expects the first matmul to be an in-place operation."
+
+# Use inplace=False to store the result in a new array.
+result = nvmath.distributed.linalg.advanced.matmul(
+    a,
+    b,
+    c=c,
+    beta=beta,
+    distributions=distributions,
+    qualifiers=qualifiers,
+    options={"inplace": False},
+)
+
+assert result is not c, "This example expects the second matmul to be an out-of-place operation."
 
 # Synchronize the default stream, since by default the execution is non-blocking for GPU
 # operands.
 cp.cuda.get_current_stream().synchronize()
-
-# The result is stored in C.
-assert result is c
 
 if rank == 0:
     # result has global shape (m, n) and is distributed row-wise (as specified above).

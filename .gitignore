@@ -9,6 +9,8 @@ __pycache__
 docs/_build
 docs/sphinx/**/generated
 docs/sphinx/generated
+internal/internal_docs/_build
+internal/internal_docs/sphinx/**/generated
 dist
 build
 wheelhouse

@@ -1,0 +1,9 @@
+---
+features:
+  - >
+    Added :meth:`nvmath.fft.FFT.create_key_from_metadata`, the metadata-based
+    counterpart to :meth:`nvmath.fft.FFT.create_key`. It builds an FFT key from
+    operand metadata (``shape``, ``dtype``, and optional ``strides``) together with
+    a ``memory_space``, instead of requiring a fully allocated operand. This is
+    useful, for example, to estimate the workspace size before an operand exists.
+    The ``execution`` space is optional and defaults to ``memory_space``.

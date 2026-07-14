@@ -10,7 +10,7 @@ from __future__ import annotations  # allows typehint of class methods to return
 
 __all__ = ["NumpyDistributedTensor", "CudaDistributedTensor"]
 
-from nvmath.internal.ndbuffer import ndbuffer
+from nvmath.internal.ndbuffer import NDBuffer
 from nvmath.internal.tensor_ifc_numpy import CudaTensor, NumpyTensor
 
 from .tensor_ifc import DistributedTensor
@@ -22,10 +22,11 @@ class CudaDistributedTensor(CudaDistributedTensorMixIn, CudaTensor, DistributedT
     Tensor wrapper for distributed cuda ndarrays.
     """
 
-    host_tensor_class: type[NumpyDistributedTensor]  # set once NumpyDistributedTensor is defined
+    host_tensor_class: type[NumpyDistributedTensor]  # set at the end of the file
+    device_tensor_class: type[CudaDistributedTensor]  # set at the end of the file
 
     @classmethod
-    def wrap_ndbuffer(cls, ndbuffer: ndbuffer.NDBuffer) -> CudaDistributedTensor:
+    def wrap_ndbuffer(cls, ndbuffer: NDBuffer) -> CudaDistributedTensor:
         return cls(ndbuffer)
 
 
@@ -35,7 +36,11 @@ class NumpyDistributedTensor(HostDistributedTensorMixIn, NumpyTensor, Distribute
     Tensor wrapper for distributed numpy ndarrays.
     """
 
-    device_tensor_class = CudaDistributedTensor
+    host_tensor_class: type[NumpyDistributedTensor]  # set at the end of the file
+    device_tensor_class: type[CudaDistributedTensor]  # set at the end of the file
 
 
+NumpyDistributedTensor.host_tensor_class = NumpyDistributedTensor
 CudaDistributedTensor.host_tensor_class = NumpyDistributedTensor
+NumpyDistributedTensor.device_tensor_class = CudaDistributedTensor
+CudaDistributedTensor.device_tensor_class = CudaDistributedTensor

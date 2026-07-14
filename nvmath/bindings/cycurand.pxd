@@ -2,11 +2,12 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 #
-# This code was automatically generated across versions from 12.0.1 to 13.2.0, generator version 0.3.1.dev1301+g7215ac36e. Do not modify it directly.
+# This code was automatically generated across versions from 12.0.1 to 13.2.0, generator version 0.3.1.dev1471+g7122059e9. Do not modify it directly.
 # This layer exposes the C header to Cython as-is.
 
 from libc.stdint cimport int64_t
 from libc.stdio cimport FILE
+from ._internal.common_types cimport cudaDataType, cudaDataType_t, cudaStream_t, libraryPropertyType, libraryPropertyType_t
 
 
 ###############################################################################
@@ -86,26 +87,20 @@ ctypedef curandMethod curandMethod_t "curandMethod_t"
 
 
 # types
-cdef extern from *:
-    """
-    #include <driver_types.h>
-    #include <library_types.h>
-    #include <cuComplex.h>
-    """
-    ctypedef void* cudaStream_t 'cudaStream_t'
-    ctypedef int cudaDataType_t 'cudaDataType_t'
-    ctypedef int cudaDataType 'cudaDataType'
-    ctypedef int libraryPropertyType_t 'libraryPropertyType_t'
-    ctypedef int libraryPropertyType 'libraryPropertyType'
-
-
 ctypedef void* curandGenerator_t 'curandGenerator_t'
+
 ctypedef void* curandDistribution_t 'curandDistribution_t'
+
 ctypedef void* curandDistributionShift_t 'curandDistributionShift_t'
+
 ctypedef void* curandDistributionM2Shift_t 'curandDistributionM2Shift_t'
+
 ctypedef void* curandHistogramM2_t 'curandHistogramM2_t'
+
 ctypedef void* curandHistogramM2K_t 'curandHistogramM2K_t'
+
 ctypedef void* curandHistogramM2V_t 'curandHistogramM2V_t'
+
 ctypedef void* curandDiscreteDistribution_t 'curandDiscreteDistribution_t'
 ctypedef unsigned int curandDirectionVectors32_t[32]
 ctypedef unsigned long long curandDirectionVectors64_t[64]

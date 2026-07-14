@@ -9,14 +9,20 @@ Interface to cuda.core operations.
 __all__ = ["CUDAPackage"]
 
 import contextlib
+import functools
 
-try:
-    from cuda.core import Stream
-except ImportError:
-    from cuda.core.experimental import Stream
+from cuda.core import Stream
 
 from ._device_utils import get_device
 from .package_ifc import Package
+
+
+# cuda.core's ``Device.default_stream`` wraps a CUDA driver *sentinel* pointer
+# (``CU_STREAM_LEGACY = 0x1`` or ``CU_STREAM_PER_THREAD = 0x2``) that is constant
+# for the life of the process, so the (device_id -> ptr) map can be cached.
+@functools.cache
+def _get_current_stream_ptr(device_id: int) -> int:
+    return int(get_device(device_id).default_stream.handle)
 
 
 class CUDAPackage(Package[Stream]):
@@ -35,6 +41,8 @@ class CUDAPackage(Package[Stream]):
     @staticmethod
     def to_stream_pointer(stream: Stream) -> int:  # type: ignore[override]
         return int(stream.handle)
+
+    get_current_stream_ptr = staticmethod(_get_current_stream_ptr)
 
     @staticmethod
     def to_stream_context(stream: Stream):  # type: ignore[override]

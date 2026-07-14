@@ -16,11 +16,7 @@ import logging
 
 import numpy as np
 import scipy.sparse as sp
-
-try:
-    from cuda.core import Device, DeviceMemoryResource
-except ImportError:
-    from cuda.core.experimental import Device, DeviceMemoryResource
+from cuda.core import Device, DeviceMemoryResource
 
 import nvmath
 from nvmath.memory import BaseCUDAMemoryManager, MemoryPointer
@@ -33,18 +29,21 @@ class CustomMemoryManager(BaseCUDAMemoryManager):
 
     def __init__(self, device_id, logger):
         # Create the device context, if needed.
-        Device(device_id).set_current()
+        self.device = Device(device_id)
+        self.device.set_current()
+        self.stream = self.device.default_stream
         self.mem_resource = DeviceMemoryResource(device_id)
         self.logger = logger
 
     def memalloc(self, size):
-        self.buffer = self.mem_resource.allocate(size)
-        device_ptr = self.buffer.handle
+        buffer = self.mem_resource.allocate(size, stream=self.stream)
+        device_ptr = int(buffer.handle)
         self.logger.info(f"[CUSTOM MEMALLOC] Allocated memory of size {size} bytes using {type(self).__name__}.")
 
         def create_finalizer():
             def finalizer():
-                self.mem_resource.deallocate(device_ptr, size)
+                # Capture buffer here for RAII/DIRR.
+                self.mem_resource.deallocate(buffer.handle, size, stream=self.stream)
                 self.logger.info(f"[CUSTOM FREE] Free'd allocated memory using {type(self).__name__}.")
 
             return finalizer

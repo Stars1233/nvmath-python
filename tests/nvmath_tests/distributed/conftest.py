@@ -21,36 +21,13 @@ if importlib.util.find_spec("mpi4py") is None and "TORCHELASTIC_RUN_ID" not in o
 
 def pytest_configure(config):
     config.addinivalue_line("markers", "need_4_procs: The test requires 4 processes")
-    config.addinivalue_line("markers", "uncollect_if(*, func): function to unselect tests from parametrization")
-
-
-def pytest_collection_modifyitems(config, items):
-    removed = []
-    kept = []
-    for item in items:
-        m = item.get_closest_marker("uncollect_if")
-        if m:
-            func = m.kwargs["func"]
-            if func(**item.callspec.params):
-                removed.append(item)
-                continue
-        kept.append(item)
-    if removed:
-        config.hook.pytest_deselected(items=removed)
-        items[:] = kept
 
 
 @pytest.fixture(scope="session")
 def process_group():
-    try:
-        from cuda.core import system
-    except ImportError:
-        from cuda.core.experimental import system
+    from cuda.core import system
 
-    try:
-        num_devices = system.get_num_devices()
-    except AttributeError:
-        num_devices = system.num_devices
+    num_devices = system.get_num_devices()
 
     from nvmath.distributed import MPIProcessGroup, TorchProcessGroup
 

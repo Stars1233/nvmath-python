@@ -12,7 +12,7 @@ def _deprecated(
     category: type[Warning] | None = DeprecationWarning,
     stacklevel: int = 1,
 ):
-    """Dropin replacement for @warnings.deprecated(...)"""
+    """Drop-in replacement for @warnings.deprecated(...)"""
 
     def decorator(func):
         @functools.wraps(func)

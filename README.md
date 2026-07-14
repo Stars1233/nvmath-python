@@ -15,7 +15,7 @@ functionality that is missing from those frameworks.
 ## Some Examples
 
 Below are a few representative examples showcasing the three main categories of
-features nvmath-python offers: host, device, and distributed APIs.
+features nvmath-python offers: host, distributed host, and device APIs.
 
 ### Host APIs
 
@@ -100,6 +100,83 @@ r = nvmath.fft.fft(a, axes=[-1], epilog={"ltoir": epilog})
 s = cp.fft.fftn(a, axes=[-1], norm="ortho")
 
 assert cp.allclose(r, s)
+```
+
+### Distributed Host APIs
+
+Distributed Host APIs are called from host code but execute on a distributed
+(multi-node multi-GPU) system. The following example shows the use of the
+function-form distributed FFT with CuPy ndarrays:
+
+```python
+import cupy as cp
+from mpi4py import MPI
+
+import nvmath.distributed
+from nvmath.distributed.distribution import Slab
+
+# Initialize nvmath.distributed.
+comm = MPI.COMM_WORLD
+rank = comm.Get_rank()
+nranks = comm.Get_size()
+device_id = rank % cp.cuda.runtime.getDeviceCount()
+nvmath.distributed.initialize(device_id, comm, backends=["nvshmem"])
+
+# The global 3-D FFT size is (512, 256, 512).
+# In this example, the input data is distributed across processes according to
+# the cuFFTMp Slab distribution on the X axis.
+shape = 512 // nranks, 256, 512
+
+# cuFFTMp uses the NVSHMEM PGAS model for distributed computation, which requires GPU
+# operands to be on the symmetric heap.
+a = nvmath.distributed.allocate_symmetric_memory(shape, cp, dtype=cp.complex128)
+# a is a cupy ndarray and can be operated on using in-place cupy operations.
+with cp.cuda.Device(device_id):
+    a[:] = (
+        cp.random.rand(*shape, dtype=cp.float64)
+        + 1j * cp.random.rand(*shape, dtype=cp.float64)
+    )
+
+# Forward FFT.
+# In this example, the forward FFT operand is distributed according
+# to Slab.X distribution. With redistribute=False, the FFT result will be
+# distributed according to Slab.Y distribution.
+b = nvmath.distributed.fft.fft(a, distribution=Slab.X, options={"redistribute": False})
+
+# Distributed FFT performs computations in-place. The result is stored in the same
+# buffer as operand a. Note, however, that operand b has a different shape (due
+# to Slab.Y distribution).
+if rank == 0:
+    print(f"Shape of a on rank {rank} is {a.shape}")
+    print(f"Shape of b on rank {rank} is {b.shape}")
+
+# Inverse FFT.
+# Recall from previous transform that the inverse FFT operand is distributed according
+# to Slab.Y. With redistribute=False, the inverse FFT result will be distributed
+# according to Slab.X distribution.
+c = nvmath.distributed.fft.ifft(b, distribution=Slab.Y, options={"redistribute": False})
+
+# The shape of c is the same as a (due to Slab.X distribution). Once again, note that
+# a, b and c are sharing the same symmetric memory buffer (distributed FFT operations
+# are in-place).
+if rank == 0:
+    print(f"Shape of c on rank {rank} is {c.shape}")
+
+# Synchronize the default stream
+with cp.cuda.Device(device_id):
+    cp.cuda.get_current_stream().synchronize()
+
+if rank == 0:
+    print(f"Input type = {type(a)}, device = {a.device}")
+    print(f"FFT output type = {type(b)}, device = {b.device}")
+    print(f"IFFT output type = {type(c)}, device = {c.device}")
+
+# GPU operands on the symmetric heap are not garbage-collected and the user is
+# responsible for freeing any that they own (this deallocation is a collective
+# operation that must be called by all processes at the same point in the execution).
+# All cuFFTMp operations are inplace (a, b, and c share the same memory buffer), so
+# we take care to only free the buffer once.
+nvmath.distributed.free_symmetric_memory(a)
 ```
 
 ### Device-side APIs
@@ -195,89 +272,12 @@ if __name__ == "__main__":
     main()
 ```
 
-### Distributed APIs
-
-Distributed APIs are called from host code but execute on a distributed
-(multi-node multi-GPU) system. The following example shows the use of the
-function-form distributed FFT with CuPy ndarrays:
-
-```python
-import cupy as cp
-from mpi4py import MPI
-
-import nvmath.distributed
-from nvmath.distributed.distribution import Slab
-
-# Initialize nvmath.distributed.
-comm = MPI.COMM_WORLD
-rank = comm.Get_rank()
-nranks = comm.Get_size()
-device_id = rank % cp.cuda.runtime.getDeviceCount()
-nvmath.distributed.initialize(device_id, comm, backends=["nvshmem"])
-
-# The global 3-D FFT size is (512, 256, 512).
-# In this example, the input data is distributed across processes according to
-# the cuFFTMp Slab distribution on the X axis.
-shape = 512 // nranks, 256, 512
-
-# cuFFTMp uses the NVSHMEM PGAS model for distributed computation, which requires GPU
-# operands to be on the symmetric heap.
-a = nvmath.distributed.allocate_symmetric_memory(shape, cp, dtype=cp.complex128)
-# a is a cupy ndarray and can be operated on using in-place cupy operations.
-with cp.cuda.Device(device_id):
-    a[:] = (
-        cp.random.rand(*shape, dtype=cp.float64)
-        + 1j * cp.random.rand(*shape, dtype=cp.float64)
-    )
-
-# Forward FFT.
-# In this example, the forward FFT operand is distributed according
-# to Slab.X distribution. With reshape=False, the FFT result will be
-# distributed according to Slab.Y distribution.
-b = nvmath.distributed.fft.fft(a, distribution=Slab.X, options={"reshape": False})
-
-# Distributed FFT performs computations in-place. The result is stored in the same
-# buffer as operand a. Note, however, that operand b has a different shape (due
-# to Slab.Y distribution).
-if rank == 0:
-    print(f"Shape of a on rank {rank} is {a.shape}")
-    print(f"Shape of b on rank {rank} is {b.shape}")
-
-# Inverse FFT.
-# Recall from previous transform that the inverse FFT operand is distributed according
-# to Slab.Y. With reshape=False, the inverse FFT result will be distributed according
-# to Slab.X distribution.
-c = nvmath.distributed.fft.ifft(b, distribution=Slab.Y, options={"reshape": False})
-
-# The shape of c is the same as a (due to Slab.X distribution). Once again, note that
-# a, b and c are sharing the same symmetric memory buffer (distributed FFT operations
-# are in-place).
-if rank == 0:
-    print(f"Shape of c on rank {rank} is {c.shape}")
-
-# Synchronize the default stream
-with cp.cuda.Device(device_id):
-    cp.cuda.get_current_stream().synchronize()
-
-if rank == 0:
-    print(f"Input type = {type(a)}, device = {a.device}")
-    print(f"FFT output type = {type(b)}, device = {b.device}")
-    print(f"IFFT output type = {type(c)}, device = {c.device}")
-
-# GPU operands on the symmetric heap are not garbage-collected and the user is
-# responsible for freeing any that they own (this deallocation is a collective
-# operation that must be called by all processes at the same point in the execution).
-# All cuFFTMp operations are inplace (a, b, and c share the same memory buffer), so
-# we take care to only free the buffer once.
-nvmath.distributed.free_symmetric_memory(a)
-```
-
 ## License
 
 All files hosted in this repository are subject to the [Apache 2.0](./LICENSE) license.
 
 ## Disclaimer
 
-nvmath-python is in a Beta state. Beta products may not be fully functional, may contain
-errors or design flaws, and may be changed at any time without notice. We appreciate your
-feedback to improve and iterate on our Beta products.
+nvmath-python contains features marked as experimental. Experimental features may not be
+fully functional, may contain errors or design flaws, and may be changed at any time without
+notice. We appreciate your feedback to improve and iterate on our experimental features.

@@ -5,14 +5,9 @@
 import itertools
 import logging
 
-import pytest
-
-try:
-    from cuda.core import system
-except ImportError:
-    from cuda.core.experimental import system
-
 import numpy as np
+import pytest
+from cuda.core import system
 
 try:
     import cupy as cp
@@ -28,21 +23,24 @@ from contextlib import nullcontext
 from nvmath.bindings import cutensor
 from nvmath.internal import tensor_wrapper
 from nvmath.memory import _MEMORY_MANAGER
-from nvmath.tensor import ExecutionCUDA, Operator, binary_contraction, tensor_qualifiers_dtype
+from nvmath.tensor import ExecutionCUDA, Operator, binary_contraction, tensor_qualifiers_dtype, ternary_contraction
+from nvmath.tensor._internal import cutensor_utils
 from nvmath_tests.helpers import order_streams, use_stream
 
 from .utils.axes_utils import is_complex
 from .utils.base_testers import parse_operands, run_coefficients_test_impl, run_stateless_impl
 from .utils.check_helpers import assert_all_close, get_contraction_tolerance
-from .utils.common_axes import BlockingOption, ComputeType, Framework, MemBackend
-from .utils.data import contraction_test_cases
+from .utils.common_axes import BlockingOption, ComputeType, DType, Framework, MemBackend
+from .utils.data import (
+    ContractionTestCase,
+    binary_contraction_test_cases,
+    contraction_test_cases,
+    ternary_contraction_test_cases,
+)
 from .utils.input_fixtures import get_custom_stream
 from .utils.support_matrix import compute_type_support, framework_backend_support, framework_type_support
 
-try:
-    num_devices = system.get_num_devices()
-except AttributeError:
-    num_devices = system.num_devices
+num_devices = system.get_num_devices()
 
 cutensor_version = cutensor.get_version()
 
@@ -174,31 +172,40 @@ class TestStatelessContraction:
         for mem_backend in framework_backend_support[framework]
     ],
 )
-class TestMiscellaneous:
+class TestExecutionAndOptions:
+    _test_dtype = DType.float64
+
     def _run_test(self, framework, mem_backend, *, execution=None, options=None):
         if isinstance(execution, ExecutionCUDA):
             device_id = execution.device_id
         else:
             device_id = execution.get("device_id", 0) if execution is not None else 0
         if framework == Framework.numpy:
-            a = np.random.rand(10, 10)
+            a = np.random.rand(4, 4, 4, 4)
+            b = np.random.rand(4, 4, 6, 6)
         elif framework == Framework.cupy:
             with cp.cuda.Device(device_id):
-                a = cp.random.rand(10, 10)
+                a = cp.random.rand(4, 4, 4, 4)
+                b = cp.random.rand(4, 4, 6, 6)
         elif framework == Framework.torch:
             if mem_backend == MemBackend.cuda:
-                a = torch.rand(10, 10, device=f"cuda:{device_id}")
+                a = torch.rand(4, 4, 4, 4, device=f"cuda:{device_id}")
+                b = torch.rand(4, 4, 6, 6, device=f"cuda:{device_id}")
             else:
-                a = torch.rand(10, 10, device="cpu")
-        result = binary_contraction("ij,jk->ik", a, a, execution=execution, options=options)
+                a = torch.rand(4, 4, 4, 4, device="cpu")
+                b = torch.rand(4, 4, 6, 6, device="cpu")
+        result = binary_contraction("ijab,abcd->cjid", a, b, execution=execution, options=options)
         if framework == Framework.cupy:
             with cp.cuda.Device(device_id):  # Workaround for multi-GPU system + cupy-cuda12x 13.6.0:
                 # reference will be on device 0 even if A is on device >= 1
-                reference = a @ a
+                reference = cp.einsum("ijab,abcd->cjid", a, b)
+        elif framework == Framework.torch:
+            reference = torch.einsum("ijab,abcd->cjid", a, b)
         else:
-            reference = a @ a
+            reference = np.einsum("ijab,abcd->cjid", a, b)
         tolerance = get_contraction_tolerance("float32", None)
         assert_all_close(result, reference, **tolerance)
+        return result
 
     @pytest.mark.parametrize("device_id", range(num_devices))
     def test_execution_device_id(self, seeder, framework, mem_backend, device_id):
@@ -240,3 +247,49 @@ class TestMiscellaneous:
         for cls in [BaseAllocatorClass, MockAllocator]:
             allocator = cls(0, logging.getLogger())
             self._run_test(framework, mem_backend, options={"allocator": allocator})
+
+    @pytest.mark.parametrize("result_layout", ["C", "F"])
+    @pytest.mark.parametrize("test_case", binary_contraction_test_cases)
+    def test_binary_contraction_result_layout_order(self, seeder, test_case, framework, mem_backend, result_layout):
+        a, b = test_case.gen_input_operands(framework, self._test_dtype, mem_backend)
+        result = binary_contraction(test_case.equation, a, b, options={"result_layout": result_layout})
+        assert tensor_wrapper.wrap_operand(result).strides == tuple(cutensor_utils.compute_strides(result.shape, result_layout))
+
+    @pytest.mark.parametrize("result_layout", ["C", "F"])
+    @pytest.mark.parametrize("test_case", ternary_contraction_test_cases)
+    def test_ternary_contraction_result_layout_order(self, seeder, test_case, framework, mem_backend, result_layout):
+        a, b, c = test_case.gen_input_operands(framework, self._test_dtype, mem_backend)
+        result = ternary_contraction(test_case.equation, a, b, c, options={"result_layout": result_layout})
+        assert tensor_wrapper.wrap_operand(result).strides == tuple(cutensor_utils.compute_strides(result.shape, result_layout))
+
+    @pytest.mark.parametrize("test_case", binary_contraction_test_cases)
+    def test_binary_contraction_optimized_result_layout(self, seeder, test_case, framework, mem_backend):
+        a, b = test_case.gen_input_operands(framework, self._test_dtype, mem_backend)
+        optimized = binary_contraction(test_case.equation, a, b, options={"result_layout": "optimized"})
+        reference = binary_contraction(test_case.equation, a, b, options={"result_layout": "C"})
+        assert_all_close(optimized, reference, **get_contraction_tolerance(self._test_dtype.name, None))
+
+    def test_binary_contraction_optimized_result_layout_is_not_standard_order(self, seeder, framework, mem_backend):
+        test_case = ContractionTestCase(equation="ijab,abcd->djic", shapes=[(2, 3, 4, 5), (4, 5, 6, 7)])
+        a, b = test_case.gen_input_operands(framework, self._test_dtype, mem_backend)
+        optimized = binary_contraction(test_case.equation, a, b, options={"result_layout": "optimized"})
+        reference = binary_contraction(test_case.equation, a, b, options={"result_layout": "C"})
+        optimized_wrapper = tensor_wrapper.wrap_operand(optimized)
+        standard_strides = {
+            tuple(cutensor_utils.compute_strides(optimized_wrapper.shape, result_layout)) for result_layout in ("C", "F")
+        }
+
+        assert_all_close(optimized, reference, **get_contraction_tolerance(self._test_dtype.name, None))
+        assert optimized_wrapper.strides not in standard_strides
+
+    @pytest.mark.parametrize("test_case", binary_contraction_test_cases)
+    def test_result_layout_ignored_when_output_provided(self, seeder, test_case, framework, mem_backend):
+        a, b = test_case.gen_input_operands(framework, self._test_dtype, mem_backend)
+        out = test_case.gen_random_output(framework, self._test_dtype, mem_backend)
+        expected_strides = tensor_wrapper.wrap_operand(out).strides
+        # Make sure the output operand is C-ordered by default
+        if expected_strides:
+            assert expected_strides[-1] == 1
+        result = binary_contraction(test_case.equation, a, b, out=out, options={"result_layout": "F"})
+        assert result is out
+        assert tensor_wrapper.wrap_operand(result).strides == expected_strides

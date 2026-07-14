@@ -1,14 +1,12 @@
-**************************************************************************************
-nvmath-python: Unleashing the Full Capabilities of NVIDIA Math Libraries within Python
-**************************************************************************************
-
-.. TODO: update header
+**********************************************
+NVIDIA Math Libraries for the Python Ecosystem
+**********************************************
 
 Welcome to the nvmath-python documentation!
 
 **nvmath-python** is a Python library to enable cutting-edge performance, productivity, and
-interoperability within the Python computational ecosystem through NVIDIA's high-performance
-math libraries.
+interoperability within the Python computational ecosystem by providing access to the full
+capabilities of NVIDIA's high-performance math libraries.
 
 To quickly get started with nvmath-python, take a look at our
 :doc:`Getting Started <quickstart>` manual.
@@ -45,8 +43,8 @@ Contents
    :maxdepth: 3
 
    Host APIs <host-apis/index.rst>
+   Distributed Host APIs <distributed-apis/index.rst>
    Device APIs <device-apis/index.rst>
-   Distributed APIs <distributed-apis/index.rst>
    Bindings <bindings/index.rst>
 
 .. toctree::

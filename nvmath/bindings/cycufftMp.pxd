@@ -2,8 +2,10 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 #
-# This code was automatically generated across versions from 11.2.6 to 11.4.0, generator version 0.3.1.dev1303+g031f1197f. Do not modify it directly.
+# This code was automatically generated across versions from 11.2.6 to 11.4.0, generator version 0.3.1.dev1471+g7122059e9. Do not modify it directly.
 # This layer exposes the C header to Cython as-is.
+from ._internal.common_types cimport cudaDataType, cudaDataType_t, cudaStream_t, libraryPropertyType, libraryPropertyType_t, cuComplex, cuDoubleComplex
+
 
 ###############################################################################
 # Types (structs, enums, ...)
@@ -93,36 +95,27 @@ ctypedef enum cufftMpCommType "cufftMpCommType":
 # types
 cdef extern from *:
     """
-    #include <driver_types.h>
-    #include <library_types.h>
-    #include <cuComplex.h>
-
     #define MAX_CUDA_DESCRIPTOR_GPUS 64
     #define CUFFT_FORWARD -1
     #define CUFFT_INVERSE  1
     """
-    ctypedef void* cudaStream_t 'cudaStream_t'
-    ctypedef int cudaDataType_t 'cudaDataType_t'
-    ctypedef int cudaDataType 'cudaDataType'
-    ctypedef int libraryPropertyType_t 'libraryPropertyType_t'
-    ctypedef int libraryPropertyType 'libraryPropertyType'
-
-    ctypedef struct cuComplex:
-        pass
-    ctypedef struct cuDoubleComplex:
-        pass
-
     cdef const int MAX_CUDA_DESCRIPTOR_GPUS
-    cdef const int cuFFTFORWARD
-    cdef const int cuFFTINVERSE
+    cdef const int CUFFT_FORWARD
+    cdef const int CUFFT_INVERSE
 
 
 ctypedef float cufftReal 'cufftReal'
+
 ctypedef double cufftDoubleReal 'cufftDoubleReal'
+
 ctypedef cuComplex cufftComplex 'cufftComplex'
+
 ctypedef cuDoubleComplex cufftDoubleComplex 'cufftDoubleComplex'
+
 ctypedef int cufftHandle 'cufftHandle'
+
 ctypedef void* cufftReshapeHandle 'cufftReshapeHandle'
+
 ctypedef struct cufftXt1dFactors 'cufftXt1dFactors':
     long long int size
     long long int stringCount
@@ -145,48 +138,56 @@ ctypedef cufftComplex (*cufftCallbackLoadC 'cufftCallbackLoadC')(
     void* callerInfo,
     void* sharedPointer
 )
+
 ctypedef cufftDoubleComplex (*cufftCallbackLoadZ 'cufftCallbackLoadZ')(
     void* dataIn,
     size_t offset,
     void* callerInfo,
     void* sharedPointer
 )
+
 ctypedef cufftReal (*cufftCallbackLoadR 'cufftCallbackLoadR')(
     void* dataIn,
     size_t offset,
     void* callerInfo,
     void* sharedPointer
 )
+
 ctypedef cufftDoubleReal (*cufftCallbackLoadD 'cufftCallbackLoadD')(
     void* dataIn,
     size_t offset,
     void* callerInfo,
     void* sharedPointer
 )
+
 ctypedef cufftComplex (*cufftJITCallbackLoadC 'cufftJITCallbackLoadC')(
     void* dataIn,
     unsigned long long offset,
     void* callerInfo,
     void* sharedPointer
 )
+
 ctypedef cufftDoubleComplex (*cufftJITCallbackLoadZ 'cufftJITCallbackLoadZ')(
     void* dataIn,
     unsigned long long offset,
     void* callerInfo,
     void* sharedPointer
 )
+
 ctypedef cufftReal (*cufftJITCallbackLoadR 'cufftJITCallbackLoadR')(
     void* dataIn,
     unsigned long long offset,
     void* callerInfo,
     void* sharedPointer
 )
+
 ctypedef cufftDoubleReal (*cufftJITCallbackLoadD 'cufftJITCallbackLoadD')(
     void* dataIn,
     unsigned long long offset,
     void* callerInfo,
     void* sharedPointer
 )
+
 ctypedef void (*cufftCallbackStoreR 'cufftCallbackStoreR')(
     void* dataOut,
     size_t offset,
@@ -194,6 +195,7 @@ ctypedef void (*cufftCallbackStoreR 'cufftCallbackStoreR')(
     void* callerInfo,
     void* sharedPointer
 )
+
 ctypedef void (*cufftJITCallbackStoreR 'cufftJITCallbackStoreR')(
     void* dataOut,
     unsigned long long offset,
@@ -201,6 +203,7 @@ ctypedef void (*cufftJITCallbackStoreR 'cufftJITCallbackStoreR')(
     void* callerInfo,
     void* sharedPointer
 )
+
 ctypedef void (*cufftCallbackStoreD 'cufftCallbackStoreD')(
     void* dataOut,
     size_t offset,
@@ -208,6 +211,7 @@ ctypedef void (*cufftCallbackStoreD 'cufftCallbackStoreD')(
     void* callerInfo,
     void* sharedPointer
 )
+
 ctypedef void (*cufftJITCallbackStoreD 'cufftJITCallbackStoreD')(
     void* dataOut,
     unsigned long long offset,
@@ -215,6 +219,7 @@ ctypedef void (*cufftJITCallbackStoreD 'cufftJITCallbackStoreD')(
     void* callerInfo,
     void* sharedPointer
 )
+
 ctypedef void (*cufftCallbackStoreC 'cufftCallbackStoreC')(
     void* dataOut,
     size_t offset,
@@ -222,6 +227,7 @@ ctypedef void (*cufftCallbackStoreC 'cufftCallbackStoreC')(
     void* callerInfo,
     void* sharedPointer
 )
+
 ctypedef void (*cufftJITCallbackStoreC 'cufftJITCallbackStoreC')(
     void* dataOut,
     unsigned long long offset,
@@ -229,6 +235,7 @@ ctypedef void (*cufftJITCallbackStoreC 'cufftJITCallbackStoreC')(
     void* callerInfo,
     void* sharedPointer
 )
+
 ctypedef void (*cufftCallbackStoreZ 'cufftCallbackStoreZ')(
     void* dataOut,
     size_t offset,
@@ -236,6 +243,7 @@ ctypedef void (*cufftCallbackStoreZ 'cufftCallbackStoreZ')(
     void* callerInfo,
     void* sharedPointer
 )
+
 ctypedef void (*cufftJITCallbackStoreZ 'cufftJITCallbackStoreZ')(
     void* dataOut,
     unsigned long long offset,

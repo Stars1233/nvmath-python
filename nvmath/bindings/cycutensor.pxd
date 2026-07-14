@@ -2,11 +2,12 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 #
-# This code was automatically generated with version 2.5.0, generator version 0.3.1.dev1393+g0a20dc9d7. Do not modify it directly.
+# This code was automatically generated across versions from 2.5.0 to 2.6.0, generator version 0.3.1.dev1471+g7122059e9. Do not modify it directly.
 # This layer exposes the C header to Cython as-is.
 
 from libc.stdint cimport int32_t, int64_t, uint32_t, uint64_t
 from libc.stdio cimport FILE
+from ._internal.common_types cimport cudaDataType, cudaDataType_t, cudaStream_t, libraryPropertyType, libraryPropertyType_t
 
 
 ###############################################################################
@@ -95,6 +96,7 @@ ctypedef enum cutensorPlanPreferenceAttribute_t "cutensorPlanPreferenceAttribute
     CUTENSOR_PLAN_PREFERENCE_ALGO "CUTENSOR_PLAN_PREFERENCE_ALGO" = 3
     CUTENSOR_PLAN_PREFERENCE_KERNEL_RANK "CUTENSOR_PLAN_PREFERENCE_KERNEL_RANK" = 4
     CUTENSOR_PLAN_PREFERENCE_JIT "CUTENSOR_PLAN_PREFERENCE_JIT" = 5
+    CUTENSOR_PLAN_PREFERENCE_GPU_ARCH "CUTENSOR_PLAN_PREFERENCE_GPU_ARCH" = 6
 
 ctypedef enum cutensorAutotuneMode_t "cutensorAutotuneMode_t":
     CUTENSOR_AUTOTUNE_MODE_NONE "CUTENSOR_AUTOTUNE_MODE_NONE" = 0
@@ -113,27 +115,22 @@ ctypedef enum cutensorPlanAttribute_t "cutensorPlanAttribute_t":
 
 
 # types
-cdef extern from *:
-    """
-    #include <driver_types.h>
-    #include <library_types.h>
-    #include <cuComplex.h>
-    """
-    ctypedef void* cudaStream_t 'cudaStream_t'
-    ctypedef int cudaDataType_t 'cudaDataType_t'
-    ctypedef int cudaDataType 'cudaDataType'
-    ctypedef int libraryPropertyType_t 'libraryPropertyType_t'
-    ctypedef int libraryPropertyType 'libraryPropertyType'
-
-
 ctypedef cudaDataType_t cutensorDataType_t 'cutensorDataType_t'
+
 ctypedef void* cutensorComputeDescriptor_t 'cutensorComputeDescriptor_t'
+
 ctypedef void* cutensorOperationDescriptor_t 'cutensorOperationDescriptor_t'
+
 ctypedef void* cutensorPlan_t 'cutensorPlan_t'
+
 ctypedef void* cutensorPlanPreference_t 'cutensorPlanPreference_t'
+
 ctypedef void* cutensorHandle_t 'cutensorHandle_t'
+
 ctypedef void* cutensorTensorDescriptor_t 'cutensorTensorDescriptor_t'
+
 ctypedef void* cutensorBlockSparseTensorDescriptor_t 'cutensorBlockSparseTensorDescriptor_t'
+
 ctypedef void (*cutensorLoggerCallback_t 'cutensorLoggerCallback_t')(
     int32_t logLevel,
     const char* functionName,

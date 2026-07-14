@@ -1,0 +1,7 @@
+---
+features:
+ - |
+   Improved performance of the generic sparse matrix multiplication (SpMM) APIs
+   (:class:`nvmath.sparse.Matmul` and :func:`nvmath.sparse.matmul`) for the code
+   generation path with universal sparse tensor operands due to new kernel
+   emitter capabilities.

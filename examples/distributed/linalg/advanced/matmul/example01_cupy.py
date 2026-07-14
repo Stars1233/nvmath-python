@@ -10,7 +10,7 @@ nvmath-python accepts operands from multiple frameworks. The result of each oper
 is a tensor of the same framework that was used to pass the inputs, and is located
 on the same device as the inputs (GPU in this example).
 
-The global operation performed in this example is: A.T @ B
+The global operation performed in this example is: a.T @ b
 
 $ mpiexec -n 4 python example01_cupy.py
 """
@@ -47,16 +47,16 @@ row_wise_distribution = Slab.X  # partitioning on rows
 col_wise_distribution = Slab.Y  # partitioning on columns
 
 with cp.cuda.Device(device_id):
-    a = cp.random.rand(k, m // nranks)  # a is transposed and partitioned on m
-    b = cp.random.rand(k, n // nranks)  # b is partitioned on n
+    a = cp.random.rand(k, m // nranks)  # 'a' is transposed and partitioned on m
+    b = cp.random.rand(k, n // nranks)  # 'b' is partitioned on n
 
 # In Python, the memory layout of ndarrays and tensors by default uses row-major or C
 # ordering, while cuBLASMp requires column-major or Fortran ordering. To work with cuBLASMp,
 # you can follow these guidelines:
 # - The transpose of a C-ordered (row-major) matrix is a Fortran-ordered (column-major)
 #   matrix and vice-versa.
-# - In a distributed setting, a row-wise distributed matrix A is equivalent to a column-wise
-#   distributed matrix A.T, and vice-versa.
+# - In a distributed setting, a row-wise distributed matrix 'a' is equivalent to a
+#   column-wise distributed matrix 'a'.T, and vice-versa.
 
 # numpy, cupy and torch also have functions to allocate tensors with Fortran order
 # or to convert to Fortran order. Here we use cupy's asfortranarray function to convert
@@ -68,18 +68,18 @@ with cp.cuda.Device(device_id):
 
 # Specify distribution of input and output matrices.
 
-# Note: The choice of distribution for a, b and output as well as whether a and b are
-# transposed influences the distributed algorithm used by cuBLASMp and can have a
+# Note: The choice of distribution for 'a', 'b' and output as well as whether 'a' and 'b'
+# are transposed influences the distributed algorithm used by cuBLASMp and can have a
 # substantial impact on performance.
 # The following configuration will run AllGather+GEMM.
 # Refer to https://docs.nvidia.com/cuda/cublasmp/usage/tp.html for more information.
 
-# Distribution of a, b and output.
+# Distribution of 'a', 'b' and output.
 distributions = [col_wise_distribution, col_wise_distribution, row_wise_distribution]
 
 # Perform the distributed matrix multiplication.
 qualifiers = np.zeros((3,), dtype=matrix_qualifiers_dtype)
-qualifiers[0]["is_transpose"] = True  # a is transposed
+qualifiers[0]["is_transpose"] = True  # 'a' is transposed
 result = nvmath.distributed.linalg.advanced.matmul(
     a,
     b,

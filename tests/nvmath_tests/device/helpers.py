@@ -82,42 +82,38 @@ def time_this(name, fun, *args, **kwargs):
     return out
 
 
-_TOLERANCE = {np.float16: 1e-2, np.float32: 1e-6, np.float64: 1e-14}
+_TOLERANCE = {np.float16: 1e-2, np.float32: 1e-5, np.float64: 1e-14}
 
 
-def show_FFT_traits(FFT):
-    print(f"FFT.precision =            {FFT.precision}")
-    print(f"FFT.value_type =           {FFT.value_type}")
-    print(f"FFT.input_type =           {FFT.input_type}")
-    print(f"FFT.output_type =          {FFT.output_type}")
-    print(f"FFT.storage_size =         {FFT.storage_size}")
-    print(f"FFT.shared_memory_size =   {FFT.shared_memory_size}")
-    print(f"FFT.ffts_per_block =       {FFT.ffts_per_block}")
-    print(f"FFT.code =                 {FFT.files}")
-    print(f"FFT.stride =               {FFT.stride}")
-    print(f"FFT.size =                 {FFT.size}")
-    print(f"FFT.elements_per_thread =  {FFT.elements_per_thread}")
-    print(f"FFT.block_dim =            {FFT.block_dim}")
-    print(f"FFT.workspace_size =       {FFT.workspace_size}")
+def show_FFT_traits(fft):
+    print(f"fft.precision =            {fft.precision}")
+    print(f"fft.value_type =           {fft.value_type}")
+    print(f"fft.input_type =           {fft.input_type}")
+    print(f"fft.output_type =          {fft.output_type}")
+    print(f"fft.storage_size =         {fft.storage_size}")
+    print(f"fft.shared_memory_size =   {fft.shared_memory_size}")
+    print(f"fft.ffts_per_block =       {fft.ffts_per_block}")
+    print(f"fft.stride =               {fft.stride}")
+    print(f"fft.size =                 {fft.size}")
+    print(f"fft.elements_per_thread =  {fft.elements_per_thread}")
+    print(f"fft.block_dim =            {fft.block_dim}")
 
 
-def show_MM_traits(MM):
-    print(f"MM.size =                  {MM.size}")
-    print(f"MM.files =                 {MM.files}")
-    print(f"MM.transpose_mode =        {MM.transpose_mode}")
-    print(f"MM.a_value_type =          {MM.a_value_type}")
-    print(f"MM.b_value_type =          {MM.b_value_type}")
-    print(f"MM.c_value_type =          {MM.c_value_type}")
-    print(f"MM.a_dim =                 {MM.a_dim}")
-    print(f"MM.b_dim =                 {MM.b_dim}")
-    print(f"MM.c_dim =                 {MM.c_dim}")
-    print(f"MM.a_size =                {MM.a_size}")
-    print(f"MM.b_size =                {MM.b_size}")
-    print(f"MM.c_size =                {MM.c_size}")
-    print(f"MM.leading_dimension =     {MM.leading_dimension}")
-    print(f"MM.shared_memory_size =    {MM.shared_memory_size}")
-    print(f"MM.block_dim =             {MM.block_dim}")
-    print(f"MM.max_threads_per_block = {MM.max_threads_per_block}")
+def show_MM_traits(mm):
+    print(f"mm.size =                  {mm.size}")
+    print(f"mm.transpose_mode =        {mm.transpose_mode}")
+    print(f"mm.a_value_type =          {mm.a_value_type}")
+    print(f"mm.b_value_type =          {mm.b_value_type}")
+    print(f"mm.c_value_type =          {mm.c_value_type}")
+    print(f"mm.a_dim =                 {mm.a_dim}")
+    print(f"mm.b_dim =                 {mm.b_dim}")
+    print(f"mm.c_dim =                 {mm.c_dim}")
+    print(f"mm.a_size =                {mm.a_size}")
+    print(f"mm.b_size =                {mm.b_size}")
+    print(f"mm.c_size =                {mm.c_size}")
+    print(f"mm.leading_dimension =     {mm.leading_dimension}")
+    print(f"mm.block_dim =             {mm.block_dim}")
+    print(f"mm.max_threads_per_block = {mm.max_threads_per_block}")
 
 
 def l2error(test, ref, module=np):

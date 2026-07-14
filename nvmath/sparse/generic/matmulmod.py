@@ -7,20 +7,19 @@ __all__ = ["Matmul", "matmul"]
 import functools
 import logging
 import operator
+import os
 import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from enum import IntEnum
+from typing import Any
 
-try:
-    import cuda.core as cc
-except ImportError:
-    import cuda.core.experimental as cc
-
+import cuda.core as cc
 import numpy as np
 
 from nvmath import memory
 from nvmath._internal.layout import check_monotonic_strides, is_contiguous_in_memory
+from nvmath._internal.workspace import Workspace
 from nvmath.bindings import cusparse
 from nvmath.internal import formatters, tensor_wrapper, typemaps, utils
 from nvmath.sparse._internal import common_utils as sp_utils
@@ -50,7 +49,7 @@ CODEGEN_INDEX_TYPES = {"int32", "int64"}
 
 VALID_INDEX_TYPES = CUSPARSE_INDEX_TYPES | CODEGEN_INDEX_TYPES
 
-CUSPARSE_DTYPES = {"float16", "bfloat16", "float32", "float64", "complex32", "complex64", "complex128"}
+CUSPARSE_DTYPES = {"float16", "bfloat16", "float32", "float64", "complex64", "complex128"}
 
 CODEGEN_DTYPES = {"float16", "bfloat16", "float32", "float64", "complex64", "complex128"}
 
@@ -226,7 +225,7 @@ def get_spmm_traits(a, b, c, *, qualifiers, inplace, logger):
     1. The sparse operand is always 2D or higher. Gives M, K.
     2. The dense operand B can be a vector or matrix. If it's
        a vector, an implicit singleton extent is added (but it
-       doesn't appear in the result. Implicitly N=1 in this case.
+       doesn't appear in the result). Implicitly N=1 in this case.
     3. C can be a vector or matrix compatible with (M,N).
     4. The dense matrix batch dimensions must be in C order.
     5. M, K, N must be determined considering the transpose flag.
@@ -500,41 +499,23 @@ execution space currently supported). If not specified, a :class:`ExecutionCUDA`
 be default-constructed.""".replace("\n", " "),
         #
         "prologs": """\
-A dict mapping an operand label (``"a"``, ``"b"``, ``"c"``) to its prolog operation in LTO-IR
+A dict mapping an operand label (``"a"``, ``"b"``) to its prolog operation in LTO-IR
 format (as a :class:`bytes` object). The prolog is a user-written unary function in Python
 that returns the transformed value, which has the data type of the operand to which it is
 applied. This function can be compiled to LTO-IR using the helper
 :func:`~nvmath.sparse.compile_matmul_prolog` or your own compiler of choice. If not
 specified, no prolog will be applied to the operands.""".replace("\n", " "),
         #
-        "epilog": """\
-The epilog operation in LTO-IR format (as a :class:`bytes` object). The epilog is a
-user-written unary function in Python that returns the transformed value, which has the
-data type of the SpMM result. This function can be compiled to LTO-IR using the helper
-:func:`~nvmath.sparse.compile_matmul_epilog` or your own compiler of choice. If not
-specified, no epilog will be applied to the SpMM result.""".replace("\n", " "),
-        #
-        "semiring": """\
-A dict mapping the semiring operations (``"mul"``, ``"add"``, ``"atomic_add"``) to LTO-IR
-code (as a :class:`bytes` object). Each semiring operation is a binary function in Python
-that returns a value.  These function can be compiled to LTO-IR using the helpers
-:func:`~nvmath.sparse.compile_matmul_mul`, :func:`~nvmath.sparse.compile_matmul_add`, or
-:func:`~nvmath.sparse.compile_matmul_atomic_add` or your own compiler of choice. If not
-specified, the standard definitions of these operations from elementary algebra
-will be used.""".replace("\n", " "),
-        #
         "compute_capability": """\
 The target compute capability, specified as a string (``'80'``, ``'89'``, ...). The
 default is the compute capability of the current device.""".replace("\n", " "),
         #
         "result": """\
-The result of the sparse matrix multiplication (epilog applied). Currently only in-place
-SpMM is supported (the result of the computation is written into the addend ``c``).
+The result of the sparse matrix multiplication. Currently only in-place SpMM is
+supported (the result of the computation is written into the addend ``c``).
 """.replace("\n", " "),
         #
-        "release_operands": utils._release_operand_docstring(True),
-        #
-        "reset_operands_unchecked": utils._reset_operand_unchecked_docstring(True),
+        "reset_operands_unchecked": utils._reset_operand_unchecked_docstring(True, experimental=False),
         #
         "stream": """\
 Provide the CUDA stream to use for executing the operation. Acceptable inputs include
@@ -572,13 +553,14 @@ operand device will be queried from the dense operand ``b`` (and ``c``) package.
 @utils.docstring_decorator(SPARSE_MM_DOCUMENTATION, skip_missing=False)
 class Matmul:
     """
-    Create a stateful object encapsulating the specified matrix multiplication computation,
-    which is one of :math:`epilog(\\alpha \\, op_h(a) \\, @ \\, op_h(b) + \\beta \\, c)` or
-    :math:`epilog(prolog_a(op_t(a)) \\, @ \\, prolog_b(op_t(b)) + prolog_c(c))`, along with
-    the required resources to perform the operation. The :math:`op_h` and :math:`op_t`
+    Create a stateful object encapsulating the specified matrix multiplication computation, which is
+    one of :math:`\\alpha \\, \\operatorname{{op}}_h(a) \\, @ \\, \\operatorname{{op}}_h(b) + \\beta \\, c`
+    or :math:`\\operatorname{{prolog}}_a(\\operatorname{{op}}_t(a)) \\, @ \\,
+    \\operatorname{{prolog}}_b(\\operatorname{{op}}_t(b)) + c`, along with
+    the required resources to perform the operation.
+    The :math:`\\operatorname{{op}}_h` and :math:`\\operatorname{{op}}_t`
     operators optionally specify transpose/hermitian or transpose operations respectively
-    via the ``qualifiers`` argument. In addition, the scalar multiplication and addition
-    operators ("semiring") can be customized by the user, if desired.
+    via the ``qualifiers`` argument.
 
     .. note::
         The complex conjugate operation is mutually exclusive with prolog since it can be
@@ -590,8 +572,8 @@ class Matmul:
 
     A stateful object can be used to amortize the cost of preparation (planning in the
     case of matrix multiplication) across multiple executions (also see the
-    :ref:`Stateful APIs <host api types>` section). Prolog, epilog, and semiring
-    operations can be specified in :meth:`plan`.
+    :ref:`Stateful APIs <host api types>` section). Prolog operations can be specified
+    in :meth:`plan`.
 
     The function-form API :func:`matmul` is a convenient alternative to using stateful
     objects for *single* use (the user needs to perform just one matrix multiplication, for
@@ -682,8 +664,7 @@ class Matmul:
         Options can be provided above to control the behavior of the operation using the
         `options` argument (see :class:`MatmulOptions`).
 
-        Next, plan the operation. Optionally, user-defined prologs, epilog, and semiring
-        can be provided.
+        Next, plan the operation. Optionally, user-defined prologs can be provided.
 
         >>> mm.plan()
 
@@ -804,7 +785,7 @@ class Matmul:
         alpha=None,
         beta=None,
         qualifiers=None,
-        options=None,
+        options: MatmulOptions | dict[str, Any] | None = None,
         execution: ExecutionCUDA | None = None,
         stream: utils.AnyStream | int | None = None,
     ):
@@ -845,10 +826,10 @@ CuPy, PyTorch, or SciPy."""
         # extract the dense tensor from the dense UST for `b` and `c`.
         if (b_package := utils.infer_object_package(b)) == "nvmath":
             self.ust_operands.append(b)
-            # Though b.wrapped_operand is the TensorHolder
+            # Though b._wrapped_operand is the TensorHolder
             # we look for, create a new one, so that
             # matmul is free to modify it in place if needed.
-            self.b = b = tensor_wrapper.wrap_operand(b.wrapped_operand.tensor)
+            self.b = b = tensor_wrapper.wrap_operand(b._wrapped_operand.tensor)
         else:
             # Wrap operand 'b' (currently limit to dense operand).
             self.b = b = tensor_wrapper.wrap_operand(b)  # type:ignore
@@ -861,10 +842,10 @@ CuPy, PyTorch, or SciPy."""
 
         if (c_package := utils.infer_object_package(c)) == "nvmath":
             self.ust_operands.append(c)
-            # Though c.wrapped_operand is the TensorHolder
+            # Though c._wrapped_operand is the TensorHolder
             # we look for, create a new one, so that
             # matmul is free to modify it in place if needed.
-            self.c = c = tensor_wrapper.wrap_operand(c.wrapped_operand.tensor)
+            self.c = c = tensor_wrapper.wrap_operand(c._wrapped_operand.tensor)
         else:
             self.c = c = tensor_wrapper.wrap_operand(c)
         operands.append(c)
@@ -1010,10 +991,6 @@ of the other operand(s) ({self.dense_package})."
             self.memory_space = "cpu"
             self.device_id = self.execution.device_id  # type: ignore[union-attr]
 
-        # An UST operand backed by CPU-only packages like NumPy is not supported.
-        if self.memory_space == "cpu" and self.ust_operands and self.dense_package == "cuda":
-            raise NotImplementedError("The Matmul operation does not currently support UST operands backed by NumPy.")
-
         # Execution space.
         self.execution_space = "cuda"
         self.logger.info(
@@ -1118,7 +1095,6 @@ error since the codegen option is True."
             and self.value_type_name in CODEGEN_DTYPES
             and self.sparse_package == "nvmath"
             and a.format_name in CODEGEN_FORMATS
-            and self.memory_space == "cuda"
             and not (self.spmm_traits.a_layout_traits.batch_broadcast and len(self.spmm_traits.b_layout_traits.batch_shape) > 0)
             and a.num_dimensions <= 4
         ):
@@ -1159,14 +1135,20 @@ error since the codegen option is True."
 
         self.mm_planned = False
 
-        # Workspace attributes.
-        self.workspace_ptr: None | memory.MemoryPointer = None
-        self.workspace_size = 0
-        self.workspace_allocated_size = 0
-        self.workspace_allocated_here = False
+        # Workspace lifecycle is managed by `Workspace` (allocate-on-demand,
+        # reuse, mid-call release, exception cleanup, stream-ordered free).
+        # Only the cuSparse dispatch paths (Api.MM, Api.MM_OP) use it; the
+        # codegen path (Api.CODEGEN) constructs the instance but never plans
+        # a size or enters the allocate_perhaps context.
+        self.workspace = Workspace(
+            self.allocator,
+            self.logger,
+            label="cusparse workspace",
+            device_id=self.device_id,
+        )
 
-        # Attributes to establish stream ordering.
-        self.workspace_stream: cc.Stream | None = None
+        # Last event recorded by cuda_call_ctx; consumed on workspace release
+        # so the free is ordered after the compute that touched the buffer.
         self.last_compute_event: cc.Event | None = None
 
         # Track whether the operands have been released.
@@ -1201,7 +1183,8 @@ error since the codegen option is True."
 
     def _free_plan_resources(self, exception: Exception | None = None) -> bool:
         """
-        Free resources allocated in planning.
+        Free resources allocated in planning, including the cuSPARSE handle that plan()
+        creates and rebuilds during replanning.
         """
 
         # Destroy plan.
@@ -1220,6 +1203,12 @@ error since the codegen option is True."
             cusparse.destroy_dn_mat(self.c_ifc.descriptor)
             self.c_ifc.descriptor = None
 
+        # Destroy the cuSPARSE handle owned by this plan before it can be
+        # overwritten by a subsequent planning run.
+        if self.handle is not None and self.own_handle:
+            cusparse.destroy(self.handle)
+            self.handle, self.own_handle = None, None
+
         self.mm_planned = False
         return True
 
@@ -1228,115 +1217,15 @@ error since the codegen option is True."
         if not self.mm_planned:
             raise RuntimeError(f"{what} cannot be performed before plan() has been called.")
 
-    def _free_workspace_memory(self, exception: Exception | None = None) -> bool:
-        """
-        Free workspace by releasing the MemoryPointer object.
-        """
-        if self.workspace_ptr is None:
-            return True
-
-        self.workspace_ptr = None
-        self.workspace_allocated_size = 0
-        self.logger.debug("[_free_workspace_memory] The workspace has been released.")
-
-        return True
-
-    def _reset_workspace_allocation_tracking(self):
-        """
-        Reset workspace allocation tracking attributes to False at the end of the methods
-        where workspace memory is potentially allocated. This is necessary to prevent any
-        exceptions raised before method entry from using stale tracking values.
-        """
-        self.workspace_allocated_here = False
-
-    @utils.precondition(_check_valid_matmul)
-    def _release_workspace_memory_perhaps(self, release_workspace):
-        """
-        Free workspace memory if it's larger than the specified limit.
-        """
-        if not release_workspace:
-            return True
-
-        # Establish ordering wrt the computation and free workspace if requested.
-        if self.last_compute_event is not None:
-            self.workspace_stream.wait(self.last_compute_event)
-            self.logger.debug("Established ordering with respect to the computation before releasing the workspace.")
-            self.last_compute_event = None
-
-        self.logger.debug("[_release_workspace_memory_perhaps] The workspace memory will be released.")
-        return self._free_workspace_memory()
-
-    def _release_workspace_memory_perhaps_wrapper(self, exception: Exception | None = None) -> bool:
-        """
-        This is used in @atomic.
-        """
-        self._release_workspace_memory_perhaps(release_workspace=self.workspace_allocated_here)
-        self._reset_workspace_allocation_tracking()
-        return True
-
-    @utils.precondition(_check_valid_matmul)
-    @utils.precondition(_check_planned, "Workspace memory allocation")
-    @utils.atomic(_free_workspace_memory, method=True)
-    def _allocate_workspace_memory(self, stream_holder: utils.StreamHolder):
-        """
-        Allocate workspace memory using the specified allocator.
-        """
-
-        assert self.workspace_size is not None, "Internal Error."
-        assert self.workspace_allocated_here is False, "Internal Error."
-
-        if self.workspace_size == 0:  # For performance, bypass allocator for workspace size == 0.
-            self.workspace_ptr = memory.MemoryPointer(0, 0, finalizer=None)
-        else:
-            self.logger.debug("Allocating workspace for performing the matrix multiplication...")
-            with utils.device_ctx(self.device_id), stream_holder.ctx:
-                try:
-                    if isinstance(self.allocator, memory.BaseCUDAMemoryManagerAsync):
-                        self.workspace_ptr = self.allocator.memalloc_async(self.workspace_size, stream_holder.obj)
-                    else:
-                        self.workspace_ptr = self.allocator.memalloc(self.workspace_size)
-                    self.workspace_allocated_here = True
-                except TypeError as e:
-                    message = (
-                        "The method 'memalloc' in the allocator object must conform to the interface in the "
-                        "'BaseCUDAMemoryManager' protocol."
-                    )
-                    raise TypeError(message) from e
-
-        self.workspace_allocated_size = self.workspace_size
-        self.workspace_stream = stream_holder.obj
-        self.logger.debug(
-            f"Finished allocating device workspace of size {formatters.MemoryStr(self.workspace_size)} in the context "
-            f"of stream {self.workspace_stream}."
-        )
-
-    def _allocate_workspace_memory_perhaps(self, stream_holder: utils.StreamHolder):
-        """
-        Allocate workspace memory using the specified allocator, if it hasn't already been
-        done.
-        """
-
-        if self.workspace_ptr is not None and self.workspace_allocated_size >= self.workspace_size:
-            return
-
-        return self._allocate_workspace_memory(stream_holder)
-
     @utils.precondition(_check_valid_matmul)
     @utils.precondition(_check_valid_operands, "Planning")
     @utils.atomic(_free_plan_resources, method=True)
-    def plan(
-        self, *, prologs=None, epilog=None, semiring=None, compute_capability=None, stream: utils.AnyStream | int | None = None
-    ):
+    def plan(self, *, prologs=None, compute_capability=None, stream: utils.AnyStream | int | None = None):
         r"""
-        Plan the sparse matrix multiplication operation, considering the prolog(s), epilog, and
-        semiring operations.
+        Plan the sparse matrix multiplication operation.
 
         Args:
             prologs: {prologs}
-
-            epilog: {epilog}
-
-            semiring: {semiring}
 
             compute_capability: {compute_capability}
 
@@ -1345,7 +1234,7 @@ error since the codegen option is True."
         Examples:
 
             We'll see how to use prologs specify the SpMM
-            :math:`c := 3.14 \, sin(a) \, @ \, b + c`, where the elementwise transformations
+            :math:`c := 3.14 \, \sin(a) \, @ \, b + c`, where the elementwise transformations
             are fully-fused into the matrix multiplication.
 
             >>> import math
@@ -1394,6 +1283,14 @@ error since the codegen option is True."
         <https://github.com/NVIDIA/nvmath-python/tree/main/examples/sparse/generic/matmul>`_
         directory.
         """  # noqa: W505
+
+        # TODO: add support for this later
+        epilog, semiring = None, None
+
+        # TODO: replace by heuristic to pick best OR include in API
+        algo_env, kernel_env = os.getenv("NVMATH_CUSPARSE_ALGORITHM"), os.getenv("UST_CODEGEN_KERNEL")
+        self.algorithm = cusparse.SpMMAlg.DEFAULT if algo_env is None else cusparse.SpMMAlg(int(algo_env))
+        kernel = 0 if kernel_env is None else int(kernel_env)
 
         # Set self.dispatch and self.codegen from the corresponding initial values. This
         # is to enable replanning.
@@ -1517,11 +1414,8 @@ to 2-argument epilog for now."
 
         if self.api == Api.CODEGEN:
             assert self.codegen == BackendSupport.SUPPORTED, "Internal error."
-            if semiring is not None and "atomic_add" not in semiring:
-                raise ValueError(
-                    "The 'atomic_add' operation needs to be specified in the semiring for the \
-code generation path."
-                )
+            if semiring is not None or epilog is not None:
+                raise NotImplementedError("Code generation currently only supports prologs.")
             self.logger.info("The Matmul kernel will be generated by the UST library and compiled JIT.")
         elif self.api in [Api.MM, Api.MM_OP]:
             assert self.dispatch == BackendSupport.SUPPORTED, "Internal error."
@@ -1531,8 +1425,6 @@ code generation path."
 
         if self.api == Api.CODEGEN:
             from nvmath.sparse.ust._emitter import populate_matmul_parameters
-
-            assert self.memory_space == "cuda", "Internal error."
 
             if self.beta[0] != 1.0:
                 raise NotImplementedError("The code generation path is not supported for beta != 1.")
@@ -1556,19 +1448,27 @@ code generation path."
                 prologs["b"] = prolog_b
 
             a, b, c = self.a.tensor, *self.ust_operands
-            self.kernel = KERNEL_CACHE.generate_matmul(
-                a,
-                b,
-                c,
-                compute_type=self.compute_type_name,
-                prologs=prologs,
-                epilog=epilog,
-                semiring=semiring,
-                transpose_a=self.qualifiers[0]["is_transpose"] > 0,
-                transpose_b=self.qualifiers[1]["is_transpose"] > 0,
-            )
+            with utils.device_ctx(self.device_id):
+                self.kernel, self.grid_iter = KERNEL_CACHE.generate_matmul(
+                    a,
+                    b,
+                    c,
+                    compute_type=self.compute_type_name,
+                    prologs=prologs,
+                    transpose_a=self.qualifiers[0]["is_transpose"] > 0,
+                    transpose_b=self.qualifiers[1]["is_transpose"] > 0,
+                    kernel=kernel,
+                )
 
-            self.kernel_parameters, self.kernel_problem_size = populate_matmul_parameters(a, b, c, dense_bc=True)
+                (self.kernel_grid, self.kernel_block), self.kernel_parameters = populate_matmul_parameters(
+                    a,
+                    b,
+                    c,
+                    self.grid_iter,
+                    stream_holder=stream_holder,
+                    transpose_a=self.qualifiers[0]["is_transpose"] > 0,
+                    transpose_b=self.qualifiers[1]["is_transpose"] > 0,
+                )
 
             self.mm_planned = True
             self.logger.info("The Matmul planning is complete for the code generation path.")
@@ -1583,11 +1483,20 @@ code generation path."
             if not isinstance(semiring["add"], bytes) or not isinstance(semiring["mul"], bytes):
                 raise ValueError("The LTO-IR code for 'add' and 'mul' semiring operation must be bytestring objects.")
 
-        # Create handle.
-        with utils.device_ctx(self.device_id):
-            self.own_handle = True
-            self.handle = cusparse.create()
-            self.logger.info(f"The library handle has been created: {self.handle}.")
+        # Create handle if needed.
+        # NOTE: currently sparse Matmul does not accept a user-provided handle
+        # and the cusparse library handle is always created internally
+        # during planning (first call) and owned by this Matmul object.
+        # Here we add a guard to make sure to catch this if it changes in the future.
+        if self.handle is None:
+            assert self.own_handle is None, "Internal error."
+            with utils.device_ctx(self.device_id):
+                self.own_handle = True
+                self.handle = cusparse.create()
+                self.logger.info(f"The library handle has been created: {self.handle}.")
+        else:
+            # The handle is already created in a previous plan call.
+            assert self.own_handle is True, "Internal error."
 
         # Set stream.
         cusparse.set_stream(self.handle, stream_holder.ptr)
@@ -1597,34 +1506,41 @@ code generation path."
 
         # Set the pointer mode.
         cusparse.set_pointer_mode(self.handle, cusparse.PointerMode.HOST)
-        self.a_ifc = getattr(cusparse_utils, self.a.format_name + "Ifc")(self.a, self.spmm_traits.a_layout_traits)
-        self.b_ifc = cusparse_utils.DenseMatrixIfc(self.b, self.spmm_traits.b_layout_traits)  # type: ignore[assignment]
-        self.c_ifc = cusparse_utils.DenseMatrixIfc(self.c, self.spmm_traits.c_layout_traits)  # type: ignore[assignment]
+
+        # Create matrix descriptors if not already created in a previous plan call.
+        if self.a_ifc is None:
+            self.a_ifc = getattr(cusparse_utils, self.a.format_name + "Ifc")(self.a, self.spmm_traits.a_layout_traits)  # type: ignore[assignment]
+            self.a_ifc.create()  # type: ignore[attr-defined]
+        if self.b_ifc is None:
+            self.b_ifc = cusparse_utils.DenseMatrixIfc(self.b, self.spmm_traits.b_layout_traits)  # type: ignore[assignment]
+            self.b_ifc.create()  # type: ignore[attr-defined]
+        if self.c_ifc is None:
+            self.c_ifc = cusparse_utils.DenseMatrixIfc(self.c, self.spmm_traits.c_layout_traits)  # type: ignore[assignment]
+            self.c_ifc.create()  # type: ignore[attr-defined]
 
         # Transpose
         self.op_a = _get_cusparse_op_code(self.qualifiers[0])
         self.op_b = _get_cusparse_op_code(self.qualifiers[1])
 
-        # Create matrix descriptors.
-        self.a_ifc.create()  # type: ignore[attr-defined]
-        self.b_ifc.create()  # type: ignore[attr-defined]
-        self.c_ifc.create()  # type: ignore[attr-defined]
-
         if self.api == Api.MM:
             # Compute workspace.
-            self.workspace_size = cusparse.sp_mm_buffer_size(
-                self.handle,
-                self.op_a,
-                self.op_b,
-                self.alpha.ctypes.data,
-                self.a_ifc.descriptor,  # type: ignore[attr-defined]
-                self.b_ifc.descriptor,  # type: ignore[attr-defined]
-                self.beta.ctypes.data,
-                self.c_ifc.descriptor,  # type: ignore[attr-defined]
-                self.compute_type,
-                cusparse.SpMMAlg.DEFAULT,
+            self.workspace.set_size(
+                cusparse.sp_mm_buffer_size(
+                    self.handle,
+                    self.op_a,
+                    self.op_b,
+                    self.alpha.ctypes.data,
+                    self.a_ifc.descriptor,  # type: ignore[attr-defined]
+                    self.b_ifc.descriptor,  # type: ignore[attr-defined]
+                    self.beta.ctypes.data,
+                    self.c_ifc.descriptor,  # type: ignore[attr-defined]
+                    self.compute_type,
+                    self.algorithm,
+                )
             )
         elif self.api == Api.MM_OP:
+            assert semiring is not None and epilog is not None
+
             # TODO: Fix `sp_mm_op_create_plan` to accept bytes objects.
             add_buffer = np.frombuffer(semiring["add"], dtype=np.int8)
             mul_buffer = np.frombuffer(semiring["mul"], dtype=np.int8)
@@ -1632,7 +1548,7 @@ code generation path."
 
             # Plan and compute workspace.
             with utils.device_ctx(self.device_id):
-                self.mm_op_plan, self.workspace_size = cusparse.sp_mm_op_create_plan(
+                self.mm_op_plan, workspace_size = cusparse.sp_mm_op_create_plan(
                     self.handle,
                     self.op_a,
                     self.op_b,
@@ -1640,7 +1556,7 @@ code generation path."
                     self.b_ifc.descriptor,  # type: ignore[attr-defined]
                     self.c_ifc.descriptor,  # type: ignore[attr-defined]
                     self.compute_type,
-                    cusparse.SpMMAlg.DEFAULT,
+                    self.algorithm,
                     add_buffer.ctypes.data,
                     len(semiring["add"]),
                     mul_buffer.ctypes.data,
@@ -1648,14 +1564,15 @@ code generation path."
                     epilog_buffer.ctypes.data,
                     len(epilog),
                 )
+            self.workspace.set_size(workspace_size)
         else:
             raise AssertionError("Internal error.")
 
         self.logger.info(f"The memory limit is {formatters.MemoryStr(self.memory_limit)}.")
-        if self.workspace_size > self.memory_limit:
+        if self.workspace.size > self.memory_limit:
             raise RuntimeError(
-                f"The memory required for the computation is {self.workspace_size} \
-({formatters.MemoryStr(self.workspace_size)}), while the specified memory limit is {self.memory_limit} \
+                f"The memory required for the computation is {self.workspace.size} \
+({formatters.MemoryStr(self.workspace.size)}), while the specified memory limit is {self.memory_limit} \
 ({formatters.MemoryStr(self.memory_limit)})."
             )
 
@@ -1749,16 +1666,6 @@ code generation path."
     ):
         """
         Reset one or more operands held by this :class:`Matmul` instance.
-        Only the operands explicitly passed are updated; omitted operands retain
-        their current values.
-
-        This method will perform various checks on the new operands to make sure:
-
-        - The shapes, index and data types match those of the old ones.
-
-        - The packages that the operands belong to match those of the old ones.
-
-        - If input tensors are on GPU, the device must match.
 
         Args:
             a: {a}
@@ -1772,6 +1679,17 @@ code generation path."
             beta: {beta}
 
             stream: {stream}
+
+        Semantics:
+            - Only the operands explicitly passed are updated. At least one operand
+              is required (all of them after :meth:`release_operands`), otherwise
+              a :class:`ValueError` is raised.
+
+            - This method will perform various checks on the new operands to make sure:
+
+              - The shapes, index and data types match those of the old ones.
+              - The packages that the operands belong to match those of the old ones.
+              - If input tensors are on GPU, the device must match.
 
         Examples:
 
@@ -1839,14 +1757,13 @@ code generation path."
 
         self.logger.info("Resetting operands...")
 
-        # If operands have been released, all required operands must be provided
-        if self.operands_released and (a is None or b is None or c is None):
-            raise ValueError("After release_operands(), 'a', 'b', and 'c' must be provided to reset_operands().")
-
-        if a is None and b is None and c is None and alpha is None and beta is None:
-            msg = "Calling reset_operands() with all arguments set to None is not allowed. "
-            msg += "Use release_operands() to release all operands."
-            raise ValueError(msg)
+        # If operands have been released, all required operands must be provided.
+        if self.operands_released:
+            if a is None or b is None or c is None:
+                raise ValueError("After release_operands(), 'a', 'b', and 'c' must be provided to reset_operands().")
+        elif all(arg is None for arg in (a, b, c, alpha, beta)):
+            # All arguments are None: there is nothing to update, so reject the call.
+            raise ValueError("reset_operands() requires at least one operand to be provided.")
 
         # Update alpha.
         if alpha is not None:
@@ -1905,11 +1822,15 @@ packages: nvmath, CuPy, PyTorch, or SciPy."
                     f"The package for 'a' ({sparse_package}) doesn't match the original one ({self.sparse_package})."
                 )
 
-            if sparse_package == "nvmath" and a.dense_tensorholder_type.name != self.dense_package:
-                raise TypeError(
-                    f"The UST operand 'a' representation package ({a.dense_tensorholder_type.name}) doesn't match the "
-                    f"original one ({self.dense_package})."
-                )
+            if sparse_package == "nvmath":
+                dense_package = self.dense_package
+                if dense_package == "cuda":
+                    dense_package = "numpy"
+                if a.dense_tensorholder_type.name != dense_package:
+                    raise TypeError(
+                        f"The UST operand 'a' representation package ({a.dense_tensorholder_type.name}) doesn't match the "
+                        f"original one ({self.dense_package})."
+                    )
 
             if memory_space != self.memory_space:
                 raise TypeError(
@@ -1925,6 +1846,12 @@ packages: nvmath, CuPy, PyTorch, or SciPy."
             if index_type != self.index_type_name:
                 raise TypeError(
                     f"The index type for 'a' ({index_type}) doesn't match the original one ({self.index_type_name})."
+                )
+
+            original_format_name = self.spmm_traits.a_layout_traits.sparse_format
+            if a.format_name != original_format_name:
+                raise TypeError(
+                    f"The sparse format for 'a' ({a.format_name}) doesn't match the original one ({original_format_name})."
                 )
 
             if shape != a_shape:
@@ -1958,7 +1885,7 @@ packages: nvmath, CuPy, PyTorch, or SciPy."
             package = utils.infer_object_package(b)
             if (package == "nvmath") != (self.sparse_package == "nvmath"):
                 raise TypeError(f"The package for 'b' ({package}) doesn't match the original one ({self.sparse_package}).")
-            b_wrapped = tensor_wrapper.wrap_operand(b.wrapped_operand.tensor if package == "nvmath" else b)
+            b_wrapped = tensor_wrapper.wrap_operand(b._wrapped_operand.tensor if package == "nvmath" else b)
             # Check and update self.operands and the alias.
             self._check_and_set_dense_operand(b_wrapped, "b", 1, self.b_ifc, stream_holder)
             if package == "nvmath":
@@ -1975,7 +1902,7 @@ packages: nvmath, CuPy, PyTorch, or SciPy."
             package = utils.infer_object_package(c)
             if (package == "nvmath") != (self.sparse_package == "nvmath"):
                 raise TypeError(f"The package for 'c' ({package}) doesn't match the original one ({self.sparse_package}).")
-            c_wrapped = tensor_wrapper.wrap_operand(c.wrapped_operand.tensor if package == "nvmath" else c)
+            c_wrapped = tensor_wrapper.wrap_operand(c._wrapped_operand.tensor if package == "nvmath" else c)
             # Check and update self.operands and the alias.
             self._check_and_set_dense_operand(c_wrapped, "c", 2, self.c_ifc, stream_holder)
             if package == "nvmath":
@@ -1992,10 +1919,17 @@ packages: nvmath, CuPy, PyTorch, or SciPy."
         if (a is not None or b is not None or c is not None) and self.api == Api.CODEGEN:
             from nvmath.sparse.ust._emitter import populate_matmul_parameters
 
-            assert self.memory_space == "cuda", "Internal error."
-
-            a, b, c = self.a.tensor, *self.ust_operands
-            self.kernel_parameters, self.kernel_problem_size = populate_matmul_parameters(a, b, c, dense_bc=True)
+            with utils.device_ctx(self.device_id):
+                a, b, c = self.a.tensor, *self.ust_operands
+                (self.kernel_grid, self.kernel_block), self.kernel_parameters = populate_matmul_parameters(
+                    a,
+                    b,
+                    c,
+                    self.grid_iter,
+                    stream_holder,
+                    transpose_a=self.qualifiers[0]["is_transpose"] > 0,
+                    transpose_b=self.qualifiers[1]["is_transpose"] > 0,
+                )
 
         # Update release operands state.
         self.operands_released = False
@@ -2032,7 +1966,7 @@ packages: nvmath, CuPy, PyTorch, or SciPy."
                 if self.ust_operands:
                     self.ust_operands[0] = b
                     # Recall `b` is the wrapped dense non-UST operand.
-                    self.operands[1].tensor = b.wrapped_operand.tensor
+                    self.operands[1].tensor = b._wrapped_operand.tensor
                 else:
                     self.operands[1].tensor = b
 
@@ -2046,7 +1980,7 @@ packages: nvmath, CuPy, PyTorch, or SciPy."
                 if self.ust_operands:
                     self.ust_operands[1] = c
                     # Recall `c` is the wrapped dense non-UST operand.
-                    self.operands[2].tensor = c.wrapped_operand.tensor
+                    self.operands[2].tensor = c._wrapped_operand.tensor
                 else:
                     self.operands[2].tensor = c
 
@@ -2071,7 +2005,7 @@ packages: nvmath, CuPy, PyTorch, or SciPy."
             # We can't use the dense wrapper type `self.[b,c].__class__` when going across
             # memory spaces due to asymmetries (NumPyTensor <> NDBufferTensor, etc).
             if b is not None:
-                b_wrapped = tensor_wrapper.wrap_operand(b.wrapped_operand.tensor if self.sparse_package == "nvmath" else b)
+                b_wrapped = tensor_wrapper.wrap_operand(b._wrapped_operand.tensor if self.sparse_package == "nvmath" else b)
                 self.b = self.operands[1] = b_wrapped.to(self.device_id, stream_holder)
                 if self.ust_operands:
                     self.ust_operands[0] = UST.from_package(self.b.tensor, stream_holder.external)
@@ -2080,7 +2014,7 @@ packages: nvmath, CuPy, PyTorch, or SciPy."
                     self.b_ifc.update(self.b)  # type: ignore[attr-defined]
 
             if c is not None:
-                c_wrapped = tensor_wrapper.wrap_operand(c.wrapped_operand.tensor if self.sparse_package == "nvmath" else c)
+                c_wrapped = tensor_wrapper.wrap_operand(c._wrapped_operand.tensor if self.sparse_package == "nvmath" else c)
                 self.c = self.operands[2] = c_wrapped.to(self.device_id, stream_holder)
                 if self.ust_operands:
                     self.ust_operands[1] = UST.from_package(self.c.tensor, stream_holder.external)
@@ -2094,8 +2028,18 @@ packages: nvmath, CuPy, PyTorch, or SciPy."
         if self.api == Api.CODEGEN:
             from nvmath.sparse.ust._emitter import populate_matmul_parameters
 
-            a, b, c = self.a.tensor, *self.ust_operands
-            self.kernel_parameters, self.kernel_problem_size = populate_matmul_parameters(a, b, c, dense_bc=True)
+            with utils.device_ctx(self.device_id):
+                stream_holder = utils.get_or_create_stream(self.device_id, stream, self.dense_package)
+                a, b, c = self.a.tensor, *self.ust_operands
+                (self.kernel_grid, self.kernel_block), self.kernel_parameters = populate_matmul_parameters(
+                    a,
+                    b,
+                    c,
+                    self.grid_iter,
+                    stream_holder,
+                    transpose_a=self.qualifiers[0]["is_transpose"] > 0,
+                    transpose_b=self.qualifiers[1]["is_transpose"] > 0,
+                )
 
         # Update release operands state.
         self.operands_released = False
@@ -2108,6 +2052,7 @@ packages: nvmath, CuPy, PyTorch, or SciPy."
 
         # Fast exit.
         if self.operands_released:
+            self.logger.info("Operands have already been released; nothing to do.")
             return
 
         # Set the sparse operand to None.
@@ -2135,7 +2080,6 @@ packages: nvmath, CuPy, PyTorch, or SciPy."
     @utils.precondition(_check_valid_matmul)
     @utils.precondition(_check_planned, "Execution")
     @utils.precondition(_check_valid_operands, "Execution")
-    @utils.atomic(_release_workspace_memory_perhaps_wrapper, method=True)
     def execute(self, *, release_workspace=False, stream: utils.AnyStream | int | None = None):
         """
         Execute a prepared (planned) sparse matrix multiplication.
@@ -2176,8 +2120,9 @@ packages: nvmath, CuPy, PyTorch, or SciPy."
 
             launch_kernel(
                 self.kernel,
+                self.kernel_grid,
+                self.kernel_block,
                 self.kernel_parameters,
-                self.kernel_problem_size,
                 device_id=self.device_id,
                 stream_holder=stream_holder,
                 blocking=True,
@@ -2187,39 +2132,39 @@ packages: nvmath, CuPy, PyTorch, or SciPy."
             # Set stream for library execution.
             cusparse.set_stream(self.handle, stream_holder.ptr)
 
-            # Allocate workspace if needed.
-            self._allocate_workspace_memory_perhaps(stream_holder)
+            with self.workspace.allocate_perhaps(
+                stream_holder,
+                get_last_event=lambda: self.last_compute_event,
+            ) as ws:
+                with utils.cuda_call_ctx(stream_holder, self.blocking, timing=log_info) as (
+                    self.last_compute_event,
+                    elapsed,
+                ):
+                    if self.api == Api.MM:
+                        cusparse.sp_mm(
+                            self.handle,
+                            self.op_a,
+                            self.op_b,
+                            self.alpha.ctypes.data,
+                            self.a_ifc.descriptor,  # type: ignore[attr-defined]
+                            self.b_ifc.descriptor,  # type: ignore[attr-defined]
+                            self.beta.ctypes.data,
+                            self.c_ifc.descriptor,  # type: ignore[attr-defined]
+                            self.compute_type,
+                            self.algorithm,
+                            ws.raw_ptr,
+                        )
+                    elif self.api == Api.MM_OP:
+                        cusparse.sp_mm_op(self.mm_op_plan, ws.raw_ptr)
+                    else:
+                        raise AssertionError("Internal error.")
 
-            raw_workspace_ptr = utils.get_ptr_from_memory_pointer(self.workspace_ptr)
-            with utils.cuda_call_ctx(stream_holder, self.blocking, timing=log_info) as (
-                self.last_compute_event,
-                elapsed,
-            ):
-                if self.api == Api.MM:
-                    cusparse.sp_mm(
-                        self.handle,
-                        self.op_a,
-                        self.op_b,
-                        self.alpha.ctypes.data,
-                        self.a_ifc.descriptor,  # type: ignore[attr-defined]
-                        self.b_ifc.descriptor,  # type: ignore[attr-defined]
-                        self.beta.ctypes.data,
-                        self.c_ifc.descriptor,  # type: ignore[attr-defined]
-                        self.compute_type,
-                        cusparse.SpMMAlg.DEFAULT,
-                        raw_workspace_ptr,
-                    )
-                elif self.api == Api.MM_OP:
-                    cusparse.sp_mm_op(self.mm_op_plan, raw_workspace_ptr)
-                else:
-                    raise AssertionError("Internal error.")
+                if log_info and elapsed.data is not None:
+                    self.logger.info(f"The matrix multiplication calculation took {elapsed.data:.3f} ms to complete.")
 
-            if log_info and elapsed.data is not None:
-                self.logger.info(f"The matrix multiplication calculation took {elapsed.data:.3f} ms to complete.")
-
-        # Establish ordering wrt the computation and free workspace if requested.
-        if release_workspace:
-            self._release_workspace_memory_perhaps(True)
+                if release_workspace:
+                    ws.release(self.last_compute_event)
+                    self.last_compute_event = None
 
         # Return the result.
         if self.memory_space == "cpu":
@@ -2236,10 +2181,6 @@ packages: nvmath, CuPy, PyTorch, or SciPy."
             else:
                 out = self.c.tensor
 
-        # Release internal reference to the result to permit recycling of memory.
-        # TODO: handle result allocated internally.
-        self._reset_workspace_allocation_tracking()
-
         return out
 
     def free(self):
@@ -2255,21 +2196,12 @@ packages: nvmath, CuPy, PyTorch, or SciPy."
             return
 
         try:
-            # Future operations on the workspace stream should be ordered after the
-            # computation.
-            if self.last_compute_event is not None:
-                if self.workspace_stream is not None:
-                    self.workspace_stream.wait(self.last_compute_event)
-                self.last_compute_event = None
-
-            self._free_workspace_memory()
+            # Establish ordering with respect to the last computation
+            # before releasing internal resources.
+            self.workspace.release(self.last_compute_event)
+            self.last_compute_event = None
 
             self._free_plan_resources()
-
-            # Free handle if we own it.
-            if self.handle is not None and self.own_handle:
-                cusparse.destroy(self.handle)
-                self.handle, self.own_handle = None, False
 
             # Set all attributes to None except for logger and valid_state.
             for attr in list(vars(self)):
@@ -2297,21 +2229,20 @@ def matmul(
     beta=None,
     qualifiers=None,
     prologs=None,
-    epilog=None,
-    semiring=None,
     compute_capability=None,
-    options=None,
+    options: MatmulOptions | dict[str, Any] | None = None,
     execution: ExecutionCUDA | None = None,
     stream: utils.AnyStream | int | None = None,
 ):
     """
     Perform the specified sparse matrix multiplication computation, which is one of
-    :math:`epilog(\\alpha \\, op_h(a) \\, @ \\, op_h(b) + \\beta \\, c)` or
-    :math:`epilog(prolog_a(op_t(a)) \\, @ \\, prolog_b(op_t(b)) + prolog_c(c))`. The
-    :math:`op_h` and :math:`op_t` operators optionally specify transpose/hermitian or
-    transpose operations respectively via the ``qualifiers`` argument. In addition, the
-    scalar multiplication and addition operators ("semiring") can be customized by the
-    user, if desired.
+    :math:`\\alpha \\, \\operatorname{{op}}_h(a) \\, @ \\, \\operatorname{{op}}_h(b)
+    + \\beta \\, c` or
+    :math:`\\operatorname{{prolog}}_a(\\operatorname{{op}}_t(a)) \\, @ \\,
+    \\operatorname{{prolog}}_b(\\operatorname{{op}}_t(b)) + c`. The
+    :math:`\\operatorname{{op}}_h` and :math:`\\operatorname{{op}}_t` operators optionally
+    specify transpose/hermitian or transpose operations respectively via
+    the ``qualifiers`` argument.
 
     .. note::
         The complex conjugate operation is mutually exclusive with prolog since it can be
@@ -2353,10 +2284,6 @@ def matmul(
         qualifiers: {qualifiers}
 
         prologs: {prologs}
-
-        epilog: {epilog}
-
-        semiring: {semiring}
 
         compute_capability: {compute_capability}
 
@@ -2420,7 +2347,7 @@ def matmul(
     with Matmul(
         a, b, c=c, alpha=alpha, beta=beta, qualifiers=qualifiers, options=options, execution=execution, stream=stream
     ) as mm:
-        mm.plan(prologs=prologs, epilog=epilog, semiring=semiring, compute_capability=compute_capability, stream=stream)
+        mm.plan(prologs=prologs, compute_capability=compute_capability, stream=stream)
         r = mm.execute(stream=stream)
 
     return r

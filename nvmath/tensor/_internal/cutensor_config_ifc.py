@@ -37,6 +37,7 @@ class ContractionPlanPreference:
         self._algo = np.zeros((1,), dtype=get_dtype(cutensor.PlanPreferenceAttribute.ALGO))
         self._kernel_rank = np.zeros((1,), dtype=get_dtype(cutensor.PlanPreferenceAttribute.KERNEL_RANK))
         self._jit = np.zeros((1,), dtype=get_dtype(cutensor.PlanPreferenceAttribute.JIT))
+        self._gpu_arch = np.zeros((1,), dtype=get_dtype(cutensor.PlanPreferenceAttribute.GPU_ARCH))
 
     def _check_valid_contraction_wrapper(self, *args, **kwargs):
         if not self._contraction.valid_state:
@@ -245,3 +246,34 @@ class ContractionPlanPreference:
 
         """
         ContractionPlanPreference._set_scalar_attribute(self._contraction, cutensor.PlanPreferenceAttribute.JIT, self._jit, jit)
+
+    @property
+    @utils.precondition(_check_valid_contraction_wrapper)
+    def gpu_arch(self):
+        """
+        Query the GPU architecture. See the
+        `cuTensor documentation
+        <https://docs.nvidia.com/cuda/cutensor/latest/api/types.html#cutensorplanpreferenceattribute-t>`__
+        for more information.
+        """
+        ContractionPlanPreference._get_scalar_attribute(
+            self._contraction, cutensor.PlanPreferenceAttribute.GPU_ARCH, self._gpu_arch
+        )
+        return self._gpu_arch.item()
+
+    @gpu_arch.setter
+    @utils.precondition(_check_valid_contraction_wrapper)
+    def gpu_arch(self, gpu_arch: int):
+        """
+        Set the GPU architecture. See the
+        `cuTensor documentation
+        <https://docs.nvidia.com/cuda/cutensor/latest/api/types.html#cutensorplanpreferenceattribute-t>`__
+        for more information.
+
+        Args:
+            gpu_arch: (int) The GPU architecture.
+
+        """
+        ContractionPlanPreference._set_scalar_attribute(
+            self._contraction, cutensor.PlanPreferenceAttribute.GPU_ARCH, self._gpu_arch, gpu_arch
+        )

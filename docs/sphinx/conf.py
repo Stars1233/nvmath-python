@@ -20,14 +20,15 @@ import tempfile
 from datetime import datetime
 from enum import Enum
 
+import reno.formatter as _reno_formatter
 import tomllib
 
 sys.path.insert(0, os.path.abspath("."))
+sys.path.insert(0, os.path.abspath("_ext"))
 import warnings
 
 import docutils.nodes as nodes
 import numpy as np
-from docutils.parsers.rst import Directive
 from docutils.transforms import Transform
 from enum_tools.autoenum import EnumDocumenter
 from sphinx.writers.html import HTMLTranslator
@@ -50,7 +51,7 @@ current_year = datetime.now().year
 
 # -- Project information -----------------------------------------------------
 
-project = "NVIDIA nvmath-python"
+project = "nvmath-python"
 copyright = f"2024-{current_year}, NVIDIA Corporation & Affiliates"
 author = "NVIDIA Corporation & Affiliates"
 
@@ -68,13 +69,15 @@ release = nvmath_py_ver
 
 # Component versions from NVIDIA MathDx Package
 # Source of truth: https://docs.nvidia.com/cuda/mathdx/index.html#components
+# libmathdx: https://docs.nvidia.com/cuda/libmathdx/0.4.0/index.html#versioning
 mathdx_versions = {
-    "cublasdx": "0.5.1",
-    "cufftdx": "1.6.1",
-    "cusolverdx": "0.3.0",
-    "curanddx": "0.2.2",
+    "libmathdx": "0.4.0",
+    "mathdx": "26.03.0",
+    "cublasdx": "0.6.0",
+    "cufftdx": "1.7.0",
+    "cusolverdx": "0.4.0",
+    "curanddx": "0.2.3",
     "nvcompdx": "0.1.2",
-    "mathdx": "25.12.1",
 }
 
 rst_replacements = {
@@ -92,6 +95,31 @@ rst_prolog = "\n".join(f".. |{k}| replace:: {v}" for k, v in rst_replacements.it
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
+# Patch reno's formatter so version headings in `.. release-notes::` output read
+# "nvmath-python vX.Y.Z" instead of the bare tag. Reno has no config knob for
+# this (reno/formatter.py emits `version` verbatim as the heading), so we wrap
+# format_report and rewrite the version-line + RST underline in its output.
+
+_orig_reno_format_report = _reno_formatter.format_report
+
+
+def _format_report_with_project_prefix(loader, config, versions_to_include, title=None, branch=None):
+    text = _orig_reno_format_report(loader, config, versions_to_include, title=title, branch=branch)
+
+    def _repl(m):
+        new_title = f"nvmath-python {m.group('ver')}"
+        return f"{new_title}\n{'=' * len(new_title)}"
+
+    return re.sub(
+        r"^(?P<ver>v\d+\.\d+\.\d+(?:(?:a|b|c|rc)\d+)?)\n=+$",
+        _repl,
+        text,
+        flags=re.MULTILINE,
+    )
+
+
+_reno_formatter.format_report = _format_report_with_project_prefix
+
 extensions = [
     # 'sphinx.ext.imgmath',
     "sphinx.ext.ifconfig",
@@ -114,12 +142,18 @@ extensions = [
     "nbsphinx_link",
     "sphinx_substitution_extensions",  # for using rst substitutions in code blocks
     "sphinx_tabs.tabs",
+    "reno.sphinxext",
+    "experimental",  # local extension in docs/sphinx/_ext
 ]
 
 extlinks = {
     "cufftmp_hw": (
         "https://docs.nvidia.com/cuda/cufftmp/usage/requirements.html#hardware-%s",
         "p2p or GPUDirect RDMA over IB %s",
+    ),
+    "cufftmp_doc": (
+        "https://docs.nvidia.com/cuda/cufftmp/%s",
+        "%s",
     ),
     "cublasdx_doc": (
         f"https://docs.nvidia.com/cuda/cublasdx/{mathdx_versions['cublasdx']}/%s",
@@ -203,6 +237,9 @@ html_theme_options = {
         "version_match": version,
     },
     "navbar_start": ["navbar-logo"],
+    # https://pydata-sphinx-theme.readthedocs.io/en/stable/user_guide/announcements.html#version-warning-banners
+    "show_version_warning_banner": True,
+    "sticky_banners": True,
 }
 html_show_sphinx = False
 
@@ -226,8 +263,9 @@ htmlhelp_basename = "nvmath-python-doc"
 # "https://github.com/NVIDIA/nvmath-python/tree/main/examples/distributed/fft/.*"
 # NOTE: remove ignore patterns once examples are published.
 linkcheck_ignore = [
-    "https://github.com/NVIDIA/nvmath-python/tree/main/examples/sparse/generic/matmul/.*",
-    "https://github.com/NVIDIA/nvmath-python/tree/main/examples/sparse/ust/.*",
+    "https://github.com/NVIDIA/nvmath-python/tree/main/examples/linalg/generic/direct_solver/.*",
+    "https://github.com/NVIDIA/nvmath-python/tree/main/examples/distributed/linalg/generic/direct_solver/.*",
+    "https://github.com/NVIDIA/nvmath-python/tree/main/examples/distributed/redistribute/.*",
 ]
 
 
@@ -293,12 +331,9 @@ def autodoc_process_docstring(app, what, name, obj, options, lines):
             docs_value = docs.get(k, "")
             lines.append(f":param {k}: {docs_value}\n")
     else:
-        match_numba_dtype = re.search(r"nvmath.device.float(\d+)x(\d+)_type", name)
+        match_numba_dtype = re.search(r"nvmath.device.(float|uint|int)\d+x\d+_type", name)
         if match_numba_dtype:
-            lines.append(
-                f"A Numba compliant vector type object for float{match_numba_dtype.group(1)} "
-                f"with vector length {match_numba_dtype.group(2)} \n"
-            )
+            lines.append(f"Numba type of :class:`~{name.removesuffix('_type')}`.\n")
 
 
 class PatchedEnumDocumenter(EnumDocumenter):
@@ -353,72 +388,6 @@ class UnqualifiedTitlesTransform(Transform):
     default_priority = 800
 
 
-class ExperimentalDirective(Directive):
-    """
-    Custom admonition for marking experimental APIs.
-
-    Usage in docstrings:
-        .. experimental:: method   # specify the API type
-        .. experimental:: function
-        .. experimental:: class
-        .. experimental:: parameter
-
-    This creates a warning admonition with the standard experimental text.
-    Note: this admonition is automatically detected by the mark_experimental_apis function,
-    which adds the 'experimental' CSS class to the method/function/class.
-    """
-
-    # Directive does not expect indented content below it (e.g., no text block)
-    has_content = False
-    # Requires exactly one argument: the API type (see above)
-    required_arguments = 1
-    # No optional arguments allowed
-    optional_arguments = 0
-
-    def run(self):
-        # Get the API type from argument or default to "method"
-        api_type = self.arguments[0]
-        assert api_type in ["method", "function", "class", "parameter"], "Invalid API type"
-
-        text = f"This {api_type} is experimental and potentially subject to future changes."
-        # Create a simple container div to inline the experimental text
-        container = nodes.container()
-        container += nodes.paragraph("", text)
-        container["classes"].append("experimental-marker")
-        return [container]
-
-
-def mark_experimental_apis(app, doctree, docname):
-    """
-    Add 'experimental' CSS class to any method/function/class that contains
-    the .. experimental:: directive.
-
-    This runs on the 'doctree-resolved' event, after the doctree is fully built.
-    """
-    from sphinx import addnodes
-
-    for desc_node in doctree.traverse(addnodes.desc):
-        # Get the desc_content child (the docstring content)
-        desc_content_nodes = [n for n in desc_node.children if isinstance(n, addnodes.desc_content)]
-
-        if not desc_content_nodes:
-            continue
-
-        content_node = desc_content_nodes[0]
-
-        # Check only direct child nodes of desc_content, skipping nested desc nodes
-        for child in content_node.children:
-            # Skip nested desc nodes entirely
-            if isinstance(child, addnodes.desc):
-                continue
-
-            # Check if this child has the experimental-marker class
-            # (from .. experimental:: directive)
-            if "experimental-marker" in child.get("classes", []):
-                desc_node["classes"].append("experimental")
-                break
-
-
 class NotebookHandler:
     def __init__(self):
         self.tmpdir = tempfile.mkdtemp()
@@ -454,17 +423,8 @@ notebook_handler = NotebookHandler()
 def setup(app):
     fixup_internal_alias()
     app.add_css_file("nvmath_override.css")
-    app.add_directive("experimental", ExperimentalDirective)
     app.connect("autodoc-process-docstring", autodoc_process_docstring)
     app.connect("source-read", lambda *args, **kwargs: notebook_handler.remove_notebook_copyright(*args, **kwargs))
-
-    # Connect the experimental API marker to the doctree-resolved event.
-    # doctree-resolved fires after the doc tree is fully built and
-    # cross-references are resolved, allowing us to safely traverse and
-    # modify nodes before HTML generation.
-    # This detects methods/functions/classes with the "experimental-marker"
-    # and adds the 'experimental' CSS class for styling (orange border).
-    app.connect("doctree-resolved", mark_experimental_apis)
 
     app.set_translator("html", DotBreakHtmlTranslator)
     app.add_autodocumenter(PatchedEnumDocumenter, override=True)
@@ -495,7 +455,7 @@ autosummary_filename_map = {
     "nvmath.sparse.Matmul": "nvmath.sparse.Matmul-class",
     "nvmath.distributed.linalg.advanced.Matmul": "nvmath.distributed.linalg.advanced.Matmul-class",
     "nvmath.distributed.fft.FFT": "nvmath.distributed.fft.FFT-class",
-    "nvmath.distributed.reshape.Reshape": "nvmath.distributed.reshape.Reshape-class",
+    "nvmath.distributed.distribution.Redistribute": "nvmath.distributed.distribution.Redistribute-class",
 }
 
 intersphinx_mapping = {
@@ -513,7 +473,10 @@ intersphinx_mapping = {
     "numba": ("https://numba.readthedocs.io/en/stable/", None),
     "numpy": ("https://numpy.org/doc/stable/", None),
     "python": ("https://docs.python.org/3/", None),
-    "scipy": ("https://docs.scipy.org/doc/scipy/", None),
+    "scipy": (
+        "https://docs.scipy.org/doc/scipy/",
+        (None, "https://web.archive.org/web/29991231235959id_/https://docs.scipy.org/doc/scipy/objects.inv"),
+    ),
     "torch": ("https://docs.pytorch.org/docs/stable/", None),
 }
 

@@ -1,0 +1,18 @@
+---
+# Uncomment a section header and replace with your own note.
+#release_summary:
+api:
+#  - Backward incompatible changes
+#features:
+#  - Non-breaking additions or performance improvements
+#deprecations:
+#  - Announcements of deprecations
+#fixes:
+#  - Bug fixes only
+#issues:
+#  - Known issues that are not yet fixed
+#security:
+#  - Non-breaking fixes of security issues
+#doc:
+#  - Notable documentation changes
+ - Distributed matrix multiplication API is now inplace by default when C is provided (result is stored in C).

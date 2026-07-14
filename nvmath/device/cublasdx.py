@@ -2,7 +2,15 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-__all__ = ["matmul", "TransposeMode", "Matmul", "SharedStorageCalc", "Accumulator", "DevicePipeline", "TilePipeline"]
+__all__ = [
+    "TransposeMode",
+    "Matmul",
+    "SharedStorageCalc",
+    "Accumulator",
+    "DevicePipeline",
+    "TilePipeline",
+    "compile_blas_execute",
+]
 
 import itertools
 import re
@@ -14,6 +22,13 @@ from typing import Any, overload
 from warnings import warn
 
 import numpy
+from cuda.core import (
+    Buffer,
+    Device,
+    LaunchConfig,
+    launch,
+)
+from cuda.core.utils import StridedMemoryView
 
 from nvmath._utils import get_nvrtc_version
 from nvmath.bindings import mathdx
@@ -28,6 +43,7 @@ from .common import (
     check_code_type,
     check_in,
     pad_or_truncate,
+    parse_code_type,
     parse_sm,
 )
 from .common_backend import MATHDX_TYPES_TO_NP, NP_TYPES_TO_MATHDX_TYPES, DescriptorWrapper, get_isa_version, get_lto
@@ -36,7 +52,6 @@ from .common_cuda import (
     CodeType,
     ComputeCapability,
     Dim3,
-    get_current_device,
     get_current_device_cc,
     get_default_code_type,
 )
@@ -67,27 +82,17 @@ from .cublasdx_backend import (
     validate_tensor_types,
 )
 
-try:
-    from cuda.core import (
-        Buffer,
-        Device,
-        LaunchConfig,
-        launch,
-    )
-except ImportError:
-    from cuda.core.experimental import (
-        Buffer,
-        Device,
-        LaunchConfig,
-        launch,
-    )
-
 CUBLASDX_DOCSTRING = SHARED_DEVICE_DOCSTRINGS.copy()
 CUBLASDX_DOCSTRING.update(
     {
         "size": """\
 A sequence of integers denoting the three dimensions ``(m, n, k)`` for the matrix multiplication
 problem.""".replace("\n", " "),
+        #
+        "precision": """\
+The computation precision, either a single numpy dtype or a 3-sequence of numpy dtypes ``(a, b, c)``
+for the A, B, and C matrices. Supported dtypes are ``numpy.float16``, ``numpy.float32``, ``numpy.float64``
+and the signed and unsigned integer dtypes of 8, 16, 32 or 64 bits.""".replace("\n", " "),
         #
         "data_type": """\
 The data type of the input matrices, can be either ``'real'`` or ``'complex'``.""".replace("\n", " "),
@@ -117,24 +122,29 @@ transpose_mode or arrangement must be provided.""".replace("\n", " "),
 The alignment for the input matrices in shared memory.
 Defines the alignments (in bytes) of the input matrices A, B, and C
 (either arrays or wrapped in opaque tensors) that are passed to the
-execute(...) method. Default alignment is equal to an element size of the
-matrix unless used suggested layout. In that case alignment is greater or equal
-than the element size.""".replace("\n", " "),
-        #
-        "global_memory_alignment": """\
-Same as alignment, but for the global memory. Used to optimize copying between
-shared and global memory.
-""".replace("\n", " "),
+execute(...) method. The default alignment is equal to the element size of the
+matrix. When a suggested layout is used, the alignment is greater than or equal
+to the element size.""".replace("\n", " "),
         #
         "function": """\
 A string specifying the name of the function. Currently supports ``'MM'`` (default) for matrix
 multiplication.""".replace("\n", " "),
         #
-        "execute_api": """\
-A string specifying the signature of the function that handles problems with default or custom/dynamic leading dimensions.
-Could be ``'static_leading_dimensions'`` or ``'dynamic_leading_dimensions'``.""".replace("\n", " "),
-        "tensor_types": """\
-A list of strings specifying the tensors being used at execute signature.""".replace("\n", " "),
+        "static_block_dim": """\
+If set to ``True``, cuBLASDx assumes the kernel is launched with a block dimension exactly equal to
+``block_dim``, which enables additional optimizations. The default is ``False``.""".replace("\n", " "),
+        #
+        "with_pipeline": """\
+If set to ``True``, the device function is generated for pipelined execution and must be used only
+through :py:class:`nvmath.device.DevicePipeline` or :py:class:`nvmath.device.TilePipeline`
+(see :py:meth:`nvmath.device.Matmul.suggest_device_pipeline`). Executing such a matmul with the
+regular ``execute(...)`` interface is incorrect. The default is ``False``.""".replace("\n", " "),
+        #
+        "enable_input_streaming": """\
+If set to ``True``, informs the library that no per-element load transforms are applied to the
+inputs, which allows input data to be streamed from shared memory directly to the MMA units
+without passing through registers. This may improve performance. The default is
+``False``.""".replace("\n", " "),
     }
 )
 
@@ -190,8 +200,9 @@ class Partitioner:
     Partitioner is an abstraction for partitioning a global memory tensor into a
     partitioned tensor.
 
-    .. note:: Do not create directly, use
-        :py:func:`nvmath.device.Matmul.suggest_partitioner`.
+    .. note:: Do not create directly, use ``suggest_accumulator()`` or
+        ``get_accumulator()`` on a :py:class:`nvmath.device.Matmul` object
+        inside a kernel.
 
     Refer to the cuBLASDx documentation for more details on how to use this class:
     :cublasdx_doc:`api/other_tensors.html#partitioner-register-tensor-other-label`
@@ -205,12 +216,15 @@ class Partitioner:
         Partitions the given global memory tensor `gmem_c` into a partitioned tensor.
         The partitioned tensor is used for accessing the C matrix when working
         with register fragment.
+
+        .. note:: Not yet implemented, use :py:meth:`map_fragment_index` instead.
         """
         raise RuntimeError("partition_like_C is a device function")
 
     def map_fragment_index(self, fragment_index: int) -> tuple[int, int]:
         """
-        Maps the given fragment index to a global memory index.
+        Maps the given fragment index to the (row, column) coordinate of the
+        corresponding C matrix element.
         This is used to access the correct element in the partitioned tensor.
         """
         raise RuntimeError("map_fragment_index is a device function")
@@ -239,8 +253,8 @@ class Partitioner:
         raise NotImplementedError("not implemented")
 
     def make_empty_fragment(self) -> OpaqueTensor:
-        """Creates an empty fragment tensor in register memory. Fragment layout
-        is same as accumulator layout."""
+        """Creates an empty fragment tensor in register memory. The fragment layout
+        is the same as the accumulator layout."""
         raise RuntimeError("make_empty_fragment is a device function")
 
     def partition_and_copy(self, src: OpaqueTensor, dst: OpaqueTensor):
@@ -277,23 +291,45 @@ class Accumulator(Partitioner):
         raise NotImplementedError("not implemented")
 
 
+def _get_contiguous_strides(shape: tuple[int, ...]) -> tuple[int, ...]:
+    """Calculate contiguous strides from shape in elements."""
+    s = []
+    curr = 1
+    for i in reversed(shape):
+        s.append(curr)
+        curr *= i
+    return tuple(reversed(s))
+
+
 class DevicePipeline:
     """DevicePipeline allows users to optimally configure kernel calls for pipelined
     matrix multiplication. It also provides an access point for getting a
-    :class:`TilePipeline` object within a kernel.
+    :class:`TilePipeline` object within a kernel. Input arrays 'a' and 'b' must
+    be on the current CUDA device.
 
     Refer to the cuBLASDx documentation for more details on how to use this class:
     :cublasdx_doc:`using_pipelines.html`
     """
 
-    def __init__(self, mm: "Matmul", pipeline_depth: int, a: numpy.ndarray, b: numpy.ndarray):
+    def __init__(self, mm: "Matmul", pipeline_depth: int, a: Any, b: Any):
         self.mm = mm
         self.pipeline_depth = pipeline_depth
 
-        # TODO: assert that arrays are on device memory
-        self.a = a
-        self.b = b
-        self.pipeline_depth = pipeline_depth
+        self._a_view = StridedMemoryView.from_any_interface(a, stream_ptr=-1)
+        self._b_view = StridedMemoryView.from_any_interface(b, stream_ptr=-1)
+
+        if self._a_view.device_id != self._b_view.device_id:
+            raise ValueError(
+                f"Arrays 'a' and 'b' must be on the same device. "
+                f"Got a on {self._a_view.device_id} and b on {self._b_view.device_id}"
+            )
+        if self._a_view.device_id == -1:
+            raise ValueError("Arrays 'a' and 'b' must be on a CUDA device, not CPU.")
+
+        device = Device(None)  # get the current device
+        if self._a_view.device_id != device.device_id:
+            raise ValueError(f"Arrays 'a' and 'b' are not on the current CUDA device {device.device_id}")
+        device.set_current()
 
         h = _blas_device_pipeline_handle(self)
 
@@ -311,12 +347,9 @@ class DevicePipeline:
         )
         self._block_dim = Dim3(*block_dim.tolist())
 
-        device = Device(get_current_device())
-        device.set_current()
-
         # We do not need _storage_alignment_bytes here as device allocated
         # memory is maximum aligned.
-        self._storage: Buffer = device.allocate(self._storage_bytes)
+        self._storage: Buffer = device.allocate(self._storage_bytes, stream=device.default_stream)
 
         self._init_kernel_launch(a, b, device)
 
@@ -354,17 +387,17 @@ class DevicePipeline:
 
     @cached_property
     def a_strides(self):
-        a = self.a
-        for s in a.strides:
-            assert s % numpy.dtype(a.dtype).itemsize == 0
-        return tuple(s // numpy.dtype(a.dtype).itemsize for s in a.strides)
+        if self._a_view.strides is not None:
+            return self._a_view.strides
+
+        return _get_contiguous_strides(self._a_view.shape)
 
     @cached_property
     def b_strides(self):
-        b = self.b
-        for s in b.strides:
-            assert s % numpy.dtype(b.dtype).itemsize == 0
-        return tuple(s // numpy.dtype(b.dtype).itemsize for s in b.strides)
+        if self._b_view.strides is not None:
+            return self._b_view.strides
+
+        return _get_contiguous_strides(self._b_view.shape)
 
     def _debug_print(self):
         import cupy
@@ -372,8 +405,8 @@ class DevicePipeline:
         vhex = numpy.vectorize(hex)
         tma_cp = cupy.from_dlpack(self._storage).view(dtype=numpy.uint8)
 
-        print(f"A_ptr: 0x{int(self.a.gpu_data.device_pointer):x}")
-        print(f"B_ptr: 0x{int(self.b.gpu_data.device_pointer):x}")
+        print(f"A_ptr: 0x{int(self._a_view.ptr):x}")
+        print(f"B_ptr: 0x{int(self._b_view.ptr):x}")
         print("Device pipeline buffer:", vhex(cupy.asnumpy(tma_cp)))
 
     def _init_kernel_launch(self, a, b, device: Device):
@@ -385,9 +418,7 @@ class DevicePipeline:
 
         # Create the launch configuration
         config = LaunchConfig(grid=(1,), block=(1,))
-        ker_args = (int(self._storage.handle), int(a.gpu_data.device_pointer), int(b.gpu_data.device_pointer))
-        # TODO: add support for cupy array
-        # ker_args = (int(self._storage.handle), int(a.data.ptr), int(b.data.ptr))
+        ker_args = (int(self._storage.handle), int(self._a_view.ptr), int(self._b_view.ptr))
 
         # Launch the kernel
         launch(device.default_stream, config, kernel, *ker_args)
@@ -410,8 +441,8 @@ class DevicePipeline:
 
 
 class TilePipeline:
-    """TilePipeline allows users to execute an pipelined matrix multiplication
-    with partial tile results accumulated into an acuumulator.
+    """TilePipeline allows users to execute a pipelined matrix multiplication
+    with partial tile results accumulated into an accumulator.
 
     Refer to the cuBLASDx documentation for more details on how to use this class:
     :cublasdx_doc:`using_pipelines.html`
@@ -484,19 +515,13 @@ class Matmul:
 
         function (str): {function}
 
+        static_block_dim (bool): {static_block_dim}
+
         execution (str): {execution}
 
-        execute_api (str): {execute_api}
+        with_pipeline (bool): {with_pipeline}
 
-            .. versionchanged:: 0.5.0
-                execute_api is not part of the Matmul (ex. Blas) type. Pass this
-                argument to :py:func:`nvmath.device.matmul` instead.
-
-        tensor_types (Sequence[str]): {tensor_types}
-
-            .. versionchanged:: 0.5.0
-                tensor_types is not part of the Matmul (ex. Blas) type. Pass
-                this argument to :py:func:`nvmath.device.matmul` instead.
+        enable_input_streaming (bool): {enable_input_streaming}
 
     .. seealso::
         The attributes of this class provide a 1:1 mapping with the CUDA C++ cuBLASDx APIs.
@@ -530,7 +555,7 @@ class Matmul:
 
         if transpose_mode is not None:
             warn(
-                "transpose_mode is deprecated and may be removed in future versions. User arrangement instead",
+                "transpose_mode is deprecated and may be removed in future versions. Use arrangement instead",
                 category=DeprecationWarning,
             )
             if not isinstance(transpose_mode, Sequence) or len(transpose_mode) != 2:
@@ -702,6 +727,7 @@ class Matmul:
 
     @property
     def static_block_dim(self) -> bool:
+        """{static_block_dim}"""
         return self._static_block_dim
 
     @property
@@ -713,10 +739,12 @@ class Matmul:
 
     @property
     def with_pipeline(self) -> bool:
+        """{with_pipeline}"""
         return self._with_pipeline
 
     @property
     def enable_input_streaming(self) -> bool:
+        """{enable_input_streaming}"""
         return self._enable_input_streaming
 
     #
@@ -725,53 +753,6 @@ class Matmul:
 
     def valid(self, *knobs):
         return itertools.product(*[self._valid(knob) for knob in knobs])
-
-    @deprecated("definition is deprecated and may be removed in future versions")
-    def definition(self):
-        """
-        .. deprecated:: 0.7.0
-        """
-        dd = {
-            "size": self.size,
-            "precision": self.precision,
-            "data_type": self.data_type,
-            "transpose_mode": self.transpose_mode,
-            "arrangement": self.arrangement,
-            "alignment": self.alignment,
-            "sm": self.sm,
-            "block_dim": self.block_dim,
-            "static_block_dim": self.static_block_dim,
-            "function": self.function,
-            "execution": self.execution,
-            "leading_dimension": self.leading_dimension,
-        }
-        return dd
-
-    @deprecated("create is deprecated and may be removed in future versions. Use `functools.partial` instead")
-    def create(
-        self, code_type=None, compiler=None, execute_api=None, tensor_types=None, global_memory_alignment=None, **kwargs
-    ):
-        """
-        Creates a copy of the instance with provided arguments updated.
-
-        .. deprecated:: 0.7.0
-            Please use :py:func:`functools.partial` instead.
-        """
-        if code_type is not None:
-            DeprecationWarning("code_type is deprecated and will be removed in future releases. It is no longer needed.")
-        if compiler is not None:
-            DeprecationWarning("compiler is deprecated and will be removed in future releases. It is no longer needed.")
-        if execute_api is not None:
-            DeprecationWarning("execute_api is deprecated and will be removed in future releases. It is no longer needed.")
-        if tensor_types is not None:
-            DeprecationWarning("tensor_types is deprecated and will be removed in future releases. It is no longer needed.")
-        if global_memory_alignment is not None:
-            DeprecationWarning(
-                "global_memory_alignment is deprecated and will be removed in future releases. It is no longer needed."
-            )
-        dd = self.definition()
-        dd.update(**kwargs)
-        return Matmul(**dd)
 
     #
     # Private implementations
@@ -839,25 +820,6 @@ class Matmul:
     def c_value_type(self):
         return self._traits.value_types[2]
 
-    @property
-    @deprecated("value_type trait is deprecated. Please use {a|b|c}_value_type instead")
-    def value_type(self):
-        if not all(vt == self._traits.value_types[0] for vt in self._traits.value_types):
-            raise RuntimeError("value_type may be used only if all {a|b|c}_value_type have the same type")
-        return self.a_value_type
-
-    @property
-    @deprecated("input_type trait is deprecated. Please use {a|b}_value_type instead")
-    def input_type(self):
-        if self.a_value_type != self.b_value_type:
-            raise RuntimeError("input_type may be used only if A and B input matrix have the same type")
-        return self.a_value_type
-
-    @property
-    @deprecated("output_type trait is deprecated. Please use c_value_type instead")
-    def output_type(self):
-        return self.c_value_type
-
     @cached_property
     def a_dim(self) -> tuple[int, int]:
         (m, _, k) = self.size
@@ -910,16 +872,6 @@ class Matmul:
     @property
     def c_size(self) -> int:
         return self._abc_sizes[2]
-
-    @property
-    @deprecated(
-        "shared_memory_size trait is deprecated and will be removed in "
-        "future versions. Use get_shared_storage_size instead. Don't "
-        "use with Opaque Tensors. Use get_shared_storage_size(...) or"
-        "SharedStorageCalc instead"
-    )
-    def shared_memory_size(self):
-        return self.get_shared_storage_size()
 
     @property
     def max_threads_per_block(self):
@@ -1047,24 +999,8 @@ class Matmul:
 
         return DevicePipeline(self, pipeline_depth, a, b)
 
-    @deprecated("Calling MM(...) directly is deprecated, please use MM.execute(...) method instead.")
-    def __call__(self, *args):
-        raise RuntimeError("__call__ should not be called directly outside of a numba.cuda.jit(...) kernel.")
-
     def execute(self, *args):
-        raise RuntimeError("execute should not be called directly outside of a numba.cuda.jit(...) kernel.")
-
-    @property
-    @deprecated("files is deprecated and is no longer required and will be removed in future releases.")
-    def files(self) -> list[str]:
-        """The list of binary files for the lto functions."""
-        return []
-
-    @property
-    @deprecated("codes is deprecated and is no longer required and will be removed in future releases.")
-    def codes(self) -> list[Code]:
-        """A list of :class:`Code` objects for all lto functions."""
-        return []
+        raise RuntimeError("execute should not be called directly outside of a jitted kernel.")
 
 
 class _MatmulTraits:
@@ -1100,6 +1036,7 @@ class _MatmulTraits:
 def compile_blas_execute(
     blas: Matmul, code_type: Any, execute_api: str | None = None, tensor_types: Sequence[str] | None = None
 ) -> tuple[Code, str]:
+    code_type = parse_code_type(code_type)
     check_code_type(code_type, "cuBLASDx")
     validate_execute_api(execute_api)
     tensors_api = execute_api == "tensors"
@@ -1182,10 +1119,10 @@ def _blas_device_pipeline_handle(pipeline: DevicePipeline):
     return generate_device_pipeline(
         MM_descriptor,
         pipeline.pipeline_depth,
-        NP_TYPES_TO_MATHDX_TYPES[pipeline.a.dtype.type],
-        NP_TYPES_TO_MATHDX_TYPES[pipeline.b.dtype.type],
-        pipeline.a.shape,
-        pipeline.b.shape,
+        NP_TYPES_TO_MATHDX_TYPES[pipeline.mm.a_value_type],
+        NP_TYPES_TO_MATHDX_TYPES[pipeline.mm.b_value_type],
+        pipeline._a_view.shape,
+        pipeline._b_view.shape,
         pipeline.a_strides,
         pipeline.b_strides,
     ).descriptor
@@ -1196,142 +1133,6 @@ def _blas_tile_pipeline_handle(pipeline: TilePipeline):
     device_pipeline_descriptor = _blas_device_pipeline_handle(pipeline.device_pipeline)
     h = generate_tile_pipeline(MM_descriptor, device_pipeline_descriptor)
     return h.descriptor
-
-
-@docstring_decorator(CUBLASDX_DOCSTRING, skip_missing=False)
-def matmul(*, compiler=None, code_type=None, execute_api=None, tensor_types=None, global_memory_alignment=None, **kwargs):
-    """
-    Create an :class:`Matmul` object that encapsulates a compiled and ready-to-use
-    device function for matrix multiplication.
-
-    .. deprecated:: 0.7.0
-
-    Args:
-        size: {size}
-
-        precision: {precision}
-
-        data_type: {data_type}
-
-        compiler: {compiler}
-
-            .. versionchanged:: 0.7.0
-                compiler is no longer needed and does not take effect. Use
-                :py:func:`nvmath.device.compile_blas_execute` to get device
-                function code.
-
-        code_type (CodeType): {code_type}
-
-            .. versionchanged:: 0.7.0
-                code_type should be used by
-                :py:func:`nvmath.device.compile_blas_execute` and no longer
-                needed for numba-cuda usage.
-
-        block_size (int): {block_size}
-
-        block_dim (Dim3): {block_dim}
-
-        leading_dimension (LeadingDimension): {leading_dimension}
-
-        transpose_mode (TransposeMode): {transpose_mode}
-
-        arrangement (Arrangement): {arrangement}
-
-        alignment (Alignment): {alignment}
-
-        function (str): {function}
-
-        execution (str): {execution}
-
-        execute_api (str): {execute_api}
-
-            .. versionchanged:: 0.7.0
-                execute_api should be used by
-                :py:func:`nvmath.device.compile_blas_execute` and no longer
-                needed for numba-cuda usage.
-
-        tensor_types (str): {tensor_types}
-
-            .. versionchanged:: 0.7.0
-                tensor_types should be used by
-                :py:func:`nvmath.device.compile_blas_execute` and no longer
-                needed for numba-cuda usage.
-
-        global_memory_alignment (Alignment): {global_memory_alignment}
-
-            .. versionchanged:: 0.7.0
-                alignment should be set at :py:func:`nvmath.device.copy`
-                global_memory_alignment should be used by
-                :py:func:`nvmath.device.compile_blas_execute` for non numba-cuda
-                usage. Alignment should be set
-
-    .. seealso::
-        The attributes of :class:`Matmul` provide a 1:1 mapping with the CUDA C++
-        cuBLASDx APIs. For further details, please refer to
-        :cublasdx_doc:`cuBLASDx documentation <index.html>`.
-
-    Examples:
-
-        >>> from numba import cuda
-        >>> from nvmath.device import matmul
-        >>> import numpy as np
-        >>> m, n, k = 32, 16, 64
-        >>> block_size = 256
-
-        Use :func:`nvmath.device.matmul` to create the compiled matrix multiplication
-        object:
-
-        >>> MM = matmul(
-        ...     size=(m, n, k),
-        ...     precision=np.float32,
-        ...     data_type="real",
-        ...     transpose_mode=("non_transposed", "transposed"),
-        ...     execution="Block",
-        ...     block_size=block_size,
-        ...     compiler="numba",
-        ... )
-
-        Pass ``link=MM.files`` to the :func:`numba.cuda.jit` decorator when defining your
-        kernel to link with the compiled code.
-
-        cuBLASDx works on shared memory arrays. It requires column-major (F order) arrays
-        but :class:`cuda.shared.array` creates row-major (C order) arrays only. You can
-        emulate a column-major array by flipping dimensions. With your shared memory arrays
-        ready and filled with actual data, you can run the matrix multiplication by calling
-        `MM`
-
-        >>> a_dim, b_dim, c_dim = MM.a_dim, MM.b_dim, MM.c_dim
-        >>> @cuda.jit(link=MM.files)
-        ... def f():
-        ...     a = cuda.shared.array(shape=(a_dim[1], a_dim[0]), dtype=np.float32)
-        ...     b = cuda.shared.array(shape=(b_dim[1], b_dim[0]), dtype=np.float32)
-        ...     c = cuda.shared.array(shape=(c_dim[1], c_dim[0]), dtype=np.float32)
-        ...     # TODO: Populate the arrays with actual data.
-        ...     alpha, beta = 1.0, 0.0
-        ...     MM(alpha, a, b, beta, c)
-        ...     cuda.syncthreads()
-        ...     # TODO: Copy the result (c) from the shared memory
-        >>> f[1, block_size]()
-
-        Further examples can be found in the `nvmath/examples/device
-        <https://github.com/NVIDIA/nvmath-python/tree/main/examples/device>`_ directory.
-    """
-    DeprecationWarning("matmul is deprecated and will be removed in future releases. Please use Matmul class directly.")
-    if code_type is not None:
-        DeprecationWarning("code_type is deprecated and will be removed in future releases. It is no longer needed.")
-    if compiler is not None:
-        DeprecationWarning("compiler is deprecated and will be removed in future releases. It is no longer needed.")
-    if execute_api is not None:
-        DeprecationWarning("execute_api is deprecated and will be removed in future releases. It is no longer needed.")
-    if tensor_types is not None:
-        DeprecationWarning("tensor_types is deprecated and will be removed in future releases. It is no longer needed.")
-    if global_memory_alignment is not None:
-        DeprecationWarning(
-            "global_memory_alignment is deprecated and will be removed in "
-            "future releases. It is no longer needed. Please set alignment "
-            "at copy()"
-        )
-    return Matmul(**kwargs)
 
 
 def _parse_layout(layout: str) -> tuple[bool, bool, str, str]:

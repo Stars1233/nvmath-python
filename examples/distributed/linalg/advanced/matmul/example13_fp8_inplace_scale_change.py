@@ -40,16 +40,16 @@ with torch.cuda.device(device_id):
     b = torch.ones(*row_wise_distribution.shape(rank, (n, k)), device="cuda", dtype=torch.float8_e5m2)
 
 # Get a transposed view to obtain column-major memory layout. Note that this
-# also changes the distribution of a and b (see example01 for more information).
-a = a.T  # a is now (k, m) with col_wise_distribution
-b = b.T  # b is now (k, n) with col_wise_distribution
+# also changes the distribution of 'a' and 'b' (see example01 for more information).
+a = a.T  # 'a' is now (k, m) with col_wise_distribution
+b = b.T  # 'b' is now (k, n) with col_wise_distribution
 
-# Distributions for A, B, and result matrix D
+# Distributions for 'a', 'b', and result matrix 'd'
 distributions = [col_wise_distribution, col_wise_distribution, row_wise_distribution]
 
 if rank == 0:
-    print(f"A = \n{a}")
-    print(f"\nB = \n{b}")
+    print(f"'a' = \n{a}")
+    print(f"\n'b' = \n{b}")
 
 # Create 1D single-element float32 GPU tensors to hold the quantization scales.
 # These will be modified in-place later.
@@ -78,11 +78,11 @@ with nvmath.distributed.linalg.advanced.Matmul(
     torch.cuda.default_stream().synchronize()
     if rank == 0:
         print(
-            f"\nA (A scale: {scales['a'].item()}) @ B (B scale: {scales['b'].item()}) = "
-            f"(D scale: {scales['d'].item()}) \n{result}"
+            f"\n'a' (scale: {scales['a'].item()}) @ 'b' (scale: {scales['b'].item()}) = "
+            f"'d' (scale: {scales['d'].item()}) \n{result}"
         )
 
-    # Modify the quantization scales for A and D in-place
+    # Modify the quantization scales for 'a' and 'd' in-place
     scales["a"][:] = 2
     scales["d"][:] = 0.25
 
@@ -91,6 +91,6 @@ with nvmath.distributed.linalg.advanced.Matmul(
     torch.cuda.default_stream().synchronize()
     if rank == 0:
         print(
-            f"\nA (A scale: {scales['a'].item()}) @ B (B scale: {scales['b'].item()}) = "
-            f"(D scale: {scales['d'].item()}) \n{result2}"
+            f"\n'a' (scale: {scales['a'].item()}) @ 'b' (scale: {scales['b'].item()}) = "
+            f"'d' (scale: {scales['d'].item()}) \n{result2}"
         )

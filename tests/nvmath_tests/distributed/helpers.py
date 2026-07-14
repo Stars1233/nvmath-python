@@ -49,7 +49,7 @@ def numpy2cupy(data_cpu, device_id, stream, symmetric_memory):
             dtype=data_cpu.dtype,
             device_id=device_id,
             strides=data_cpu.strides,
-            make_symmetric=symmetric_memory,
+            make_symmetric=symmetric_memory is not None,
             symmetric_memory=symmetric_memory,
             stream_holder=stream,
         )
@@ -89,25 +89,18 @@ def cupy2numpy(data_gpu, device_id, stream):
 
 def ndbuffer_as_array(ndbuffer):
     if ndbuffer.device_id == "cpu":
-        import ctypes
-
-        buffer = (ctypes.c_char * ndbuffer.size_in_bytes).from_address(ndbuffer.data_ptr)
-        return np.ndarray(
-            shape=ndbuffer.shape,
-            strides=ndbuffer.strides_in_bytes,
-            dtype=ndbuffer.dtype_name,
-            buffer=buffer,
-        )
+        return ndbuffer.as_numpy()
     else:
         import cupy as cp
 
+        base_ptr, size_in_bytes, offset_in_bytes = ndbuffer.raw_memory_range_info
         mem = cp.cuda.UnownedMemory(
-            ndbuffer.data_ptr,
-            ndbuffer.size_in_bytes,
+            base_ptr,
+            size_in_bytes,
             owner=ndbuffer.data,
             device_id=ndbuffer.device_id,
         )
-        memptr = cp.cuda.MemoryPointer(mem, offset=0)
+        memptr = cp.cuda.MemoryPointer(mem, offset=offset_in_bytes)
         return cp.ndarray(
             shape=ndbuffer.shape,
             strides=ndbuffer.strides_in_bytes,
@@ -130,7 +123,7 @@ def calculate_strides(shape, axis_order):
     return strides
 
 
-def generate_random_data(package, memory_space, shape, dtype, stream, memory_layout="C", symmetric_memory=True):
+def generate_random_data(package, memory_space, shape, dtype, stream, memory_layout="C", symmetric_memory="nvshmem"):
     """Generate random data of the given shape and dtype.
     Returns instance of data on CPU, and a copy on the specified memory_space ("cpu", "gpu")
     wrapped around distributed TensorHolder.
@@ -142,6 +135,9 @@ def generate_random_data(package, memory_space, shape, dtype, stream, memory_lay
 
         dtype: numpy dtype
     """
+
+    assert symmetric_memory in ("nvshmem", "nccl", None)
+
     if np.issubdtype(dtype, np.complexfloating):
         data_cpu = (np.random.rand(*shape) + 1j * np.random.rand(*shape)).astype(dtype)
     else:
@@ -161,7 +157,7 @@ def generate_random_data(package, memory_space, shape, dtype, stream, memory_lay
         device_id = nvmath.distributed.get_context().device_id
         data_gpu = to_gpu(data_cpu, device_id, stream, symmetric_memory)
         assert isinstance(data_gpu, DistributedTensor)
-        assert data_gpu.is_symmetric_memory == symmetric_memory
+        assert data_gpu.is_symmetric_memory == (symmetric_memory == "nvshmem")
         return data_cpu, data_gpu
     else:
         data_cpu_copy = data_cpu.__class__.empty(shape, dtype=data_cpu.dtype, strides=data_cpu.strides)

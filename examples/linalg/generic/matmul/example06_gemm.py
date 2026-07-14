@@ -6,7 +6,7 @@
 This example demonstrates GEMM on CuPy ndarrays.
 
 GEMM (General Matrix Multiply) is defined as:
-alpha * A @ B + beta * C
+alpha * a @ b + beta * c
 where `@` denotes matrix multiplication.
 """
 

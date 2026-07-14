@@ -13,6 +13,11 @@ dense matrix factorization and linear solver functions that execute directly wit
 kernels. Detailed documentation of cuSOLVERDx can be found in the
 :cusolverdx_doc:`cuSOLVERDx documentation <index.html>`.
 
+.. note::
+
+   The solver device APIs support both the ``numba-cuda`` and the ``numba-cuda-mlir``
+   compilers. See :ref:`device-api-supported-compilers` for details.
+
 Architecture
 ------------
 
@@ -79,7 +84,7 @@ functions with their corresponding Python adapters:
      - LU solve without pivoting
      - :class:`~nvmath.device.LUSolver`
    * - :cusolverdx_doc:`gesv_no_pivot <get_started/functions/gesv.html>`
-     - Fused LU without pivoting factorization with solve
+     - Fused LU factorization (without pivoting) with solve
      - :class:`~nvmath.device.Solver`
    * - :cusolverdx_doc:`getrf_partial_pivot <get_started/functions/getrf.html>`
      - LU factorization with partial pivoting
@@ -88,7 +93,7 @@ functions with their corresponding Python adapters:
      - LU solve with partial pivoting
      - :class:`~nvmath.device.LUPivotSolver`
    * - :cusolverdx_doc:`gesv_partial_pivot <get_started/functions/gesv.html>`
-     - Fused LU with partial pivoting factorization with solve
+     - Fused LU factorization (with partial pivoting) with solve
      - :class:`~nvmath.device.Solver`
    * - :cusolverdx_doc:`geqrf <get_started/functions/geqrf.html>`
      - QR factorization
@@ -123,9 +128,6 @@ functions with their corresponding Python adapters:
    * - :cusolverdx_doc:`heev <get_started/functions/heev.html>` :sup:`[0.3.2]`
      - Eigenvalue solver for Hermitian dense matrices
      - :class:`~nvmath.device.Solver`
-   * - :cusolverdx_doc:`gesvdj <get_started/functions/gesvdj.html>` :sup:`[0.3.2]`
-     - Singular value decomposition for general dense matrices
-     - :class:`~nvmath.device.Solver`
 
 Version Support
 ---------------
@@ -133,9 +135,9 @@ Version Support
 .. note::
 
     All functionality up to cuSOLVERDx 0.2.1 is fully supported. Functionality from
-    cuSOLVERDx |cusolverdx_version| or later are partially supported.
+    cuSOLVERDx |cusolverdx_version| or later is partially supported.
 
-    Functions marked with :sup:`[0.3.2]` requires libmathdx 0.3.2 or later and are
+    Functions marked with :sup:`[0.3.2]` require libmathdx 0.3.2 or later and are
     only accessible through the base :class:`~nvmath.device.Solver` class.
 
 .. _device-api-cusolver-reference:

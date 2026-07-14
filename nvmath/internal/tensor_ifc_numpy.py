@@ -16,7 +16,7 @@ import numpy.typing as npt
 from nvmath.internal.tensor_ifc_ndbuffer import NDBufferTensor
 
 from . import utils
-from .ndbuffer import ndbuffer, package_utils
+from .ndbuffer import NDBuffer
 from .package_ifc import StreamHolder
 from .tensor_ifc import TensorHolder
 
@@ -29,6 +29,7 @@ class CudaTensor(NDBufferTensor):
 
     name = "cuda"
     host_tensor_class: type["NumpyTensor"]  # set once NumpyTensor is defined
+    device_tensor_class: type["CudaTensor"]  # set once CudaTensor is defined
 
     def __init__(self, tensor):
         super().__init__(tensor)
@@ -37,8 +38,8 @@ class CudaTensor(NDBufferTensor):
     def create_from_host(cls, tensor: TensorHolder, device_id: int, stream_holder: StreamHolder):
         with utils.device_ctx(device_id):
             src_ndbuffer = tensor.asndbuffer()
-            dst_ndbuffer = ndbuffer.empty_like(src_ndbuffer, device_id=device_id, stream=stream_holder)
-            ndbuffer.copy_into(dst_ndbuffer, src_ndbuffer, stream_holder)
+            dst_ndbuffer = NDBuffer.empty_like(src_ndbuffer, device_id=device_id, stream=stream_holder)
+            dst_ndbuffer.copy_(src_ndbuffer, stream=stream_holder)
             return cls(dst_ndbuffer)
 
     def to(self, device_id, stream_holder):
@@ -65,7 +66,8 @@ class NumpyTensor(TensorHolder[npt.NDArray]):
         conversion_function=lambda name: numpy.dtype(name), exception_type=TypeError
     )
 
-    device_tensor_class = CudaTensor
+    host_tensor_class: type["NumpyTensor"]  # set once NumpyTensor is defined
+    device_tensor_class: type["CudaTensor"]  # set once CudaTensor is defined
 
     def __init__(self, tensor):
         super().__init__(tensor)
@@ -106,9 +108,9 @@ class NumpyTensor(TensorHolder[npt.NDArray]):
     @classmethod
     def create_host_from(cls, tensor: TensorHolder, stream_holder: StreamHolder):
         src_nd = tensor.asndbuffer()
-        wrapped_np = package_utils.empty_numpy_like(src_nd)
-        ndbuffer.copy_into(wrapped_np, src_nd, stream_holder)
-        return cls(wrapped_np.data)
+        dst_nd = NDBuffer.empty_like(src_nd, device_id="cpu", stream=stream_holder)
+        dst_nd.copy_(src_nd, stream=stream_holder)
+        return cls(dst_nd.as_numpy())
 
     @property
     def shape(self):
@@ -123,7 +125,7 @@ class NumpyTensor(TensorHolder[npt.NDArray]):
         return tuple(stride_in_bytes // self.tensor.itemsize for stride_in_bytes in self.tensor.strides)
 
     def asndbuffer(self):
-        return package_utils.wrap_numpy_array(self.tensor)
+        return NDBuffer.from_numpy(self.tensor)
 
     def to(self, device_id, stream_holder):
         if device_id == "cpu":
@@ -140,7 +142,7 @@ class NumpyTensor(TensorHolder[npt.NDArray]):
                 numpy.copyto(self.tensor, src.tensor)
             case _:
                 with utils.device_ctx(src.device_id):
-                    ndbuffer.copy_into(self.asndbuffer(), src._broadcast_to(self.shape).asndbuffer(), stream_holder)
+                    self.asndbuffer().copy_(src.asndbuffer(), stream=stream_holder)
 
     def istensor(self):
         """
@@ -175,9 +177,8 @@ class NumpyTensor(TensorHolder[npt.NDArray]):
         assert v.data_ptr == self.data_ptr, "Internal error."
         return v
 
-    def _broadcast_to(self, shape):
-        reshaped_tensor = numpy.broadcast_to(self.tensor, shape)
-        return self.__class__(reshaped_tensor)
 
-
+NumpyTensor.host_tensor_class = NumpyTensor
 CudaTensor.host_tensor_class = NumpyTensor
+NumpyTensor.device_tensor_class = CudaTensor
+CudaTensor.device_tensor_class = CudaTensor

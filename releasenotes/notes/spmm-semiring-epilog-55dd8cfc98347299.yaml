@@ -1,0 +1,7 @@
+---
+api:
+ - |
+   The ``semiring`` and ``epilog`` parameters to the generic sparse matrix
+   multiplication (SpMM) plan (:meth:`nvmath.sparse.Matmul.plan`) have been
+   removed. In addition, prolog cannot be specified for the ``c`` operand.
+   We plan to introduce comprehensive support for these in the near future.

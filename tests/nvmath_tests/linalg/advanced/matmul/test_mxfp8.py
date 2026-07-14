@@ -73,7 +73,16 @@ def expand_mxfp8_scales(x, scales):
     Expands block UE8M0 scales tensor for `x` into a float32 tensor with actual scale
     factors.
     """
-    idx = matmul_helpers.get_mxfp8_scale_offset(x, torch.meshgrid(*(torch.arange(d) for d in x.shape), indexing="ij"))
+    grids = torch.meshgrid(*(torch.arange(d) for d in x.shape), indexing="ij")
+    if x.stride()[-1] == 1:
+        index = (*grids[:-1], grids[-1] // 32)
+    else:
+        index = (*grids[:-2], grids[-2] // 32, grids[-1])
+    idx = matmul_helpers.get_block_scale_offset(
+        index,
+        x,
+        matmul_helpers.BlockScalingFormat.MXFP8,
+    )
     if scales.is_cuda:
         idx = idx.cuda()
     return 2 ** (scales.type(torch.float32)[idx] - 127)
@@ -275,7 +284,7 @@ def test_batching(
         shape = (*batch_shape, *matrix_shape)
         if transposed:
             shape = (*shape[:-2], shape[-1], shape[-2])
-        x = sample_matrix("torch", type, shape, use_cuda=use_cuda, min=0, max=2)
+        x = sample_matrix("torch", type, shape, use_cuda=use_cuda, min_val=0, max_val=2)
         return x.swapaxes(-1, -2) if transposed else x
 
     a_orig = sample_batch(a_batch, (m, k), atype, transposed=False)
@@ -317,7 +326,8 @@ def test_batching(
 @pytest.mark.parametrize(("use_cuda"), (True, False))
 def test_reset(m, n, k, atype, btype, ctype, dtype, a_scale_range, b_scale_range, use_cuda):
     """
-    Tests if in-place change of A/B scales and reset_operands works.
+    Tests in-place change of A/B scales, reset_operands, and
+    release_operands followed by reset_operands_unchecked.
     """
     a, b, c, alpha, beta = generate_simple_inputs(m, n, k, atype, btype, ctype, use_cuda=use_cuda)
 
@@ -371,6 +381,47 @@ def test_reset(m, n, k, atype, btype, ctype, dtype, a_scale_range, b_scale_range
             a, b, c=c, alpha=alpha, d_out=d_out, beta=beta, quantization_scales=scales3, options=options
         )
         assert_fp8_equal(result, reference)
+
+        # Release operands and do an unchecked reset
+        mm.release_operands()
+        ascales4 = generate_mxfp8_scales(a, a_scale_range, use_cuda=use_cuda)
+        bscales4 = generate_mxfp8_scales(b, b_scale_range, use_cuda=use_cuda)
+        scales4 = {"a": ascales4, "b": bscales4}
+        mm.reset_operands_unchecked(a=a, b=b, c=c, quantization_scales=scales4)
+        result, d_out, _ = unpack_matmul(mm.execute())
+        reference = mxfp8_matmul_reference(
+            a, b, c=c, alpha=alpha, d_out=d_out, beta=beta, quantization_scales=scales4, options=options
+        )
+        assert_fp8_equal(result, reference)
+
+
+def test_reset_operands_after_release():
+    """
+    Regression test: release_operands() followed by reset_operands() (checked) with
+    tensor-valued block-scaling scales must not raise AttributeError.
+    """
+    m, n, k = 2 * 128, 4 * 128, 3 * 128
+    atype, btype = "float8_e4m3fn", "float8_e4m3fn"
+    a, b, _, alpha, _ = generate_simple_inputs(m, n, k, atype, btype, ctype=None, use_cuda=True)
+
+    ascales = generate_mxfp8_scales(a, (-3, 3), use_cuda=True)
+    bscales = generate_mxfp8_scales(b, (-3, 3), use_cuda=True)
+    scales = {"a": ascales, "b": bscales}
+    options = {"block_scaling": True}
+
+    with Matmul(a, b, alpha=alpha, quantization_scales=scales, options=options) as mm:
+        mm.plan()
+        mm.execute()
+
+        mm.release_operands()
+
+        ascales2 = generate_mxfp8_scales(a, (-3, 3), use_cuda=True)
+        bscales2 = generate_mxfp8_scales(b, (-3, 3), use_cuda=True)
+        scales2 = {"a": ascales2, "b": bscales2}
+
+        # This used to raise AttributeError: 'NoneType' object has no attribute 'size'
+        mm.reset_operands(a=a, b=b, quantization_scales=scales2)
+        mm.execute()
 
 
 def unpack_bitmask(bitmask, shape):
@@ -466,7 +517,7 @@ def test_epilogs(
         shape = (*batch_shape, *matrix_shape)
         if transposed:
             shape = (*shape[:-2], shape[-1], shape[-2])
-        x = sample_matrix("torch", type, shape, use_cuda=use_cuda, min=-0.2, max=1)
+        x = sample_matrix("torch", type, shape, use_cuda=use_cuda, min_val=-0.2, max_val=1)
         return x.swapaxes(-1, -2) if transposed else x
 
     a = sample_batch(a_batch, (m, k), atype, transposed=False)
@@ -485,7 +536,7 @@ def test_epilogs(
     inputs = {}
     if "BIAS" in epilog_name:
         bias_type = "float16" if inferred_ctype == "float16" else "bfloat16"
-        bias = sample_matrix("torch", bias_type, (m,), use_cuda=use_cuda, min=0, max=1)
+        bias = sample_matrix("torch", bias_type, (m,), use_cuda=use_cuda, min_val=0, max_val=1)
         inputs["bias"] = bias
     if "DRELU" in epilog_name:
         round_16 = lambda x: (x + 15) // 16 * 16
@@ -495,9 +546,9 @@ def test_epilogs(
         inputs["relu_aux"] = relu_aux
     if "DGELU" in epilog_name:
         if order == "col":
-            inputs["gelu_aux"] = sample_matrix("torch", result_type, (n, m), use_cuda=use_cuda, min=-5, max=5).T
+            inputs["gelu_aux"] = sample_matrix("torch", result_type, (n, m), use_cuda=use_cuda, min_val=-5, max_val=5).T
         else:
-            inputs["gelu_aux"] = sample_matrix("torch", result_type, (m, n), use_cuda=use_cuda, min=-5, max=5)
+            inputs["gelu_aux"] = sample_matrix("torch", result_type, (m, n), use_cuda=use_cuda, min_val=-5, max_val=5)
 
     scales = {"a": ascales, "b": bscales}
     options = {"result_type": NAME_TO_DATA_TYPE[dtype] if dtype else None, "block_scaling": True}
@@ -646,16 +697,24 @@ def test_indexing_helpers(M, N, nsamples, input_format):
     Tests indexing helpers.
     """
     tensor = torch.zeros((M, N), dtype=torch.float8_e4m3fn)
-    xs, ys = (torch.randint(size=(nsamples,), low=0, high=d, dtype=torch.int32) for d in (M, N))
+    xs = torch.randint(size=(nsamples,), low=0, high=M, dtype=torch.int32)
+    ys = torch.randint(size=(nsamples,), low=0, high=N // 32, dtype=torch.int32)
 
-    full = matmul_helpers.get_mxfp8_scale_offset(tensor, torch.meshgrid(*(torch.arange(d) for d in (M, N)), indexing="ij"))
+    full = matmul_helpers.get_block_scale_offset(
+        torch.meshgrid(torch.arange(M), torch.arange(N // 32), indexing="ij"),
+        tensor,
+        matmul_helpers.BlockScalingFormat.MXFP8,
+    )
     reference = full[xs, ys]
 
     if input_format == "vectors":
-        result = matmul_helpers.get_mxfp8_scale_offset(tensor, (xs, ys))
+        result = matmul_helpers.get_block_scale_offset((xs, ys), tensor, matmul_helpers.BlockScalingFormat.MXFP8)
         assert torch.all(result == reference)
     elif input_format == "ints":
-        result = [matmul_helpers.get_mxfp8_scale_offset(tensor, (x, y)) for x, y in zip(xs, ys, strict=True)]
+        result = [
+            matmul_helpers.get_block_scale_offset((x, y), tensor, matmul_helpers.BlockScalingFormat.MXFP8)
+            for x, y in zip(xs, ys, strict=True)
+        ]
         assert all(res == ref for res, ref in zip(result, reference, strict=True))
     else:
         raise RuntimeError
@@ -669,13 +728,13 @@ def test_indexing_helpers(M, N, nsamples, input_format):
         ((128,), (0,)),
     ],
 )
-def test_get_mxfp8_scale_offset_negative(shape, index):
+def test_get_block_scale_offset_negative(shape, index):
     """
-    Tests error handling in get_mxfp8_scale_offset.
+    Tests error handling in get_block_scale_offset.
     """
     tensor = torch.zeros(shape, dtype=torch.float8_e4m3fn)
     with pytest.raises(ValueError):
-        matmul_helpers.get_mxfp8_scale_offset(tensor, index)
+        matmul_helpers.get_block_scale_offset(index, tensor, matmul_helpers.BlockScalingFormat.MXFP8)
 
 
 @pytest.mark.parametrize("order", ("t", "b", "tb", "bt", "tbt", "btb"))
@@ -784,7 +843,7 @@ def test_validation_ab_batches_different(
         shape = (*batch_shape, *matrix_shape)
         if transposed:
             shape = (*shape[:-2], shape[-1], shape[-2])
-        x = sample_matrix("torch", type, shape, use_cuda=use_cuda, min=0, max=2)
+        x = sample_matrix("torch", type, shape, use_cuda=use_cuda, min_val=0, max_val=2)
         return x.swapaxes(-1, -2) if transposed else x
 
     a = sample_batch(a_batch, (m, k), atype, transposed=False)

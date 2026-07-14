@@ -3,13 +3,9 @@
 # SPDX-License-Identifier: Apache-2.0
 import hashlib
 
-import pytest
-
-try:
-    from cuda.core import Device
-except ImportError:
-    from cuda.core.experimental import Device
 import numpy as np
+import pytest
+from cuda.core import Device
 
 try:
     import cupy as cp

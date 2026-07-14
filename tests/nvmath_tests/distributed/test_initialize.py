@@ -9,13 +9,9 @@ Test nvmath.distributed initialization and parameter validation.
 import re
 
 import pytest
+from cuda.core import system
 
 import nvmath.distributed
-
-try:
-    from cuda.core import system
-except ImportError:
-    from cuda.core.experimental import system
 
 
 def test_initialize_invalid_device_id_type(process_group):
@@ -69,12 +65,7 @@ def test_initialize_invalid_communicator_type():
 def test_initialize_already_initialized(process_group):
     """Test that initialize raises RuntimeError when called twice"""
 
-    try:
-        num_devices = system.get_num_devices()
-    except AttributeError:
-        num_devices = system.num_devices
-
-    device_id = process_group.rank % num_devices
+    device_id = process_group.rank % system.get_num_devices()
 
     # First initialization should succeed
     nvmath.distributed.initialize(device_id, process_group, backends=["nvshmem"])

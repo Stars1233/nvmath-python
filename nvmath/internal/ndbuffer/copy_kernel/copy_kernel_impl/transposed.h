@@ -206,7 +206,9 @@ struct transpose_copy_impl {
         const auto thread_coords = transpose_helper.unravel_thread_idx_reading(flat_thread_idx);
         // ndim index of the element in the source tensor
         const auto src_coords = unravel_tiled_idx(flat_block_idx, src_view.shape(), thread_coords);
-        const bool is_in_bounds = all([](auto a, auto b) { return a < b; }, src_coords, src_view.shape());
+        // note, all other idxs are 0 < ... < shape[i] by the unravel_tiled_idx,
+        // there's no need to check all of them.
+        const bool is_in_bounds = src_coords[0] < src_view.shape()[0];
         if constexpr (grid_indexer_t::needs_grid_stride_loop) {
           __syncthreads();
         }

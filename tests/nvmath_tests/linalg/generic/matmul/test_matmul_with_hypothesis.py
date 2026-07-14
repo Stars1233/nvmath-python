@@ -20,7 +20,6 @@ from hypothesis.strategies import (
     tuples,
 )
 
-from nvmath._internal.templates import ExecutionCPU, ExecutionCUDA
 from nvmath.bindings import cublas
 from nvmath.internal.tensor_wrapper import maybe_register_package
 from nvmath.linalg._internal.typemaps import (
@@ -29,6 +28,8 @@ from nvmath.linalg._internal.typemaps import (
 )
 from nvmath.linalg.generic import (
     DiagonalMatrixQualifier,
+    ExecutionCPU,
+    ExecutionCUDA,
     GeneralMatrixQualifier,
     HermitianMatrixQualifier,
     MatmulOptions,
@@ -263,6 +264,54 @@ def batch_strategy(draw):
     return a_batch, b_batch, c_batch
 
 
+# Generate data in range [0, 5] to match sample_matrix() from utils.
+# Only non-negative reals to avoid catastrophic cancellation.
+element_properties: dict[str, typing.Any] = {
+    "allow_infinity": False,
+    "allow_nan": False,
+    "allow_subnormal": False,
+    "max_magnitude": np.sqrt(50),
+    "min_magnitude": 0,
+    "max_value": 5,
+    "min_value": 0,
+}
+
+
+def _real_counterpart(ab_type):
+    """Return the real dtype backing a (possibly complex) ``ab_type``."""
+    return np.empty(0, np.dtype(ab_type)).real.dtype
+
+
+@composite
+def bounded_array(draw, ab_type, shape):
+    """Draw an array of ``ab_type`` with bounded, non-negative entries.
+
+    hypothesis's ``arrays``/``from_dtype`` silently ignore ``min_value`` and
+    ``max_value`` for complex dtypes, which would let negative real/imaginary
+    parts through. Build complex arrays from non-negative real and
+    imaginary parts the bound in element_properties is actually enforced.
+    """
+    if np.issubdtype(np.dtype(ab_type), np.complexfloating):
+        real_dtype = _real_counterpart(ab_type)
+        real = draw(arrays(dtype=real_dtype, shape=shape, elements=element_properties))
+        imag = draw(arrays(dtype=real_dtype, shape=shape, elements=element_properties))
+        result = np.empty(shape, dtype=ab_type)
+        result.real[...] = real
+        result.imag[...] = imag
+        return result
+    return draw(arrays(dtype=ab_type, shape=shape, elements=element_properties))
+
+
+@composite
+def bounded_scalar(draw, ab_type):
+    if np.issubdtype(np.dtype(ab_type), np.complexfloating):
+        real_dtype = _real_counterpart(ab_type)
+        real = draw(from_dtype(dtype=np.dtype(real_dtype), **element_properties))
+        imag = draw(from_dtype(dtype=np.dtype(real_dtype), **element_properties))
+        return np.dtype(ab_type).type(complex(real, imag))
+    return draw(from_dtype(dtype=np.dtype(ab_type), **element_properties))
+
+
 @composite
 def matrix_multiply_arrays(draw):
     k = draw(problem_size_mnk)
@@ -303,34 +352,11 @@ def matrix_multiply_arrays(draw):
     # else:
     a_batch, b_batch, c_batch = (), (), ()
 
-    # Generate data in range [0, 5] to match sample_matrix() from utils
-    # Only non-negative reals to avoid catastrophic cancellation
-    element_properties: dict[str, typing.Any] = {
-        "allow_infinity": False,
-        "allow_nan": False,
-        "allow_subnormal": False,
-        "max_magnitude": np.sqrt(50),
-        "min_magnitude": 0,
-        "max_value": 5,
-        "min_value": 0,
-    }
     # NOTE: It is unfeasible for hypothesis to explore a parameter space where
     # all elements of the input arrays are unique, so most of the time, arrays
     # contain just a few unique values
-    a = draw(
-        arrays(
-            dtype=ab_type,
-            shape=a_shape,
-            elements=element_properties,
-        )
-    )
-    b = draw(
-        arrays(
-            dtype=ab_type,
-            shape=b_shape,
-            elements=element_properties,
-        )
-    )
+    a = draw(bounded_array(ab_type, a_shape))
+    b = draw(bounded_array(ab_type, b_shape))
 
     # Type promotion can happen unintentionally when enforcing matrix structure.
     a = enforce_matrix_qualifiers(a, qualifier=qualifiers[0]).astype(ab_type)
@@ -338,19 +364,14 @@ def matrix_multiply_arrays(draw):
 
     # The generic API does not support broadcasting of C, so the shape of must match the
     # output of the matmul exactly.
-    c = draw(
-        one_of(
-            none(),
-            arrays(dtype=ab_type, shape=c_shape, elements=element_properties),
-        )
-    )
+    c = draw(one_of(none(), bounded_array(ab_type, c_shape)))
     if c is None:
         qualifiers = qualifiers[:2]
     else:
         qualifiers[2] = GeneralMatrixQualifier.create()
 
-    beta = None if c is None else draw(from_dtype(dtype=np.dtype(ab_type), **element_properties))
-    alpha = draw(one_of(none(), from_dtype(dtype=np.dtype(ab_type), **element_properties)))
+    beta = None if c is None else draw(bounded_scalar(ab_type))
+    alpha = draw(one_of(none(), bounded_scalar(ab_type)))
 
     assume(np.all(np.isfinite(a)))
     assume(np.all(np.isfinite(b)))

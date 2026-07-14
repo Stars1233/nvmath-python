@@ -22,6 +22,18 @@ stream semantics apply to all nvmath-python modules
 :class:`nvmath.linalg.advanced.Matmul`,
 :class:`nvmath.sparse.advanced.DirectSolver`, and others).
 
+.. note::
+
+   CUDA streams are local to a process and a device. Therefore, the
+   stream ordering concepts on this page also apply, on a
+   per-process basis, to the :doc:`distributed host APIs
+   <distributed-apis/index>`. To keep this page focused on stream
+   ordering, the examples below are intentionally limited to the
+   single-process setting. Cross-process coordination concerns
+   (collective ordering, symmetric memory, etc.) are separate; see
+   each distributed host API's documentation for those and their interplay
+   with streams.
+
 Stateless APIs
 ==============
 

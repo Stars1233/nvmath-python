@@ -8,7 +8,7 @@ Stateful objects amortize the cost of preparation across multiple executions.
 
 The inputs as well as the result are CuPy ndarrays.
 
-The global operation performed in this example is: A @ B
+The global operation performed in this example is: a @ b
 
 $ mpiexec -n 4 python example05_stateful_cupy.py
 """
@@ -48,11 +48,11 @@ with cp.cuda.Device(device_id):
     b[:] = cp.random.rand(*b_shape)
 
 # Get a transposed view to obtain column-major memory layout. Note that this
-# also changes the distribution of a and b (see example01 for more information).
-a = a.T  # a is now (m, k) with col_wise_distribution
-b = b.T  # b is now (k, n) with row_wise_distribution
+# also changes the distribution of 'a' and 'b' (see example01 for more information).
+a = a.T  # 'a' is now (m, k) with col_wise_distribution
+b = b.T  # 'b' is now (k, n) with row_wise_distribution
 
-# Distribution of a, b and output.
+# Distribution of 'a', 'b' and output.
 distributions = [col_wise_distribution, row_wise_distribution, col_wise_distribution]
 
 # Use the stateful object as a context manager to automatically release resources.

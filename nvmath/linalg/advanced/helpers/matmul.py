@@ -11,7 +11,6 @@ if TYPE_CHECKING:
     import torch
 
 import math
-import warnings
 
 import numpy as np
 
@@ -23,7 +22,6 @@ __all__ = [
     "BlockScalingFormat",
     "create_mxfp8_scale",
     "invert_mxfp8_scale",
-    "get_mxfp8_scale_offset",
     "apply_mxfp8_scale",
     "unpack_fp4",
     "quantize_to_fp4",
@@ -439,13 +437,107 @@ def _idx_batch_offset(
     return batch_offset
 
 
-def _get_block_scale_offset(
-    operand_or_shape: torch.Tensor | tuple[int, ...],
+def get_block_scale_offset(
     index: tuple[int, ...] | tuple[torch.Tensor, ...],
-    axis: Literal[-1, -2] | None,
+    operand_or_shape: torch.Tensor | tuple[int, ...],
     block_scaling_format: BlockScalingFormat,
-    is_block_idx: bool,
+    *,
+    axis: Literal[-1, -2] | None = None,
 ) -> int | torch.Tensor:
+    """
+    .. experimental:: function
+
+    Computes offset of a block scale factor in the 1D interleaved scales tensor.
+
+    Matmul (cuBLAS) expects scale factors in specific `interleaved layout
+    <https://docs.nvidia.com/cuda/cublas/index.html#d-block-scaling-factors-layout>`_.
+
+    This function aims to abstract away the interleaved layout details, offering indexing
+    that more directly corresponds to the operand's shape.
+
+    Example:
+        Suppose that you are doing an NVFP4 matmul ``a @ b`` with ``a`` of shape (M=128,
+        K=128). For matrix ``a``, a single scale is applied to consecutive 16 elements
+        blocks in a row (axis=-1). Therefore, to find the scale applied to ``a[y, x]``, we
+        first need to adjust the x index to the index of the 16-element block it belongs to,
+        which is ``block_idx = x // 16``. Then, calling: ``get_block_scale_offset((y,
+        block_idx), a, BlockScalingFormat.NVFP4)`` will return the offset of the scale
+        applied to ``a[y, x]`` (and all other elements in the same 16-element block).
+
+        The schematic below shows matrix ``a`` with the 16-element blocks annotated.
+        Asterisks mark two target blocks:
+
+        - elements in ``a`` at indices from (5, 32) to (5, 47), correspond to the same block
+          (K-group 2) and map to the same offset ``get_block_scale_offset((5, 2), a,
+          BlockScalingFormat.NVFP4) == 82``
+        - elements in ``a`` at indices from (5, 80) to (5, 95), correspond to the same block
+          (K-group 5) and map to the same offset ``get_block_scale_offset((5, 5), a,
+          BlockScalingFormat.NVFP4) == 593``
+
+        .. code-block:: text
+
+                  | K-grp 0  | K-grp 1  | K-grp 2  | K-grp 3  | K-grp 4  | K-grp 5  | ...
+                  | [0..15]  | [16..31] | [32..47] | [48..63] | [64..79] | [80..95] | ...
+                  +----------+----------+----------+----------+----------+----------+---
+            row 0 |          |          |          |          |          |          |
+             ...  |          |          |          |          |          |          |
+            row 5 |          |          |    *     |          |          |    *     |
+             ...  |          |          |          |          |          |          |
+            row127|          |          |          |          |          |          |
+                  +----------+----------+----------+----------+----------+----------+---
+                                          (5,2)                            (5,5)
+
+    Note:
+        As far as computing the block scale offset, the only difference between MXFP8 and
+        NVFP4 is the number of elements in a block (32 for MXFP8, 16 for NVFP4).
+
+    Args:
+        index: A tuple of indices with length equal to ``len(operand_shape)``. Can be:
+
+            - A tuple of integers for single-element query, e.g., ``(10, 20)``
+            - A tuple of tensors for batch query, e.g., ``(xs, ys)`` where ``xs`` and ``ys``
+              are tensors of the same shape
+
+        operand_or_shape: Operand tensor (that the scales apply to) or
+            the operand's logical (non-packed, non-blocked) shape.
+
+        block_scaling_format: The block scaling format of the operand:
+            :attr:`BlockScalingFormat.NVFP4` or :attr:`BlockScalingFormat.MXFP8`.
+            Internally, it is validated to be consistent with the operand dtype, and a
+            :exc:`ValueError` is raised if not.
+
+        axis: The blocked dimension of the operand tensor.
+            For example, for NVFP4/MXFP8 matmul, A is blocked in rows (``axis = -1``), and B
+            is blocked in columns (``axis = -2``). Depending on ``operand_or_shape``:
+
+            - if a *shape* is passed to ``operand_or_shape``, then ``axis`` is required
+            - if an *operand* is passed to ``operand_or_shape``, then ``axis`` can be
+              omitted and the blocked dimension is inferred from the operand's layout.
+
+    Returns:
+        An integer (if ``index`` contains integers) or a tensor of integers (if ``index``
+        contains tensors), indicating the offset(s) to the MXFP8/NVFP4 block scale
+        factor(s). The returned offset points to a block scale factor that is applied to:
+
+        - for axis == -2: ``operand[*index[-2:],
+          block_size*index[-2]:block_size*(index[-2]+1), index[-1]]``.
+        - for axis == -1: ``operand[*index[-2:], index[-1],
+          block_size*index[-1]:block_size*(index[-1]+1)]``.
+
+        where the block size is 32 for MXFP8 and 16 for NVFP4.
+
+    Note:
+        In typical use-cases, there should be no need to manually modify MXFP8 scales. The
+        scales returned as ``"d_out_scale"`` by one matmul, can be directly reused as input
+        scales for another matmul.
+
+    Hint:
+        - To apply the interleaved scales (e.g. as returned by matmul's ``d_out_scale``) to
+          the operand, use :func:`apply_mxfp8_scale` instead.
+        - To specify scales as ND tensor and copy them to cuBLAS-compatible interleaved
+          layout, use :func:`to_block_scale` instead.
+
+    """
     # infer operand_shape, unblocked_axis, blocked_axis, num_scalars_in_block
     # validate operand_shape's dim and extents for divisibility by cuBLAS tile
     # and num_scalars_in_block
@@ -460,10 +552,7 @@ def _get_block_scale_offset(
 
     blocked_dim = operand_shape[blocked_axis]
     unblocked_idx = index[unblocked_axis]
-    if is_block_idx:
-        blocked_group_idx = index[blocked_axis]
-    else:
-        blocked_group_idx = index[blocked_axis] // num_scalars_in_block
+    blocked_group_idx = index[blocked_axis]
 
     # Tile dimensions
     TILE_OUTER = 128
@@ -585,22 +674,6 @@ def _convert_uint8_ue8m0_scale_to_float64(mx_scales: torch.Tensor) -> torch.Tens
     # this way we avoid overflow for corner case
     # when exponent is 128 (2^128 overflows float32)
     return 2 ** (mx_scales.type(torch.float64) - 127)
-
-
-def get_mxfp8_scale_offset(
-    operand_or_shape: torch.Tensor | tuple[int, ...],
-    index: tuple[int, ...] | tuple[torch.Tensor, ...],
-    axis: Literal[-1, -2] | None = None,
-) -> int | torch.Tensor:
-    """
-    Computes offset of a scale in the 1D interleaved scales tensor,
-    applied to element ``operand[index]``.
-
-    .. deprecated:: 0.9.0
-        Please use :func:`get_block_scale_offset` instead.
-    """
-    warnings.warn("get_mxfp8_scale_offset is deprecated. Please use get_block_scale_offset instead.", DeprecationWarning)
-    return _get_block_scale_offset(operand_or_shape, index, axis, BlockScalingFormat.MXFP8, False)
 
 
 def _smallest_dtype_that_fits(out_64):
@@ -1005,110 +1078,6 @@ def unpack_fp4(fp4_tensor: torch.Tensor, axis: Literal[-1, -2]) -> torch.Tensor:
     return _decode_fp4_2d_plus_tensor_to_float32(fp4_tensor, row_wise_packing)
 
 
-def get_block_scale_offset(
-    index: tuple[int, ...] | tuple[torch.Tensor, ...],
-    operand_or_shape: torch.Tensor | tuple[int, ...],
-    block_scaling_format: BlockScalingFormat,
-    *,
-    axis: Literal[-1, -2] | None = None,
-) -> int | torch.Tensor:
-    """
-    .. experimental:: function
-
-    Computes offset of a block scale factor in the 1D interleaved scales tensor.
-
-    Matmul (cuBLAS) expects scale factors in specific `interleaved layout
-    <https://docs.nvidia.com/cuda/cublas/index.html#d-block-scaling-factors-layout>`_.
-
-    This function aims to abstract away the interleaved layout details, offering indexing
-    that more directly corresponds to the operand's shape.
-
-    Example:
-        Suppose that you are doing an NVFP4 matmul ``a @ b`` with ``a`` of shape (M=128,
-        K=128). For matrix ``a``, a single scale is applied to consecutive 16 elements
-        blocks in a row (axis=-1). Therefore, to find the scale applied to ``a[y, x]``, we
-        first need to adjust the x index to the index of the 16-element block it belongs to,
-        which is ``block_idx = x // 16``. Then, calling: ``get_block_scale_offset((y,
-        block_idx), a, BlockScalingFormat.NVFP4)`` will return the offset of the scale
-        applied to ``a[y, x]`` (and all other elements in the same 16-element block).
-
-        The schematic below shows matrix ``a`` with the 16-element blocks annotated.
-        Asterisks mark two target blocks:
-
-        - elements in ``a`` at indices from (5, 32) to (5, 47), correspond to the same block
-          (K-group 2) and map to the same offset ``get_block_scale_offset((5, 2), a,
-          BlockScalingFormat.NVFP4) == 82``
-        - elements in ``a`` at indices from (5, 80) to (5, 95), correspond to the same block
-          (K-group 5) and map to the same offset ``get_block_scale_offset((5, 5), a,
-          BlockScalingFormat.NVFP4) == 593``
-
-        .. code-block:: text
-
-                  | K-grp 0  | K-grp 1  | K-grp 2  | K-grp 3  | K-grp 4  | K-grp 5  | ...
-                  | [0..15]  | [16..31] | [32..47] | [48..63] | [64..79] | [80..95] | ...
-                  +----------+----------+----------+----------+----------+----------+---
-            row 0 |          |          |          |          |          |          |
-             ...  |          |          |          |          |          |          |
-            row 5 |          |          |    *     |          |          |    *     |
-             ...  |          |          |          |          |          |          |
-            row127|          |          |          |          |          |          |
-                  +----------+----------+----------+----------+----------+----------+---
-                                          (5,2)                            (5,5)
-
-    Note:
-        As far as computing the block scale offset, the only difference between MXFP8 and
-        NVFP4 is the number of elements in a block (32 for MXFP8, 16 for NVFP4).
-
-    Args:
-        index: A tuple of indices with length equal to ``len(operand_shape)``. Can be:
-
-            - A tuple of integers for single-element query, e.g., ``(10, 20)``
-            - A tuple of tensors for batch query, e.g., ``(xs, ys)`` where ``xs`` and ``ys``
-              are tensors of the same shape
-
-        operand_or_shape: Operand tensor (that the scales apply to) or
-            the operand's logical (non-packed, non-blocked) shape.
-
-        block_scaling_format: The block scaling format of the operand:
-            :attr:`BlockScalingFormat.NVFP4` or :attr:`BlockScalingFormat.MXFP8`.
-            Internally, it is validated to be consistent with the operand dtype, and a
-            :exc:`ValueError` is raised if not.
-
-        axis: The blocked dimension of the operand tensor.
-            For example, for NVFP4/MXFP8 matmul, A is blocked in rows (``axis = -1``), and B
-            is blocked in columns (``axis = -2``). Depending on ``operand_or_shape``:
-
-            - if a *shape* is passed to ``operand_or_shape``, then ``axis`` is required
-            - if an *operand* is passed to ``operand_or_shape``, then ``axis`` can be
-              omitted and the blocked dimension is inferred from the operand's layout.
-
-    Returns:
-        An integer (if ``index`` contains integers) or a tensor of integers (if ``index``
-        contains tensors), indicating the offset(s) to the MXFP8/NVFP4 block scale
-        factor(s). The returned offset points to a block scale factor that is applied to:
-
-        - for axis == -2: ``operand[*index[-2:],
-          block_size*index[-2]:block_size*(index[-2]+1), index[-1]]``.
-        - for axis == -1: ``operand[*index[-2:], index[-1],
-          block_size*index[-1]:block_size*(index[-1]+1)]``.
-
-        where the block size is 32 for MXFP8 and 16 for NVFP4.
-
-    Note:
-        In typical use-cases, there should be no need to manually modify MXFP8 scales. The
-        scales returned as ``"d_out_scale"`` by one matmul, can be directly reused as input
-        scales for another matmul.
-
-    Hint:
-        - To apply the interleaved scales (e.g. as returned by matmul's ``d_out_scale``) to
-          the operand, use :func:`apply_mxfp8_scale` instead.
-        - To specify scales as ND tensor and copy them to cuBLAS-compatible interleaved
-          layout, use :func:`to_block_scale` instead.
-
-    """
-    return _get_block_scale_offset(operand_or_shape, index, axis, block_scaling_format, True)
-
-
 def to_block_scale(
     scale_tensor: torch.Tensor,
     operand_or_shape: torch.Tensor | tuple[int, ...],
@@ -1219,12 +1188,11 @@ def to_block_scale(
         operand_shape, unblocked_axis, blocked_axis, num_scalars_in_block, False
     )
 
-    if scale_wrapped.shape[-2:] != matrix_logical_shape[-2:]:
-        expected_shape = scale_wrapped.shape[:-2] + matrix_logical_shape[-2:]  # type: ignore
+    if scale_wrapped.shape != matrix_logical_shape:
         raise ValueError(
             f"For operand of shape {operand_shape}, block_scaling_format {block_scaling_format}, "
             f"blocked along axis {axis}, "
-            f"the scale_tensor must have shape {expected_shape}, got {scale_wrapped.shape}."
+            f"the scale_tensor must have shape {matrix_logical_shape}, got {scale_wrapped.shape}."
         )
 
     torch.as_strided(

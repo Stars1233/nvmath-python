@@ -16,12 +16,8 @@ $ mpiexec -n 4 python example08_epilog_stateful_reset.py
 import logging
 
 import numpy as np
+from cuda.core import system
 from mpi4py import MPI
-
-try:
-    from cuda.core import system
-except ImportError:
-    from cuda.core.experimental import system
 
 import nvmath.distributed
 from nvmath.distributed.distribution import Slab
@@ -29,16 +25,11 @@ from nvmath.distributed.distribution import Slab
 # Turn on logging to see what's happening.
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)-8s %(message)s", datefmt="%m-%d %H:%M:%S")
 
-try:
-    num_devices = system.get_num_devices()
-except AttributeError:
-    num_devices = system.num_devices
-
 # Initialize nvmath.distributed.
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 nranks = comm.Get_size()
-device_id = rank % num_devices
+device_id = rank % system.get_num_devices()
 # cuBLASMp requires NCCL communication backend.
 nvmath.distributed.initialize(device_id, comm, backends=["nccl"])
 
@@ -58,7 +49,7 @@ b = np.asfortranarray(np.random.rand(*b_shape))
 # bias vector needs to be partitioned as well.
 bias = np.random.rand(m // nranks, 1)
 
-# Distributions for A, B, and result matrix D
+# Distributions for 'a', 'b', and result matrix 'd'
 distributions = [row_wise_distribution, col_wise_distribution, row_wise_distribution]
 
 # Use the stateful object as a context manager to automatically release resources.

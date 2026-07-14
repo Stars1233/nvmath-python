@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 #
-# This code was automatically generated across versions from 11.0.3 to 13.2.0, generator version 0.3.1.dev1301+g7215ac36e. Do not modify it directly.
+# This code was automatically generated across versions from 11.0.3 to 13.2.0, generator version 0.3.1.dev1471+g7122059e9. Do not modify it directly.
 
 cimport cython  # NOQA
 from libcpp.vector cimport vector
@@ -2140,31 +2140,31 @@ cpdef zgemv_batched(intptr_t handle, int trans, int m, int n, intptr_t alpha, in
     check_status(__status__)
 
 
-cpdef sgemv_strided_batched(intptr_t handle, int trans, int m, int n, intptr_t alpha, intptr_t a, int lda, long long int stride_a, intptr_t x, int incx, long long int strid_ex, intptr_t beta, intptr_t y, int incy, long long int stridey, int batch_count):
+cpdef sgemv_strided_batched(intptr_t handle, int trans, int m, int n, intptr_t alpha, intptr_t a, int lda, long long int stride_a, intptr_t x, int incx, long long int stridex, intptr_t beta, intptr_t y, int incy, long long int stridey, int batch_count):
     """See `cublasSgemvStridedBatched`."""
     with nogil:
-        __status__ = cublasSgemvStridedBatched(<Handle>handle, <_Operation>trans, m, n, <const float*>alpha, <const float*>a, lda, stride_a, <const float*>x, incx, strid_ex, <const float*>beta, <float*>y, incy, stridey, batch_count)
+        __status__ = cublasSgemvStridedBatched(<Handle>handle, <_Operation>trans, m, n, <const float*>alpha, <const float*>a, lda, stride_a, <const float*>x, incx, stridex, <const float*>beta, <float*>y, incy, stridey, batch_count)
     check_status(__status__)
 
 
-cpdef dgemv_strided_batched(intptr_t handle, int trans, int m, int n, intptr_t alpha, intptr_t a, int lda, long long int stride_a, intptr_t x, int incx, long long int strid_ex, intptr_t beta, intptr_t y, int incy, long long int stridey, int batch_count):
+cpdef dgemv_strided_batched(intptr_t handle, int trans, int m, int n, intptr_t alpha, intptr_t a, int lda, long long int stride_a, intptr_t x, int incx, long long int stridex, intptr_t beta, intptr_t y, int incy, long long int stridey, int batch_count):
     """See `cublasDgemvStridedBatched`."""
     with nogil:
-        __status__ = cublasDgemvStridedBatched(<Handle>handle, <_Operation>trans, m, n, <const double*>alpha, <const double*>a, lda, stride_a, <const double*>x, incx, strid_ex, <const double*>beta, <double*>y, incy, stridey, batch_count)
+        __status__ = cublasDgemvStridedBatched(<Handle>handle, <_Operation>trans, m, n, <const double*>alpha, <const double*>a, lda, stride_a, <const double*>x, incx, stridex, <const double*>beta, <double*>y, incy, stridey, batch_count)
     check_status(__status__)
 
 
-cpdef cgemv_strided_batched(intptr_t handle, int trans, int m, int n, intptr_t alpha, intptr_t a, int lda, long long int stride_a, intptr_t x, int incx, long long int strid_ex, intptr_t beta, intptr_t y, int incy, long long int stridey, int batch_count):
+cpdef cgemv_strided_batched(intptr_t handle, int trans, int m, int n, intptr_t alpha, intptr_t a, int lda, long long int stride_a, intptr_t x, int incx, long long int stridex, intptr_t beta, intptr_t y, int incy, long long int stridey, int batch_count):
     """See `cublasCgemvStridedBatched`."""
     with nogil:
-        __status__ = cublasCgemvStridedBatched(<Handle>handle, <_Operation>trans, m, n, <const cuComplex*>alpha, <const cuComplex*>a, lda, stride_a, <const cuComplex*>x, incx, strid_ex, <const cuComplex*>beta, <cuComplex*>y, incy, stridey, batch_count)
+        __status__ = cublasCgemvStridedBatched(<Handle>handle, <_Operation>trans, m, n, <const cuComplex*>alpha, <const cuComplex*>a, lda, stride_a, <const cuComplex*>x, incx, stridex, <const cuComplex*>beta, <cuComplex*>y, incy, stridey, batch_count)
     check_status(__status__)
 
 
-cpdef zgemv_strided_batched(intptr_t handle, int trans, int m, int n, intptr_t alpha, intptr_t a, int lda, long long int stride_a, intptr_t x, int incx, long long int strid_ex, intptr_t beta, intptr_t y, int incy, long long int stridey, int batch_count):
+cpdef zgemv_strided_batched(intptr_t handle, int trans, int m, int n, intptr_t alpha, intptr_t a, int lda, long long int stride_a, intptr_t x, int incx, long long int stridex, intptr_t beta, intptr_t y, int incy, long long int stridey, int batch_count):
     """See `cublasZgemvStridedBatched`."""
     with nogil:
-        __status__ = cublasZgemvStridedBatched(<Handle>handle, <_Operation>trans, m, n, <const cuDoubleComplex*>alpha, <const cuDoubleComplex*>a, lda, stride_a, <const cuDoubleComplex*>x, incx, strid_ex, <const cuDoubleComplex*>beta, <cuDoubleComplex*>y, incy, stridey, batch_count)
+        __status__ = cublasZgemvStridedBatched(<Handle>handle, <_Operation>trans, m, n, <const cuDoubleComplex*>alpha, <const cuDoubleComplex*>a, lda, stride_a, <const cuDoubleComplex*>x, incx, stridex, <const cuDoubleComplex*>beta, <cuDoubleComplex*>y, incy, stridey, batch_count)
     check_status(__status__)
 
 
@@ -3176,31 +3176,31 @@ cpdef zgemv_batched_64(intptr_t handle, int trans, int64_t m, int64_t n, intptr_
     check_status(__status__)
 
 
-cpdef sgemv_strided_batched_64(intptr_t handle, int trans, int64_t m, int64_t n, intptr_t alpha, intptr_t a, int64_t lda, long long int stride_a, intptr_t x, int64_t incx, long long int strid_ex, intptr_t beta, intptr_t y, int64_t incy, long long int stridey, int64_t batch_count):
+cpdef sgemv_strided_batched_64(intptr_t handle, int trans, int64_t m, int64_t n, intptr_t alpha, intptr_t a, int64_t lda, long long int stride_a, intptr_t x, int64_t incx, long long int stridex, intptr_t beta, intptr_t y, int64_t incy, long long int stridey, int64_t batch_count):
     """See `cublasSgemvStridedBatched_64`."""
     with nogil:
-        __status__ = cublasSgemvStridedBatched_64(<Handle>handle, <_Operation>trans, m, n, <const float*>alpha, <const float*>a, lda, stride_a, <const float*>x, incx, strid_ex, <const float*>beta, <float*>y, incy, stridey, batch_count)
+        __status__ = cublasSgemvStridedBatched_64(<Handle>handle, <_Operation>trans, m, n, <const float*>alpha, <const float*>a, lda, stride_a, <const float*>x, incx, stridex, <const float*>beta, <float*>y, incy, stridey, batch_count)
     check_status(__status__)
 
 
-cpdef dgemv_strided_batched_64(intptr_t handle, int trans, int64_t m, int64_t n, intptr_t alpha, intptr_t a, int64_t lda, long long int stride_a, intptr_t x, int64_t incx, long long int strid_ex, intptr_t beta, intptr_t y, int64_t incy, long long int stridey, int64_t batch_count):
+cpdef dgemv_strided_batched_64(intptr_t handle, int trans, int64_t m, int64_t n, intptr_t alpha, intptr_t a, int64_t lda, long long int stride_a, intptr_t x, int64_t incx, long long int stridex, intptr_t beta, intptr_t y, int64_t incy, long long int stridey, int64_t batch_count):
     """See `cublasDgemvStridedBatched_64`."""
     with nogil:
-        __status__ = cublasDgemvStridedBatched_64(<Handle>handle, <_Operation>trans, m, n, <const double*>alpha, <const double*>a, lda, stride_a, <const double*>x, incx, strid_ex, <const double*>beta, <double*>y, incy, stridey, batch_count)
+        __status__ = cublasDgemvStridedBatched_64(<Handle>handle, <_Operation>trans, m, n, <const double*>alpha, <const double*>a, lda, stride_a, <const double*>x, incx, stridex, <const double*>beta, <double*>y, incy, stridey, batch_count)
     check_status(__status__)
 
 
-cpdef cgemv_strided_batched_64(intptr_t handle, int trans, int64_t m, int64_t n, intptr_t alpha, intptr_t a, int64_t lda, long long int stride_a, intptr_t x, int64_t incx, long long int strid_ex, intptr_t beta, intptr_t y, int64_t incy, long long int stridey, int64_t batch_count):
+cpdef cgemv_strided_batched_64(intptr_t handle, int trans, int64_t m, int64_t n, intptr_t alpha, intptr_t a, int64_t lda, long long int stride_a, intptr_t x, int64_t incx, long long int stridex, intptr_t beta, intptr_t y, int64_t incy, long long int stridey, int64_t batch_count):
     """See `cublasCgemvStridedBatched_64`."""
     with nogil:
-        __status__ = cublasCgemvStridedBatched_64(<Handle>handle, <_Operation>trans, m, n, <const cuComplex*>alpha, <const cuComplex*>a, lda, stride_a, <const cuComplex*>x, incx, strid_ex, <const cuComplex*>beta, <cuComplex*>y, incy, stridey, batch_count)
+        __status__ = cublasCgemvStridedBatched_64(<Handle>handle, <_Operation>trans, m, n, <const cuComplex*>alpha, <const cuComplex*>a, lda, stride_a, <const cuComplex*>x, incx, stridex, <const cuComplex*>beta, <cuComplex*>y, incy, stridey, batch_count)
     check_status(__status__)
 
 
-cpdef zgemv_strided_batched_64(intptr_t handle, int trans, int64_t m, int64_t n, intptr_t alpha, intptr_t a, int64_t lda, long long int stride_a, intptr_t x, int64_t incx, long long int strid_ex, intptr_t beta, intptr_t y, int64_t incy, long long int stridey, int64_t batch_count):
+cpdef zgemv_strided_batched_64(intptr_t handle, int trans, int64_t m, int64_t n, intptr_t alpha, intptr_t a, int64_t lda, long long int stride_a, intptr_t x, int64_t incx, long long int stridex, intptr_t beta, intptr_t y, int64_t incy, long long int stridey, int64_t batch_count):
     """See `cublasZgemvStridedBatched_64`."""
     with nogil:
-        __status__ = cublasZgemvStridedBatched_64(<Handle>handle, <_Operation>trans, m, n, <const cuDoubleComplex*>alpha, <const cuDoubleComplex*>a, lda, stride_a, <const cuDoubleComplex*>x, incx, strid_ex, <const cuDoubleComplex*>beta, <cuDoubleComplex*>y, incy, stridey, batch_count)
+        __status__ = cublasZgemvStridedBatched_64(<Handle>handle, <_Operation>trans, m, n, <const cuDoubleComplex*>alpha, <const cuDoubleComplex*>a, lda, stride_a, <const cuDoubleComplex*>x, incx, stridex, <const cuDoubleComplex*>beta, <cuDoubleComplex*>y, incy, stridey, batch_count)
     check_status(__status__)
 
 

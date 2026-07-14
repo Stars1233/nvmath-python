@@ -2,11 +2,12 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 #
-# This code was automatically generated with version 0.8.0, generator version 0.3.1.dev1303+g031f1197f. Do not modify it directly.
+# This code was automatically generated with version 0.8.0, generator version 0.3.1.dev1471+g7122059e9. Do not modify it directly.
 # This layer exposes the C header to Cython as-is.
 
 from libc.stdint cimport int64_t, uint32_t, uint64_t, intptr_t
 
+from ._internal.common_types cimport cudaDataType, cudaDataType_t, cudaStream_t, libraryPropertyType, libraryPropertyType_t, cuComplex, cuDoubleComplex
 from .cycublas cimport (cublasComputeType_t, cublasOperation_t, cublasFillMode_t, cublasSideMode_t,
                         cublasDiagType_t,)
 
@@ -108,29 +109,16 @@ ctypedef enum cublasMpResultScheme_t "cublasMpResultScheme_t":
 
 
 # types
-cdef extern from *:
-    """
-    #include <driver_types.h>
-    #include <library_types.h>
-    #include <cuComplex.h>
-    """
-    ctypedef void* cudaStream_t 'cudaStream_t'
-    ctypedef int cudaDataType_t 'cudaDataType_t'
-    ctypedef int cudaDataType 'cudaDataType'
-    ctypedef int libraryPropertyType_t 'libraryPropertyType_t'
-    ctypedef int libraryPropertyType 'libraryPropertyType'
-
-    ctypedef struct cuComplex:
-        pass
-    ctypedef struct cuDoubleComplex:
-        pass
-
-
 ctypedef void* ncclComm_t 'ncclComm_t'
+
 ctypedef void* cublasMpHandle_t 'cublasMpHandle_t'
+
 ctypedef void* cublasMpGrid_t 'cublasMpGrid_t'
+
 ctypedef void* cublasMpMatrixDescriptor_t 'cublasMpMatrixDescriptor_t'
+
 ctypedef void* cublasMpMatmulDescriptor_t 'cublasMpMatmulDescriptor_t'
+
 ctypedef void (*cublasMpLoggerCallback_t 'cublasMpLoggerCallback_t')(
     int logLevel,
     const char* functionName,

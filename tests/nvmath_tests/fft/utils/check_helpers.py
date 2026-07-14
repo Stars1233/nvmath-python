@@ -19,10 +19,7 @@ try:
 except ImportError:
     torch = None
 
-try:
-    from cuda.core import Device
-except ImportError:
-    from cuda.core.experimental import Device
+from cuda.core import Device
 
 import nvmath
 from nvmath._utils import get_nvrtc_version

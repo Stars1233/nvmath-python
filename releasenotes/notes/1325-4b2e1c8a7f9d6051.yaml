@@ -1,0 +1,16 @@
+---
+# Uncomment a section header and replace with your own note.
+#release_summary:
+#features:
+#api:
+#deprecations:
+fixes:
+  - |
+    Fixed :py:func:`nvmath.linalg.advanced.helpers.matmul.to_block_scale`
+    to validate the full scale-tensor shape against the operand's logical
+    block-scaling shape. Previously, only the trailing two dimensions
+    were compared, so scale tensors with permuted batch dimensions could
+    be silently accepted.
+#issues:
+#security:
+#doc:

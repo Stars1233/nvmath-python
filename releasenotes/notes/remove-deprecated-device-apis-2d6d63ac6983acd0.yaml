@@ -1,0 +1,34 @@
+---
+api:
+  - |
+    Removed the deprecated cuBLASDx API surface from
+    :mod:`nvmath.device.cublasdx`:
+
+    * the ``matmul()`` factory function (construct the ``Matmul`` class
+      directly instead)
+    * the ``Matmul`` methods ``definition()`` and ``create()``
+    * the ``Matmul`` properties ``value_type``, ``input_type``,
+      ``output_type``, ``shared_memory_size``, ``files`` and ``codes``
+    * direct ``Matmul(...)`` invocation, replaced by ``Matmul.execute(...)``
+  - |
+    Removed the deprecated cuFFTDx API surface from
+    :mod:`nvmath.device.cufftdx`:
+
+    * the ``fft()`` factory function (construct the ``FFT`` class directly
+      instead)
+    * the ``FFT`` methods ``definition()`` and ``create()``
+    * the ``FFT`` properties ``requires_workspace`` and ``workspace_size``,
+      together with the associated workspace support
+    * the ``files`` property
+    * direct ``FFT(...)`` invocation, replaced by ``FFT.execute(...)``
+  - |
+    Removed the deprecated ``make`` property from the numba vector-type
+    wrappers in :mod:`nvmath.device.types`. Use numba types directly.
+fixes:
+  - |
+    Exported :py:func:`nvmath.device.compile_blas_execute`, which was
+    missing from the public API.
+  - |
+    Fixed :py:func:`nvmath.device.compile_blas_execute` to convert its
+    ``code_type`` argument with ``parse_code_type``, matching the behavior
+    of the other device APIs.

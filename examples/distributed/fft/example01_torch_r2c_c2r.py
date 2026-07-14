@@ -50,8 +50,9 @@ a[:] = torch.rand(shape, dtype=torch.float32)
 
 # R2C (forward) FFT.
 # In this example, the R2C operand is distributed according to Slab.X distribution.
-# With reshape=False, the FFT result will be distributed according to Slab.Y distribution.
-b = nvmath.distributed.fft.rfft(a, distribution=Slab.X, options={"reshape": False})
+# With redistribute=False, the FFT result will be distributed according to Slab.Y
+# distribution.
+b = nvmath.distributed.fft.rfft(a, distribution=Slab.X, options={"redistribute": False})
 
 # Distributed FFT performs computations in-place. The result is stored in the same
 # buffer as tensor a. Note, however, that tensor b has a different dtype and shape
@@ -62,11 +63,11 @@ if rank == 0:
 
 # C2R (inverse) FFT.
 # Recall from previous transform that the inverse FFT operand is distributed according to
-# Slab.Y. With reshape=False, the C2R result will be distributed according to
+# Slab.Y. With redistribute=False, the C2R result will be distributed according to
 # Slab.X distribution.
 # Note that to transform back to the original shape of the real operand (which has odd last
 # axis length), we use the last_axis_parity="odd" option.
-c = nvmath.distributed.fft.irfft(b, distribution=Slab.Y, options={"reshape": False, "last_axis_parity": "odd"})
+c = nvmath.distributed.fft.irfft(b, distribution=Slab.Y, options={"redistribute": False, "last_axis_parity": "odd"})
 
 # The shape of tensor c is the same as tensor a (due to Slab.X distribution). Once again,
 # note that a, b and c are sharing the same memory buffer (distributed FFT operations are

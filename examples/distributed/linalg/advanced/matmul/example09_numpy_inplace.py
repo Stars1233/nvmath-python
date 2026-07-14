@@ -3,20 +3,21 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """
-This example illustrates how to perform distributed in-place matrix multiplication, where
-the result overwrites operand `c`:
+This example illustrates the use of the inplace option with distributed
+matrix multiplication when operand 'c' is provided. The default is
+inplace=True where the result overwrites operand 'c':
 
     c := a.T @ b + beta c
+
+With inplace=False, the result is newly allocated:
+
+    d := a.T @ b + beta c
 
 $ mpiexec -n 4 python example09_numpy_inplace.py
 """
 
 import numpy as np
-
-try:
-    from cuda.core import system
-except ImportError:
-    from cuda.core.experimental import system
+from cuda.core import system
 from mpi4py import MPI
 
 import nvmath.distributed
@@ -24,14 +25,10 @@ from nvmath.distributed.distribution import Slab
 from nvmath.distributed.linalg.advanced import matrix_qualifiers_dtype
 
 # Initialize nvmath.distributed.
-try:
-    num_devices = system.get_num_devices()
-except AttributeError:
-    num_devices = system.num_devices
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 nranks = comm.Get_size()
-device_id = rank % num_devices
+device_id = rank % system.get_num_devices()
 # cuBLASMp requires NCCL communication backend.
 nvmath.distributed.initialize(device_id, comm, backends=["nccl"])
 
@@ -41,14 +38,14 @@ m, n, k = 128, 512, 1024
 # Prepare sample input data (NumPy matrices, on the CPU).
 
 # Specify distribution of input and output matrices.
-# Note: The choice of distribution for a, b and output, as well as whether a and b are
-# transposed influences the distributed algorithm used by cuBLASMp and can have a
+# Note: The choice of distribution for 'a', 'b' and output, as well as whether 'a' and 'b'
+# are transposed influences the distributed algorithm used by cuBLASMp and can have a
 # substantial impact on performance.
 # Refer to https://docs.nvidia.com/cuda/cublasmp/usage/tp.html for more information.
 #
-# In this example we use TN layout (A transposed, B non-transposed).
+# In this example we use TN layout ('a' transposed, 'b' non-transposed).
 # With TN, this configuration will run AllGather+GEMM.
-distributions = [Slab.Y, Slab.Y, Slab.X]  # distribution of A, B and C/D
+distributions = [Slab.Y, Slab.Y, Slab.X]  # distribution of 'a', 'b' and 'c'/'d'
 
 # cuBLASMp requires Fortran memory layout. NumPy allocates C-ordered arrays by default,
 # so in this example we allocate transposed shapes and then take the transpose to obtain
@@ -61,14 +58,14 @@ c_shape = Slab.Y.shape(rank, (n, m))
 # Note: see example01 for more details on matrix distribution and memory layout impact and
 # requirements.
 
-a = np.random.rand(*a_shape).T  # a is now Slab.Y with global shape (k, m)
-b = np.random.rand(*b_shape).T  # b is now Slab.Y with global shape (k, n)
-c = np.random.rand(*c_shape).T  # c is now Slab.X with global shape (m, n)
+a = np.random.rand(*a_shape).T  # 'a' is now Slab.Y with global shape (k, m)
+b = np.random.rand(*b_shape).T  # 'b' is now Slab.Y with global shape (k, n)
+c = np.random.rand(*c_shape).T  # 'c' is now Slab.X with global shape (m, n)
 beta = 1.0
 
 # Perform the distributed matrix multiplication.
 qualifiers = np.zeros((3,), dtype=matrix_qualifiers_dtype)
-qualifiers[0]["is_transpose"] = True  # a is transposed
+qualifiers[0]["is_transpose"] = True  # 'a' is transposed
 result = nvmath.distributed.linalg.advanced.matmul(
     a,
     b,
@@ -76,13 +73,25 @@ result = nvmath.distributed.linalg.advanced.matmul(
     beta=beta,
     distributions=distributions,
     qualifiers=qualifiers,
-    options={"inplace": True},
 )
 
-# No synchronization is needed for CPU tensors, since the execution always blocks.
+# By default inplace=True and the result is stored in 'c'.
+assert result is c, "This example expects the first matmul to be an in-place operation."
 
-# The result is stored in C.
-assert result is c
+# Use inplace=False to store the result in a new array.
+result = nvmath.distributed.linalg.advanced.matmul(
+    a,
+    b,
+    c=c,
+    beta=beta,
+    distributions=distributions,
+    qualifiers=qualifiers,
+    options={"inplace": False},
+)
+
+assert result is not c, "This example expects the second matmul to be an out-of-place operation."
+
+# No synchronization is needed for CPU tensors, since the execution always blocks.
 
 if rank == 0:
     # result has global shape (m, n) and is distributed row-wise (as specified above).

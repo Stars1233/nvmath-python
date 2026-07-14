@@ -9,10 +9,9 @@ import math
 import cuda.bindings.driver as cudadrv
 import numpy as np
 import pytest
+from nvmath.internal.ndbuffer._jit import _invalidate_kernel_cache
 
-import nvmath.internal.ndbuffer.ndbuffer as ndb
-import nvmath.internal.ndbuffer.package_utils as package_utils
-from nvmath.internal.ndbuffer.jit import _invalidate_kernel_cache
+from nvmath.internal.ndbuffer import NDBuffer
 from nvmath.internal.tensor_wrapper import maybe_register_package
 from nvmath.internal.utils import get_or_create_stream
 
@@ -107,32 +106,32 @@ def benchmark_case(device_id, direction, dst, src, stream_holder, show_logs=Fals
     _stream = stream_holder.external
     match direction:
         case "h2d":
-            _nd_dst = package_utils.wrap_cupy_array(dst)
-            _nd_src = package_utils.wrap_numpy_array(src)
+            _nd_dst = NDBuffer.from_cupy(dst)
+            _nd_src = NDBuffer.from_numpy(src)
 
             def copy(_logger=None):
-                ndb.copy_into(_nd_dst, _nd_src, stream=stream_holder, logger=_logger)
+                _nd_dst.copy_(_nd_src, stream=stream_holder, logger=_logger)
 
             def cupy_baseline():
                 dst.set(src, stream=_stream)
                 _stream.synchronize()
 
         case "d2d":
-            _nd_dst = package_utils.wrap_cupy_array(dst)
-            _nd_src = package_utils.wrap_cupy_array(src)
+            _nd_dst = NDBuffer.from_cupy(dst)
+            _nd_src = NDBuffer.from_cupy(src)
 
             def copy(_logger=None):
-                ndb.copy_into(_nd_dst, _nd_src, stream=stream_holder, logger=_logger)
+                _nd_dst.copy_(_nd_src, stream=stream_holder, logger=_logger)
 
             def cupy_baseline():
                 dst[:] = src
 
         case "d2h":
-            _nd_dst = package_utils.wrap_numpy_array(dst)
-            _nd_src = package_utils.wrap_cupy_array(src)
+            _nd_dst = NDBuffer.from_numpy(dst)
+            _nd_src = NDBuffer.from_cupy(src)
 
             def copy(_logger=None):
-                ndb.copy_into(_nd_dst, _nd_src, stream=stream_holder, logger=_logger)
+                _nd_dst.copy_(_nd_src, stream=stream_holder, logger=_logger)
 
             def cupy_baseline():
                 src.get(out=dst, stream=_stream)
@@ -145,7 +144,7 @@ def benchmark_case(device_id, direction, dst, src, stream_holder, show_logs=Fals
             copy()
     _stream.synchronize()
     # test that the copy works as expected
-    assert_equal(dst, src)
+    assert_equal(cp.asarray(dst), cp.asarray(src))
 
     time_cupy = bench(device_id, cupy_baseline, stream_holder, num_iters=num_iters)
     time_copy = bench(device_id, copy, stream_holder, num_iters=num_iters)

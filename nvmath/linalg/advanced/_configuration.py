@@ -46,6 +46,8 @@ class MatmulOptions:
             the batch as well as the N-dimension) since it must be large enough to
             hold the result of the computation. The default is ``inplace=False``.
 
+            .. experimental:: attribute
+
         compute_type (nvmath.linalg.ComputeType): CUDA compute type. A suitable compute type
             will be selected if not specified.
 

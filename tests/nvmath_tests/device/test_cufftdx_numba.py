@@ -4,18 +4,16 @@
 
 import numpy as np
 import pytest
-from numba import cuda
 
-from nvmath.device import FFT, fft, float16x2, float16x4
-from nvmath.device.common_cuda import current_device_sm
-from nvmath.device.types import complex64, complex128, half4
+from nvmath.device import FFT, complex64, complex128, half2, half4
 
 from .helpers import _TOLERANCE, complex64_to_fp16x2, fp16x2_to_complex64, random_complex, random_real, show_FFT_traits
+from .utils.common_axes import Compiler, all_compiler_params, xfail_mlir_fp16
 
 np.random.seed(314 + 271)
 
 
-def make_numba_input_outputs(fft_type, precision, direction, batch, fft_size, real_fft_options):
+def make_numba_input_outputs(cuda, fft_type, precision, direction, batch, fft_size, real_fft_options):
     if fft_type == "c2c":
         input_size = fft_size
         output_size = fft_size
@@ -89,6 +87,31 @@ def convert_output(fft_type, precision, output_d):
     else:
         output_test = output_d.copy_to_host()
     return output_test
+
+
+def make_complex_accessors(compiler):
+    cuda = compiler.runtime
+
+    if compiler == Compiler.numba_cuda_mlir:
+
+        @cuda.jit(device=True)
+        def get_real(c):
+            return c.real
+
+        @cuda.jit(device=True)
+        def get_imag(c):
+            return c.imag
+    else:
+
+        @cuda.jit(device=True)
+        def get_real(c):
+            return c.x
+
+        @cuda.jit(device=True)
+        def get_imag(c):
+            return c.y
+
+    return get_real, get_imag
 
 
 COMPLEX_TYPE_MAP = {np.float16: half4, np.float32: complex64, np.float64: complex128}
@@ -185,12 +208,14 @@ TEST_CASES.append(("r2c", 1024, np.float16, "forward", "thread", None, {"complex
 
 
 # Supports: Block APIs, C2R/R2C/C2C, all precision, all real_fft_options
+@pytest.mark.parametrize("compiler", all_compiler_params())
 @pytest.mark.parametrize("fft_type,size,precision,direction,api_kind,ept,real_fft_options", TEST_CASES)
-def test_block(fft_type, size, precision, direction, api_kind, ept, real_fft_options):
+def test_block(request, compiler, fft_type, size, precision, direction, api_kind, ept, real_fft_options):
+    xfail_mlir_fp16(request, compiler, precision)
     ffts_per_block = 4 if precision == np.float16 else 2
     num_batches = 3 * ffts_per_block
 
-    FFT = fft(
+    fft = FFT(
         fft_type=fft_type,
         ffts_per_block=ffts_per_block,
         elements_per_thread=ept,
@@ -199,27 +224,23 @@ def test_block(fft_type, size, precision, direction, api_kind, ept, real_fft_opt
         direction=direction,
         real_fft_options=real_fft_options,
         execution="Block",
-        compiler="numba",
-        execute_api="shared_memory" if api_kind == "smem" else "register_memory",
     )
 
-    complex_type = FFT.value_type
-    storage_size = FFT.storage_size
-    shared_memory_size = FFT.shared_memory_size
-    files = FFT.files
-    stride = FFT.stride
-    elements_per_thread = FFT.elements_per_thread
-    block_dim = FFT.block_dim
-    implicit_type_batching = FFT.implicit_type_batching
-    input_type = FFT.input_type
-    output_type = FFT.output_type
+    complex_type = fft.value_type
+    storage_size = fft.storage_size
+    shared_memory_size = fft.shared_memory_size
+    stride = fft.stride
+    elements_per_thread = fft.elements_per_thread
+    block_dim = fft.block_dim
+    implicit_type_batching = fft.implicit_type_batching
+    input_type = fft.input_type
+    output_type = fft.output_type
 
     # cuFFTDx default ffts_per_block is 1 for FP32/FP64 and 2 for FP16
     assert api_kind in ["thread", "smem"]
-    assert FFT.ffts_per_block == ffts_per_block
+    assert fft.ffts_per_block == ffts_per_block
     assert complex_type == COMPLEX_TYPE_MAP[precision]
-    assert all(code.endswith(".ltoir") for code in files)
-    assert FFT.size == size
+    assert fft.size == size
     assert implicit_type_batching == IMPLICIT_BATCHING_MAP[precision]
     if ept is not None:
         assert elements_per_thread == ept
@@ -245,13 +266,15 @@ def test_block(fft_type, size, precision, direction, api_kind, ept, real_fft_opt
     INPUT_FOLDED = real_fft_options["real_mode"] == "folded" and fft_type == "r2c"
     OUTPUT_FOLDED = real_fft_options["real_mode"] == "folded" and fft_type == "c2r"
 
-    make_complex_type = complex_type.make
     if INPUT_FOLDED:
         INPUT_SIZE = INPUT_SIZE // 2
     if OUTPUT_FOLDED:
         OUTPUT_SIZE = OUTPUT_SIZE // 2
 
-    @cuda.jit(link=FFT.files)
+    cuda = compiler.runtime
+    get_real, get_imag = make_complex_accessors(compiler)
+
+    @cuda.jit()
     def f(input, output):
         thread_data = cuda.local.array(shape=(storage_size,), dtype=complex_type)
         shared_mem = cuda.shared.array(shape=(0,), dtype=complex_type)
@@ -275,9 +298,9 @@ def test_block(fft_type, size, precision, direction, api_kind, ept, real_fft_opt
                         r0, r1 = input[global_fft_id, idx], input[global_fft_id + 1, idx]
                         # R0 R1
                         if IS_SMEM:
-                            shared_mem_input[smem_idx] = float16x2(r0, r1)
+                            shared_mem_input[smem_idx] = half2(r0, r1)
                         else:
-                            thread_input[i] = float16x2(r0, r1)
+                            thread_input[i] = half2(r0, r1)
                     else:
                         # R0, R1
                         r0, r1 = input[global_fft_id, 2 * idx + 0], input[global_fft_id + 1, 2 * idx + 0]
@@ -285,12 +308,12 @@ def test_block(fft_type, size, precision, direction, api_kind, ept, real_fft_opt
                         i0, i1 = input[global_fft_id, 2 * idx + 1], input[global_fft_id + 1, 2 * idx + 1]
                         # R0 R1 I0 I1
                         if IS_SMEM:
-                            shared_mem_input[smem_idx] = float16x4(r0, r1, i0, i1)
+                            shared_mem_input[smem_idx] = half4(r0, r1, i0, i1)
                         else:
-                            thread_input[i] = float16x4(r0, r1, i0, i1)
+                            thread_input[i] = half4(r0, r1, i0, i1)
                 else:
                     if INPUT_FOLDED:
-                        value = make_complex_type(input[global_fft_id, 2 * idx + 0], input[global_fft_id, 2 * idx + 1])
+                        value = complex_type(input[global_fft_id, 2 * idx + 0], input[global_fft_id, 2 * idx + 1])
                     else:
                         value = input[global_fft_id, idx]
                     if IS_SMEM:
@@ -301,10 +324,10 @@ def test_block(fft_type, size, precision, direction, api_kind, ept, real_fft_opt
         # Execute FFT
         if IS_SMEM:
             cuda.syncthreads()
-            FFT(shared_mem)
+            fft.execute(shared_mem)
             cuda.syncthreads()
         else:
-            FFT(thread_data, shared_mem)
+            fft.execute(thread_data, shared_mem)
 
         # Save results
         for i in range(elements_per_thread):
@@ -337,22 +360,22 @@ def test_block(fft_type, size, precision, direction, api_kind, ept, real_fft_opt
                     if IS_SMEM:
                         if OUTPUT_FOLDED:
                             output[global_fft_id, 2 * idx + 0], output[global_fft_id, 2 * idx + 1] = (
-                                shared_mem_output[smem_idx].x,
-                                shared_mem_output[smem_idx].y,
+                                get_real(shared_mem_output[smem_idx]),
+                                get_imag(shared_mem_output[smem_idx]),
                             )
                         else:
                             output[global_fft_id, idx] = shared_mem_output[smem_idx]
                     else:
                         if OUTPUT_FOLDED:
                             output[global_fft_id, 2 * idx + 0], output[global_fft_id, 2 * idx + 1] = (
-                                thread_output[i].x,
-                                thread_output[i].y,
+                                get_real(thread_output[i]),
+                                get_imag(thread_output[i]),
                             )
                         else:
                             output[global_fft_id, idx] = thread_output[i]
 
     input_h, output_ref, input_d, output_d = make_numba_input_outputs(
-        fft_type, precision, direction, num_batches, size, real_fft_options
+        cuda, fft_type, precision, direction, num_batches, size, real_fft_options
     )
 
     grid_dim = (num_batches + ffts_per_block - 1) // ffts_per_block
@@ -377,6 +400,7 @@ def test_block(fft_type, size, precision, direction, api_kind, ept, real_fft_opt
 
 
 # Supports: Thread APIs, R2C/C2R/C2C, all precision, real_fft_options except folder
+@pytest.mark.parametrize("compiler", all_compiler_params())
 @pytest.mark.parametrize(
     "fft_type,size,precision,direction,real_fft_options",
     [
@@ -410,27 +434,26 @@ def test_block(fft_type, size, precision, direction, api_kind, ept, real_fft_opt
         ("c2r", 32, np.float16, "inverse", {"complex_layout": "natural", "real_mode": "folded"}),
     ],
 )
-def test_thread(fft_type, size, precision, direction, real_fft_options):
-    FFT = fft(
+def test_thread(request, compiler, fft_type, size, precision, direction, real_fft_options):
+    xfail_mlir_fp16(request, compiler, precision)
+    fft = FFT(
         fft_type=fft_type,
         size=size,
         precision=precision,
         direction=direction,
         real_fft_options=real_fft_options,
         execution="Thread",
-        compiler="numba",
     )
-    show_FFT_traits(FFT)
+    show_FFT_traits(fft)
 
-    complex_type = FFT.value_type
-    storage_size = FFT.storage_size
-    implicit_type_batching = FFT.implicit_type_batching
-    input_type = FFT.input_type
-    output_type = FFT.output_type
+    complex_type = fft.value_type
+    storage_size = fft.storage_size
+    implicit_type_batching = fft.implicit_type_batching
+    input_type = fft.input_type
+    output_type = fft.output_type
 
     assert complex_type == COMPLEX_TYPE_MAP[precision]
-    assert all(code.endswith(".ltoir") for code in FFT.files)
-    assert FFT.size == size
+    assert fft.size == size
     assert implicit_type_batching == IMPLICIT_BATCHING_MAP[precision]
     if real_fft_options is None:
         real_fft_options = DEFAULT_REAL_FFT_OPTIONS
@@ -452,13 +475,15 @@ def test_thread(fft_type, size, precision, direction, real_fft_options):
     INPUT_FOLDED = real_fft_options["real_mode"] == "folded" and fft_type == "r2c"
     OUTPUT_FOLDED = real_fft_options["real_mode"] == "folded" and fft_type == "c2r"
 
-    make_complex_type = complex_type.make
     if INPUT_FOLDED:
         INPUT_SIZE = INPUT_SIZE // 2
     if OUTPUT_FOLDED:
         OUTPUT_SIZE = OUTPUT_SIZE // 2
 
-    @cuda.jit(link=FFT.files)
+    cuda = compiler.runtime
+    get_real, get_imag = make_complex_accessors(compiler)
+
+    @cuda.jit()
     def f(input, output):
         thread_data = cuda.local.array(shape=(storage_size,), dtype=complex_type)
         thread_input = thread_data.view(input_type)
@@ -468,20 +493,20 @@ def test_thread(fft_type, size, precision, direction, real_fft_options):
             if IS_FP16:
                 if IS_INPUT_REAL and not INPUT_FOLDED:
                     r0, r1 = input[0, i], input[1, i]
-                    thread_input[i] = float16x2(r0, r1)
+                    thread_input[i] = half2(r0, r1)
                 else:
                     # R0 R1 I0 I1
                     r0, r1 = input[0, 2 * i + 0], input[1, 2 * i + 0]
                     i0, i1 = input[0, 2 * i + 1], input[1, 2 * i + 1]
-                    thread_input[i] = float16x4(r0, r1, i0, i1)
+                    thread_input[i] = half4(r0, r1, i0, i1)
             else:
                 if INPUT_FOLDED:
-                    thread_input[i] = make_complex_type(input[0, 2 * i + 0], input[0, 2 * i + 1])
+                    thread_input[i] = complex_type(input[0, 2 * i + 0], input[0, 2 * i + 1])
                 else:
                     thread_input[i] = input[0, i]
 
         # Execute FFT
-        FFT(thread_data)
+        fft.execute(thread_data)
 
         # Save results
         for i in range(OUTPUT_SIZE):
@@ -495,12 +520,12 @@ def test_thread(fft_type, size, precision, direction, real_fft_options):
                     output[0, 2 * i + 1], output[1, 2 * i + 1] = thread_output[i].z, thread_output[i].w
             else:
                 if OUTPUT_FOLDED:
-                    output[0, 2 * i + 0], output[0, 2 * i + 1] = thread_output[i].x, thread_output[i].y
+                    output[0, 2 * i + 0], output[0, 2 * i + 1] = get_real(thread_output[i]), get_imag(thread_output[i])
                 else:
                     output[0, i] = thread_output[i]
 
     input_h, output_ref, input_d, output_d = make_numba_input_outputs(
-        fft_type, precision, direction, implicit_type_batching, size, real_fft_options
+        cuda, fft_type, precision, direction, implicit_type_batching, size, real_fft_options
     )
 
     f[1, 1](input_d, output_d)
@@ -516,26 +541,8 @@ def test_thread(fft_type, size, precision, direction, real_fft_options):
     assert error < _TOLERANCE[precision]
 
 
-def test_valid():
-    base_FFT = FFT(
-        fft_type="c2c",
-        size=2,
-        precision=np.float32,
-        direction="forward",
-        execution="Block",
-        sm=current_device_sm(),
-    )
-
-    count = 0
-    for ept, fpb in base_FFT.valid("elements_per_thread", "ffts_per_block"):
-        FFT0 = base_FFT.create(elements_per_thread=ept, ffts_per_block=fpb)
-        assert isinstance(FFT0, FFT)
-        count += 1
-
-    assert count > 0
-
-
-def test_lto_symbol_duplicate():
+@pytest.mark.parametrize("compiler", all_compiler_params())
+def test_lto_symbol_duplicate(compiler):
     """
     Test that two different FFT(...) function overloads points to the same LTO
     symbol without causing a duplicate symbol error at link time.
@@ -544,7 +551,7 @@ def test_lto_symbol_duplicate():
     overload resolution twice in Numba.
     """
     threads_count = 4
-    FFT = fft(
+    fft = FFT(
         fft_type="c2c",
         size=8,
         precision=np.float32,
@@ -552,18 +559,20 @@ def test_lto_symbol_duplicate():
         execution="Thread",
     )
 
+    cuda = compiler.runtime
+
     @cuda.jit
     def f(data):
-        thread_data = cuda.local.array(shape=(FFT.storage_size,), dtype=FFT.value_type)
+        thread_data = cuda.local.array(shape=(fft.storage_size,), dtype=fft.value_type)
         thread_data[0] = data[0, 0]
-        FFT(thread_data)
+        fft.execute(thread_data)
         data[0, 0] = thread_data[0]
 
-        thread_data2 = cuda.local.array(shape=(FFT.storage_size, 1), dtype=FFT.value_type)
+        thread_data2 = cuda.local.array(shape=(fft.storage_size, 1), dtype=fft.value_type)
         thread_data2[0, 0] = data[0, 0]
-        FFT(thread_data2)
+        fft.execute(thread_data2)
         data[0, 0] = thread_data2[0, 0]
 
-    data = np.ones((threads_count, FFT.size), dtype=FFT.value_type)
+    data = np.ones((threads_count, fft.size), dtype=fft.value_type)
     data_d = cuda.to_device(data)
     f[1, threads_count](data_d)

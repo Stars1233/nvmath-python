@@ -3,14 +3,17 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
-from typing import Any
+from collections.abc import Sequence
+from typing import Any, Literal, cast
 
 import numpy as np
 
 from .. import memory
+from .._internal.layout import is_contiguous_and_dense
+from .._internal.workspace import Workspace
 from .._utils import CudaDataType
 from ..bindings import cutensor
-from ..internal import formatters, tensor_wrapper, utils
+from ..internal import tensor_wrapper, utils
 from ..internal.typemaps import DATA_TYPE_TO_NAME, NAME_TO_DATA_TYPE
 from ._configuration import ContractionOptions, ExecutionCUDA
 from ._internal import cutensor_utils, einsum_parser
@@ -93,10 +96,7 @@ will be a default-constructed :class:`ExecutionCUDA` object with device_id = 0."
 :class:`cupy.ndarray`, or :class:`torch.Tensor` object and must be on the same device as the input operands. \
 If not specified, the result will be returned on the same device as the input operands.
 
-        .. note::
-
-            The support of output tensor in the API is experimental and subject to change in future versions
-            without prior notice.
+            .. experimental:: parameter
 
 """.strip(),
         #
@@ -106,6 +106,10 @@ same package as the input operands. """.replace("\n", " "),
         #
         "reset_operands_semantics": """\
 Semantics:
+            - Only the operands explicitly passed are updated. At least one operand
+              is required (all of them after :meth:`release_operands`), otherwise
+              a :class:`ValueError` is raised.
+
             - This method validates each new operand against its corresponding one
               set during the object's initialization.
               An operand is compatible if all of the following requirements are met:
@@ -239,12 +243,25 @@ def _validate_contraction_preconditions(expr, a, b, c, d, qualifiers, options):
 class _ElementaryContraction:
     """
     Pairwise contraction:
-        O = A * B + C
+        out = a @ b + c
     Ternary contraction:
-        O = A * B * C + D
+        out = a @ b @ c + d
     """
 
-    def __init__(self, expr, a, b, *, c=None, d=None, out=None, qualifiers=None, options=None, execution=None, stream=None):
+    def __init__(
+        self,
+        expr,
+        a,
+        b,
+        *,
+        c=None,
+        d=None,
+        out=None,
+        qualifiers=None,
+        options=None,
+        execution: ExecutionCUDA | str | dict[str, Any] | None = None,
+        stream: utils.AnyStream | int | None = None,
+    ):
         """Binary & Ternary Contraction"""
 
         # Initialize valid_state to True here because this flag is currenttly only
@@ -265,7 +282,9 @@ class _ElementaryContraction:
         # ========================================================================
         # Process options (needed for logging and configuration)
         # ========================================================================
-        self.options: Any = utils.check_or_create_options(ContractionOptions, options, "elementary contraction options")
+        self.options: ContractionOptions = utils.check_or_create_options(  # type: ignore[assignment]
+            ContractionOptions, options, "elementary contraction options"
+        )
         self.logger = self.options.logger if self.options.logger is not None else logging.getLogger()
         log_info = self.logger.isEnabledFor(logging.INFO)
         log_debug = self.logger.isEnabledFor(logging.DEBUG)
@@ -288,6 +307,9 @@ class _ElementaryContraction:
         wrapped_operands = [self.a, self.b]
         self.c_provided = c is not None
         self.d_provided = d is not None
+
+        self.c: tensor_wrapper.TensorHolder[Any] | None
+        self.d: tensor_wrapper.TensorHolder[Any] | None
         for op_name, op in zip(["c", "d"], [c, d], strict=False):
             if op is not None:
                 op = tensor_wrapper.wrap_operand(op)
@@ -322,14 +344,12 @@ class _ElementaryContraction:
                 "This call is non-blocking and will return immediately after the operation is launched on the device."
             )
 
-        if execution is None:
-            self.execution = ExecutionCUDA()
-        else:
-            self.execution = utils.check_or_create_one_of_options(
-                (ExecutionCUDA,),
-                execution,
-                "execution options",
-            )
+        self.execution = utils.check_or_create_one_of_options(
+            (ExecutionCUDA,),
+            execution,
+            "execution options",
+            default_name="cuda",
+        )
 
         if log_info:
             self.logger.info(
@@ -402,6 +422,9 @@ class _ElementaryContraction:
         # self.out is the output tensor that will be used for the execution
         # self.out_return is the output tensor that will be returned by the execute method
         self.output_provided = out is not None
+        self.result_strides: Sequence[int] | None = None
+        self.result_layout: Literal["optimized", "natural", "C", "F"] | None = None
+
         if self.output_provided:
             out = tensor_wrapper.wrap_operand(out)
             if out.name != self.input_package:
@@ -417,6 +440,47 @@ class _ElementaryContraction:
                     self.logger.debug(f"The output tensor is copied to the execution device: {self.execution_device_id}.")
         else:
             self.out = self.out_return = None
+
+            # Determine the result layout to use
+            if self.options.result_layout == "auto":
+                if self.num_inputs == 2 and c is None:
+                    self.result_layout = "optimized"
+                elif self.num_inputs == 3 and d is None:
+                    # Optimized layout is binary-only, so ternary defaults to row-major.
+                    self.result_layout = "C"
+                else:
+                    # Follow the addend layout to satisfy cuTENSOR stride requirements.
+                    self.result_layout = "natural"
+            else:
+                self.result_layout = cast(Literal["C", "F", "optimized"], self.options.result_layout)
+                if self.result_layout == "optimized":
+                    if self.num_inputs == 3:
+                        raise ValueError("Optimized result layout is not supported for ternary contraction.")
+                    elif c is not None:
+                        raise ValueError("Optimized result layout is not supported when an addend is specified.")
+
+            # Compute the result strides based on the result layout
+            if self.result_layout == "optimized":
+                assert self.num_inputs == 2, "Internal Error: optimized layout unexpectedly used for non-binary contraction."
+                self.result_strides = cutensor_utils.get_optimized_strides(
+                    self.input_modes, self.output_modes, self.output_shape
+                )
+                self.logger.debug(f"The optimized result strides are: {self.result_strides}")
+            elif self.result_layout in {"C", "F"}:
+                self.result_strides = cutensor_utils.compute_strides(self.output_shape, order=self.result_layout)
+            elif self.result_layout == "natural":
+                if self.num_inputs == 2:
+                    assert self.c is not None
+                    self.result_strides = self.c.strides
+                else:
+                    assert self.d is not None
+                    self.result_strides = self.d.strides
+                if not is_contiguous_and_dense(self.output_shape, self.result_strides):
+                    raise ValueError(
+                        "When output is not specified and an addend is provided, the addend must be contiguous in memory."
+                    )
+            else:
+                raise AssertionError("Internal Error: Invalid result layout.")
 
         # ========================================================================
         # Setup memory management
@@ -442,6 +506,7 @@ class _ElementaryContraction:
                 self.handle = cutensor.create()
                 self.logger.info(f"The library handle has been created: {self.handle}.")
 
+        operands_names: tuple[str, ...]
         if self.num_inputs == 2:
             addend_name = "c"
             operands_names = ("a", "b", "out") if c is None else ("a", "b", "c", "out")
@@ -454,8 +519,12 @@ class _ElementaryContraction:
             op = getattr(self, op_name)
             if op is None:
                 assert op_name == "out", "Internal Error: out should be None if not provided."
-                self.tensor_descs[op_name] = cutensor_utils.TensorDescriptor.from_shape_and_dtype(
-                    self.handle, self.output_shape, self.data_type
+                # NOTE: Even when result_strides are not C order, the output pointer
+                # alignment (corresponding to the first element of the output tensor)
+                # from cupy/torch/ndbuffer's default allocator are still always
+                # aligned to at least 256 bytes.
+                self.tensor_descs[op_name] = cutensor_utils.TensorDescriptor.from_metadata(
+                    self.handle, self.output_shape, self.data_type, strides=self.result_strides
                 )
             else:
                 self.tensor_descs[op_name] = cutensor_utils.TensorDescriptor.from_tensor_holder(self.handle, op)
@@ -532,11 +601,14 @@ class _ElementaryContraction:
         self._plan_preference = ContractionPlanPreference(self)
 
         # Initialize remaining members
-        self.workspace_ptr = None
-        self.workspace_allocated_size = 0
-        self.workspace_size = None
-        self.workspace_stream = None
-        self.workspace_allocated_here = False
+        # Workspace lifecycle is managed by `Workspace` (allocate-on-demand,
+        # reuse, exception cleanup, stream-ordered free).
+        self.workspace = Workspace(
+            self.allocator,
+            self.logger,
+            label="contraction workspace",
+            device_id=self.execution_device_id,
+        )
         self.last_compute_event = None
         self.plan_ptr = None
 
@@ -582,102 +654,6 @@ class _ElementaryContraction:
         if not self.contraction_planned:
             raise RuntimeError(f"{what} cannot be performed before plan() has been called.")
 
-    def _free_workspace_memory(self, exception: Exception | None = None) -> bool:
-        """
-        Free workspace by releasing the MemoryPointer object.
-        """
-        if self.workspace_ptr is None:
-            return True
-
-        self.workspace_ptr = None
-        self.workspace_allocated_size = 0
-        self.logger.debug("[_free_workspace_memory] The workspace has been released.")
-
-        return True
-
-    def _reset_workspace_allocation_tracking(self):
-        """
-        Reset workspace allocation tracking attributes to False at the end of the
-        methods where workspace memory is potentially allocated. This is necessary
-        to prevent any exceptions raised before method entry from using stale
-        tracking values.
-        """
-        self.workspace_allocated_here = False
-
-    @utils.precondition(_check_valid_contraction)
-    def _release_workspace_memory_perhaps(self, release_workspace):
-        """
-        Free workspace memory if it's larger than the specified limit.
-        """
-        if not release_workspace:
-            return True
-
-        # Establish ordering wrt the computation and free workspace if requested.
-        if self.last_compute_event is not None:
-            self.workspace_stream.wait(self.last_compute_event)
-            self.logger.debug("Established ordering with respect to the computation before releasing the workspace.")
-            self.last_compute_event = None
-
-        self.logger.debug("[_release_workspace_memory_perhaps] The workspace memory will be released.")
-        return self._free_workspace_memory()
-
-    def _release_workspace_memory_perhaps_wrapper(self, exception: Exception | None = None) -> bool:
-        """
-        This is used in @atomic.
-        """
-        self._release_workspace_memory_perhaps(release_workspace=self.workspace_allocated_here)
-        self._reset_workspace_allocation_tracking()
-        return True
-
-    @utils.precondition(_check_valid_contraction)
-    @utils.precondition(_check_planned, "Workspace memory allocation")
-    @utils.atomic(_free_workspace_memory, method=True)
-    def _allocate_workspace_memory(self, stream_holder: utils.StreamHolder):
-        """
-        Allocate workspace memory using the specified allocator.
-        """
-        log_debug = self.logger.isEnabledFor(logging.DEBUG)
-        assert self.workspace_size is not None, "Internal Error."
-        assert self.workspace_allocated_here is False, "Internal Error."
-
-        if self.workspace_size == 0:  # For performance, bypass allocator for workspace size == 0.
-            self.workspace_ptr = memory.MemoryPointer(0, 0, finalizer=None)
-        else:
-            if log_debug:
-                self.logger.debug("Allocating workspace for performing the tensor contraction...")
-            with utils.device_ctx(self.execution_device_id), stream_holder.ctx:
-                try:
-                    if isinstance(self.allocator, memory.BaseCUDAMemoryManagerAsync):
-                        self.workspace_ptr = self.allocator.memalloc_async(self.workspace_size, stream_holder.obj)
-                    else:
-                        self.workspace_ptr = self.allocator.memalloc(self.workspace_size)
-                    self.workspace_allocated_here = True
-                except TypeError as e:
-                    message = (
-                        "The method 'memalloc' in the allocator object must conform to the interface in the "
-                        "'BaseCUDAMemoryManager' protocol."
-                    )
-                    raise TypeError(message) from e
-
-        self.workspace_allocated_size = self.workspace_size
-        self.workspace_stream = stream_holder.obj
-        if log_debug:
-            self.logger.debug(
-                f"Finished allocating device workspace of size {formatters.MemoryStr(self.workspace_size)} in the context "
-                f"of stream {self.workspace_stream}."
-            )
-
-    def _allocate_workspace_memory_perhaps(self, stream_holder: utils.StreamHolder):
-        """
-        Allocate workspace memory using the specified allocator, if it hasn't
-        already been done.
-        """
-
-        if self.workspace_ptr is not None and self.workspace_allocated_size >= self.workspace_size:
-            return
-
-        return self._allocate_workspace_memory(stream_holder)
-
     @property
     def plan_preference(self):
         """
@@ -694,7 +670,7 @@ class _ElementaryContraction:
         return self._plan_preference
 
     @utils.precondition(_check_valid_contraction)
-    def reset_operands(self, *, a=None, b=None, c=None, d=None, out=None, stream=None):
+    def reset_operands(self, *, a=None, b=None, c=None, d=None, out=None, stream: utils.AnyStream | int | None = None):
         if self.num_inputs == 2 and d is not None:
             raise RuntimeError("Internal Error: For pairwise contractions, d can not be set.")
 
@@ -709,6 +685,9 @@ class _ElementaryContraction:
             )
             if not all_provided:
                 raise ValueError("After release_operands(), all operands must be provided.")
+        elif all(arg is None for arg in (a, b, c, d, out)):
+            # All arguments are None: there is nothing to update, so reject the call.
+            raise ValueError("reset_operands() requires at least one operand to be provided.")
 
         stream_holder = None  # lazy initialization
         for op_name, op in zip(["a", "b", "c", "d", "out"], [a, b, c, d, out], strict=False):
@@ -781,6 +760,10 @@ class _ElementaryContraction:
 
     @utils.precondition(_check_valid_contraction)
     def _release_operands(self):
+        if self._operands_released:
+            self.logger.info("Operands have already been released; nothing to do.")
+            return
+
         # We release the internal tensor references held by the wrappers
         # for the user-provided operands and/or their GPU mirrors.
         # The TensorHolder wrappers themselves are kept alive so that
@@ -818,8 +801,10 @@ class _ElementaryContraction:
             if b is not None:
                 self.b.tensor = b
             if c is not None:
+                assert self.c is not None
                 self.c.tensor = c
             if d is not None:
+                assert self.d is not None
                 self.d.tensor = d
             if out is not None:
                 self.out.tensor = out
@@ -854,8 +839,10 @@ class _ElementaryContraction:
             if b is not None:
                 self.b.copy_(tensor_wrapper.wrap_operand(b), stream_holder=stream_holder)
             if c is not None:
+                assert self.c is not None
                 self.c.copy_(tensor_wrapper.wrap_operand(c), stream_holder=stream_holder)
             if d is not None:
+                assert self.d is not None
                 self.d.copy_(tensor_wrapper.wrap_operand(d), stream_holder=stream_holder)
             if out is not None:
                 out_wrapped = tensor_wrapper.wrap_operand(out)
@@ -866,7 +853,7 @@ class _ElementaryContraction:
 
     @utils.precondition(_check_valid_contraction)
     @utils.atomic(_free_plan_resources, method=True)
-    def plan(self, *, stream=None):
+    def plan(self, *, stream: utils.AnyStream | int | None = None):
         """
         Plan the tensor contraction. The planning phase can be optionally configured through
         the property :attr:`plan_preference` (an object of type
@@ -917,16 +904,15 @@ class _ElementaryContraction:
         if log_info and elapsed.data is not None:
             self.logger.info(f"The planning phase took {elapsed.data:.3f} ms to complete.")
 
-        self.workspace_size = required_workspace_size_buffer.item()
+        self.workspace.set_size(required_workspace_size_buffer.item())
         if log_info:
-            self.logger.info(f"The required workspace size for the contraction operation is {self.workspace_size}.")
+            self.logger.info(f"The required workspace size for the contraction operation is {self.workspace.size}.")
         self.contraction_planned = True
 
     @utils.precondition(_check_valid_contraction)
     @utils.precondition(_check_planned, "Execution")
     @utils.precondition(_check_valid_operands, "Execution")
-    @utils.atomic(_release_workspace_memory_perhaps_wrapper, method=True)
-    def execute(self, *, alpha=1.0, beta=None, release_workspace=False, stream=None):
+    def execute(self, *, alpha=1.0, beta=None, release_workspace=False, stream: utils.AnyStream | int | None = None):
         """
         Execute a prepared tensor contraction.
 
@@ -970,9 +956,22 @@ class _ElementaryContraction:
             assert not self.output_provided, (
                 "Internal Error: out cannot be None if the output was provided during initialization."
             )
-            self.out = utils.create_empty_tensor(
-                self.a.__class__, self.output_shape, self.data_type, self.execution_device_id, stream_holder, False
+            self.out = self.a.__class__.empty(
+                self.output_shape,
+                device_id=self.execution_device_id,
+                dtype=self.data_type,
+                stream_holder=stream_holder,
+                strides=self.result_strides,
             )
+            alignment = cutensor_utils.compute_pointer_alignment(self.out.data_ptr)
+            if alignment % self.tensor_descs["out"].alignment:
+                raise RuntimeError(
+                    f"Output tensor pointer alignment is incompatible with the contraction plan: expected a multiple "
+                    f"of {self.tensor_descs['out'].alignment} bytes, but detected {alignment} bytes at execution time. "
+                    f"This can happen if the default allocator for {self.internal_package} was changed to one that "
+                    f"does not provide the alignment assumed by the contraction plan."
+                )
+
             if log_debug:
                 self.logger.debug(
                     f"The output tensor of type {type(self.out.tensor)} with shape {self.out.shape} has been created."
@@ -984,53 +983,51 @@ class _ElementaryContraction:
             self.logger.info(f"{self.call_prologue}")
             self.logger.info(f"The specified stream for execute() is {stream_holder.obj}.")
 
-        # Allocate workspace if needed.
-        self._allocate_workspace_memory_perhaps(stream_holder)
+        with self.workspace.allocate_perhaps(
+            stream_holder,
+            get_last_event=lambda: self.last_compute_event,
+        ) as workspace:
+            with utils.cuda_call_ctx(stream_holder, self.blocking, timing=log_info) as (
+                self.last_compute_event,
+                elapsed,
+            ):
+                if self.num_inputs == 2:
+                    cutensor.contract(
+                        self.handle,
+                        self.plan_ptr,
+                        self.alpha.ctypes.data,
+                        self.a.data_ptr,
+                        self.b.data_ptr,
+                        self.beta.ctypes.data,
+                        self.c.data_ptr if self.c is not None else self.out.data_ptr,
+                        self.out.data_ptr,
+                        workspace.raw_ptr,
+                        workspace.size,
+                        stream_holder.ptr,
+                    )
+                else:
+                    assert self.c is not None, "Internal Error: ternary contraction requires operand c."
+                    cutensor.contract_trinary(
+                        self.handle,
+                        self.plan_ptr,
+                        self.alpha.ctypes.data,
+                        self.a.data_ptr,
+                        self.b.data_ptr,
+                        self.c.data_ptr,
+                        self.beta.ctypes.data,
+                        self.d.data_ptr if self.d is not None else self.out.data_ptr,
+                        self.out.data_ptr,
+                        workspace.raw_ptr,
+                        workspace.size,
+                        stream_holder.ptr,
+                    )
 
-        raw_workspace_ptr = utils.get_ptr_from_memory_pointer(self.workspace_ptr)
-
-        with utils.cuda_call_ctx(stream_holder, self.blocking, timing=log_info) as (
-            self.last_compute_event,
-            elapsed,
-        ):
-            if self.num_inputs == 2:
-                cutensor.contract(
-                    self.handle,
-                    self.plan_ptr,
-                    self.alpha.ctypes.data,
-                    self.a.data_ptr,
-                    self.b.data_ptr,
-                    self.beta.ctypes.data,
-                    self.c.data_ptr if self.c is not None else self.out.data_ptr,
-                    self.out.data_ptr,
-                    raw_workspace_ptr,
-                    self.workspace_size,
-                    stream_holder.ptr,
-                )
-            else:
-                cutensor.contract_trinary(
-                    self.handle,
-                    self.plan_ptr,
-                    self.alpha.ctypes.data,
-                    self.a.data_ptr,
-                    self.b.data_ptr,
-                    self.c.data_ptr,
-                    self.beta.ctypes.data,
-                    self.d.data_ptr if self.d is not None else self.out.data_ptr,
-                    self.out.data_ptr,
-                    raw_workspace_ptr,
-                    self.workspace_size,
-                    stream_holder.ptr,
-                )
+            if release_workspace:
+                workspace.release(self.last_compute_event)
+                self.last_compute_event = None
 
         if log_info and elapsed.data is not None:
             self.logger.info(f"The tensor contraction calculation took {elapsed.data:.3f} ms to complete.")
-
-        # Establish ordering wrt the computation and free workspace if requested.
-        if release_workspace:
-            self._release_workspace_memory_perhaps(True)
-
-        self._reset_workspace_allocation_tracking()
 
         if self.output_provided:
             if self.execution_device_id != self.input_device_id:
@@ -1060,11 +1057,8 @@ class _ElementaryContraction:
 
         class_name = self.__class__.__name__
         try:
-            if self.last_compute_event is not None and self.workspace_stream is not None:
-                self.workspace_stream.wait(self.last_compute_event)
-                self.last_compute_event = None
-
-            self._free_workspace_memory()
+            self.workspace.release(self.last_compute_event)
+            self.last_compute_event = None
 
             self._free_plan_resources()
 
@@ -1235,7 +1229,19 @@ class BinaryContraction(_ElementaryContraction):
         directory.
     """
 
-    def __init__(self, expr, a, b, *, c=None, out=None, qualifiers=None, stream=None, options=None, execution=None):
+    def __init__(
+        self,
+        expr,
+        a,
+        b,
+        *,
+        c=None,
+        out=None,
+        qualifiers=None,
+        stream: utils.AnyStream | int | None = None,
+        options: ContractionOptions | dict[str, Any] | None = None,
+        execution: ExecutionCUDA | str | dict[str, Any] | None = None,
+    ):
         # Check here for a valid expr because it is a precondition for the constructor
         # of the base class where it is used to extract the number of operands.
         if not isinstance(expr, str) or expr.count(",") != 1:
@@ -1243,11 +1249,9 @@ class BinaryContraction(_ElementaryContraction):
 
         super().__init__(expr, a, b, c=c, out=out, qualifiers=qualifiers, stream=stream, options=options, execution=execution)
 
-    def reset_operands(self, *, a=None, b=None, c=None, out=None, stream=None):
+    def reset_operands(self, *, a=None, b=None, c=None, out=None, stream: utils.AnyStream | int | None = None):
         """
         Reset one or more operands held by this :class:`BinaryContraction` instance.
-        Only the operands explicitly passed are updated; omitted operands retain
-        their current values.
 
         .. versionchanged:: 0.9
             All parameters are now keyword-only.
@@ -1280,7 +1284,7 @@ class BinaryContraction(_ElementaryContraction):
 
             >>> with nvmath.tensor.BinaryContraction("ij,jk->ik", a, b) as contraction:
             ...     # Plan the operation.
-            ...     algorithms = contraction.plan()
+            ...     contraction.plan()
             ...
             ...     # Execute the contraction to get the first result.
             ...     r1 = contraction.execute()
@@ -1330,7 +1334,8 @@ class BinaryContraction(_ElementaryContraction):
 class TernaryContraction(_ElementaryContraction):
     """
     Create a stateful object encapsulating the specified ternary tensor contraction
-    :math:`\\alpha a @ b + \\beta c` and the required resources to perform the operation.
+    :math:`\\alpha a @ b @ c + \\beta d` and the required resources to perform the
+    operation.
     A stateful object can be used to amortize the cost of preparation (planning in the
     case of ternary tensor contraction) across multiple executions (also see the
     :ref:`Stateful APIs<host api types>` section).
@@ -1467,7 +1472,20 @@ class TernaryContraction(_ElementaryContraction):
         directory.
     """
 
-    def __init__(self, expr, a, b, c, *, d=None, out=None, qualifiers=None, stream=None, options=None, execution=None):
+    def __init__(
+        self,
+        expr,
+        a,
+        b,
+        c,
+        *,
+        d=None,
+        out=None,
+        qualifiers=None,
+        stream: utils.AnyStream | int | None = None,
+        options: ContractionOptions | dict[str, Any] | None = None,
+        execution: ExecutionCUDA | str | dict[str, Any] | None = None,
+    ):
         # Check here for a valid expr because it is a precondition for the constructor
         # of the base class where it is used to extract the number of operands.
         if not isinstance(expr, str) or expr.count(",") != 2:
@@ -1477,11 +1495,9 @@ class TernaryContraction(_ElementaryContraction):
             expr, a, b, c=c, d=d, out=out, qualifiers=qualifiers, stream=stream, options=options, execution=execution
         )
 
-    def reset_operands(self, *, a=None, b=None, c=None, d=None, out=None, stream=None):
+    def reset_operands(self, *, a=None, b=None, c=None, d=None, out=None, stream: utils.AnyStream | int | None = None):
         """
         Reset one or more operands held by this :class:`TernaryContraction` instance.
-        Only the operands explicitly passed are updated; omitted operands retain
-        their current values.
 
         .. versionchanged:: 0.9
             All parameters are now keyword-only.
@@ -1518,7 +1534,7 @@ class TernaryContraction(_ElementaryContraction):
             >>> expr = "ijk,kl,lm->ijm"
             >>> with nvmath.tensor.TernaryContraction(expr, a, b, c) as contraction:
             ...     # Plan the operation.
-            ...     algorithms = contraction.plan()
+            ...     contraction.plan()
             ...
             ...     # Execute the contraction to get the first result.
             ...     r1 = contraction.execute()
@@ -1570,7 +1586,18 @@ class TernaryContraction(_ElementaryContraction):
 
 @utils.docstring_decorator(SHARED_CONTRACTION_DOCUMENTATION, skip_missing=False)
 def binary_contraction(
-    expr, a, b, *, c=None, alpha=1.0, beta=None, out=None, qualifiers=None, stream=None, options=None, execution=None
+    expr,
+    a,
+    b,
+    *,
+    c=None,
+    alpha=1.0,
+    beta=None,
+    out=None,
+    qualifiers=None,
+    stream: utils.AnyStream | int | None = None,
+    options: ContractionOptions | dict[str, Any] | None = None,
+    execution: ExecutionCUDA | str | dict[str, Any] | None = None,
 ):
     """
     Evaluate the Einstein summation convention for binary contraction on the operands.
@@ -1648,23 +1675,23 @@ def binary_contraction(
         >>> b = cp.random.rand(N, N, N, N, dtype=cp.float32)
         >>> c = cp.random.rand(M, M, N, N, dtype=cp.float32)
 
-        Perform the operation :math:`\\alpha \\sum A[i,j,a,b] * B[a,b,c,d] +
-        \\beta C[i,j,c,d]` using :func:`binary_contraction`.
+        Perform the operation :math:`\\alpha \\sum a[i,j,k,l] * b[k,l,m,n] +
+        \\beta c[i,j,m,n]` using :func:`binary_contraction`.
         The result `r` is also a CuPy float32 ndarray:
 
         >>> r = nvmath.tensor.binary_contraction(
-        ...     "ijab,abcd->ijcd", a, b, c=c, alpha=1.23, beta=0.74
+        ...     "ijkl,klmn->ijmn", a, b, c=c, alpha=1.23, beta=0.74
         ... )
 
         The result is equivalent to:
 
-        >>> r = 1.23 * cp.einsum("ijab,abcd->ijcd", a, b) + 0.74 * c
+        >>> r = 1.23 * cp.einsum("ijkl,klmn->ijmn", a, b) + 0.74 * c
 
         Options can be provided to customize the operation:
 
         >>> compute_type = nvmath.bindings.cutensor.ComputeDesc.COMPUTE_3XTF32()
         >>> o = nvmath.tensor.ContractionOptions(compute_type=compute_type)
-        >>> r = nvmath.tensor.binary_contraction("ijab,abcd->ijcd", a, b, options=o)
+        >>> r = nvmath.tensor.binary_contraction("ijkl,klmn->ijmn", a, b, options=o)
 
         See `ContractionOptions` for the complete list of available options.
 
@@ -1676,7 +1703,7 @@ def binary_contraction(
         >>> with s:
         ...     a = cp.random.rand(M, M, N, N)
         ...     b = cp.random.rand(N, N, N, N)
-        >>> r = nvmath.tensor.binary_contraction("ijab,abcd->ijcd", a, b, stream=s)
+        >>> r = nvmath.tensor.binary_contraction("ijkl,klmn->ijmn", a, b, stream=s)
 
         The operation above runs on stream `s` and is ordered with respect to the input
         computation.
@@ -1690,7 +1717,7 @@ def binary_contraction(
         Provide the NumPy ndarrays to :func:`binary_contraction`, with the result
         also being a NumPy ndarray:
 
-        >>> r = nvmath.tensor.binary_contraction("ijab,abcd->ijcd", a, b)
+        >>> r = nvmath.tensor.binary_contraction("ijkl,klmn->ijmn", a, b)
 
     Notes:
         - This function is a convenience wrapper around :class:`BinaryContraction` and is
@@ -1714,7 +1741,19 @@ def binary_contraction(
 
 @utils.docstring_decorator(SHARED_CONTRACTION_DOCUMENTATION, skip_missing=False)
 def ternary_contraction(
-    expr, a, b, c, *, d=None, alpha=1.0, beta=None, out=None, qualifiers=None, stream=None, options=None, execution=None
+    expr,
+    a,
+    b,
+    c,
+    *,
+    d=None,
+    alpha=1.0,
+    beta=None,
+    out=None,
+    qualifiers=None,
+    stream: utils.AnyStream | int | None = None,
+    options: ContractionOptions | dict[str, Any] | None = None,
+    execution: ExecutionCUDA | str | dict[str, Any] | None = None,
 ):
     """
     Evaluate the Einstein summation convention for ternary contraction on the operands.
@@ -1795,8 +1834,8 @@ def ternary_contraction(
         >>> c = cp.random.rand(N, K, M, dtype=cp.float32)
         >>> d = cp.random.rand(M, M, dtype=cp.float32)
 
-        Perform the operation :math:`\\alpha \\sum A[i,j] * B[j,k,l] * C[k,l,m] +
-        \\beta D[i,m]` using :func:`ternary_contraction`.
+        Perform the operation :math:`\\alpha \\sum a[i,j] * b[j,k,l] * c[k,l,m] +
+        \\beta d[i,m]` using :func:`ternary_contraction`.
         The result `r` is also a CuPy float32 ndarray:
 
         >>> r = nvmath.tensor.ternary_contraction(

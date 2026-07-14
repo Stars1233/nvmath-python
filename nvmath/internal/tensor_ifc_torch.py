@@ -27,6 +27,8 @@ class TorchTensor(TensorHolder[torch.Tensor]):
     name_to_dtype = TensorHolder.create_name_dtype_map(
         conversion_function=lambda name: getattr(torch, name), exception_type=AttributeError
     )
+    host_tensor_class: type["TorchTensor"]  # set once NumpyTensor is defined
+    device_tensor_class: type["TorchTensor"]  # set once CudaTensor is defined
 
     def __init__(self, tensor):
         super().__init__(tensor)
@@ -167,10 +169,10 @@ class TorchTensor(TensorHolder[torch.Tensor]):
         t.set_(storage, self.tensor.storage_offset(), shape, strides)
         return TorchTensor(t)
 
-    def _broadcast_to(self, shape):
-        reshaped_tensor = torch.broadcast_to(self.tensor, shape)
-        return self.__class__(reshaped_tensor)
-
     @property
     def is_conjugate(self) -> bool:
         return self.tensor.is_conj()
+
+
+TorchTensor.host_tensor_class = TorchTensor
+TorchTensor.device_tensor_class = TorchTensor

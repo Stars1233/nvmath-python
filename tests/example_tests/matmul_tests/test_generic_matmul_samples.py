@@ -19,7 +19,14 @@ sample_files = glob.glob(samples_path + "**/*.py", recursive=True)
 mpi_re = r".*_mpi[_]?.*\.py"
 sample_files = list(filter(lambda f: not re.search(mpi_re, f), sample_files))
 
-min_cublas_version = {}
+min_cublas_version = {
+    # Explicit batching dispatches to cublas{S,D}gemmGroupedBatched, which were
+    # added (as experimental APIs) in cuBLAS 12.4. See the CUDA 12.4 release notes:
+    # https://docs.nvidia.com/cuda/archive/12.4.0/cuda-toolkit-release-notes/index.html
+    "example09_explicit_batching.py": 120400,
+    "example10_nonuniform_batching.py": 120400,
+    "example11_explicit_implicit_batching.py": 120400,
+}
 
 min_cc = {}
 

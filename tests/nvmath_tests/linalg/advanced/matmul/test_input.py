@@ -17,11 +17,7 @@ try:
 except ModuleNotFoundError:
     cp = None
 
-try:
-    from cuda.core import Device
-except ImportError:
-    from cuda.core.experimental import Device
-
+from cuda.core import Device
 
 from ...utils import assert_tensors_equal, compare_tensors, get_framework, random_torch_complex, sample_matrix, to_numpy
 

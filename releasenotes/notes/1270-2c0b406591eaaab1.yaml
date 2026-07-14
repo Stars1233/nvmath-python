@@ -1,0 +1,14 @@
+---
+# Uncomment a section header and replace with your own note.
+#release_summary:
+#features:
+#api:
+#deprecations:
+fixes:
+#issues:
+#security:
+#doc:
+ - >
+  Fixed an incorrect `AttributeError` when reusing a :class:`nvmath.linalg.advanced.Matmul`
+  with block scaling and tensor quantization scales; calling release_operands() →
+  reset_operands() now completes without error.

@@ -2,13 +2,10 @@
 nvmath-python Bindings
 **********************
 
+.. experimental:: module
+
 Overview
 ========
-
-.. warning::
-
-    All Python bindings documented in this section are *experimental* and subject to future
-    changes. Use it at your own risk.
 
 Low-level Python bindings for C APIs from NVIDIA Math Libraries are exposed under the
 corresponding modules in :mod:`nvmath.bindings`. To access the Python bindings, use the
@@ -43,6 +40,10 @@ follows:
      - :mod:`nvmath.bindings.cusolver`
    * - cuSOLVERDn
      - :mod:`nvmath.bindings.cusolverDn`
+   * - cuSOLVERSp (deprecated)
+     - :mod:`nvmath.bindings.cusolverSp`
+   * - cuSOLVERMp
+     - :mod:`nvmath.bindings.cusolverMp`
    * - cuSPARSE
      - :mod:`nvmath.bindings.cusparse`
    * - cuSPARSELt
@@ -55,6 +56,33 @@ follows:
      - :mod:`nvmath.bindings.nvpl.fft`
 
 Support for more libraries will be added in the future.
+
+.. _bindings-compatibility-policy:
+
+Compatibility Policy
+====================
+
+For each supported library, nvmath-python ships two layers of bindings that carry
+different compatibility expectations:
+
+* The **Pythonic bindings**, exposed as ``nvmath.bindings.<library>`` (for example,
+  :mod:`nvmath.bindings.cublas`), provide the ergonomic, `PEP 8`_-style interface
+  described below. This layer is **experimental** and its surface may change across
+  nvmath-python releases, independently of the underlying NVIDIA Math library.
+
+* The **Cython bindings**, exposed as ``nvmath.bindings.cy<library>`` (for example,
+  ``nvmath.bindings.cycublas``) and meant to be ``cimport``-ed, are thin declarations
+  that mirror the library's C API one-to-one. Their compatibility follows the
+  *versioning of the underlying NVIDIA library* rather than nvmath-python's own: the
+  symbols they expose track a specific library version.
+
+The range of library versions supported by a given nvmath-python release is:
+
+* if the library is part of the CUDA Toolkit, the most recent two CUDA major versions
+  (currently CUDA 12 and 13);
+* otherwise, the library's current major version.
+
+The exact supported versions are pinned in ``pyproject.toml``.
 
 
 Naming & Calling Convention
@@ -203,6 +231,8 @@ This reference describes all nvmath-python's math primitives.
    cufft
    cusolver
    cusolverDn
+   cusolverSp
+   cusolverMp
    cusparse
    cusparseLt
    cutensor

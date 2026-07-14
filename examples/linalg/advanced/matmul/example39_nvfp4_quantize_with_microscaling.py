@@ -35,7 +35,7 @@ def microscaling_quantization(x: torch.Tensor, axis: int, operand_name: str) -> 
         * Use ``to_block_scale`` to copy the block scales to the cuBLAS-compatible
           interleaved layout.
     """
-    print(f"Quantize and microscale `{operand_name}` with shape {x.shape} along axis {axis}")
+    print(f"Quantize and microscale '{operand_name}' with shape {x.shape} along axis {axis}")
     assert x.dtype == torch.float32
     if axis >= 0:
         axis = axis - len(x.shape)
@@ -98,8 +98,8 @@ print(f"b.min(), b.max(): {b.min()}, {b.max()}")
 
 
 # If we convert those tensors to fp4 without microscaling,
-# most of the values in ``a`` will end up maxing out at 6/-6 or,
-# for ``b``, being clamped to 0.
+# most of the values in 'a' will end up maxing out at 6/-6 or,
+# for 'b', being clamped to 0.
 a_fp4 = quantize_to_fp4(a, axis=-1)
 b_fp4 = quantize_to_fp4(b, axis=-2)
 count_fp4_clamped_values(unpack_fp4(a_fp4, axis=-1), "a_fp4", "without microscaling")
@@ -110,7 +110,7 @@ a_fp4, scale_a = microscaling_quantization(a, axis=-1, operand_name="a")
 b_fp4, scale_b = microscaling_quantization(b, axis=-2, operand_name="b")
 
 # With microscaling, fewer values sit at the extrema. Before, most ±6
-# entries in a and zeros in b came from overflow or underflow; scaling
+# entries in 'a' and zeros in 'b' came from overflow or underflow; scaling
 # makes better use of the narrow fp4 range.
 # Note: each non-zero block still has at least one 6/-6 value,
 # that corresponds to the block's amax value after scaling.
@@ -126,8 +126,8 @@ d_out_scale = aux["d_out_scale"]
 
 
 # Unpack the result and compare against a fp32 reference.
-# The result is packed along the last axis (same as ``a``).
-# Note, the result packing axis could differ, if we specified c operand or epilogue.
+# The result is packed along the last axis (same as 'a').
+# Note, the result packing axis could differ, if we specified 'c' operand or epilogue.
 result_unpacked = unpack_fp4(result, axis=-1)
 scale_expanded = expand_block_scale(d_out_scale, result, output_dtype=torch.float32, block_scaling_format="NVFP4")
 result_unpacked *= scale_expanded

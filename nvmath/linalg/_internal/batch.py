@@ -172,11 +172,23 @@ class BatchTraits:
             raise TypeError("Unsupported operand type(s) for ==.")
         return self.shape == other.shape and self.strides == other.strides
 
-    def __mul__(self, other: BatchTraits | tuple[Sequence[int], Sequence[int]]) -> tuple[Sequence[int], Sequence[int]]:
+    def combine(
+        self,
+        other: BatchTraits | tuple[Sequence[int], Sequence[int]],
+        *,
+        allow_mixed_axis_order: bool = False,
+    ) -> tuple[Sequence[int], Sequence[int]]:
         """Return the combined shape of two BatchTraits.
 
         Currently two BatchTraits are only combinable if they have the same shape and axis
         order or if one is an empty batch.
+
+        Parameters
+        ----------
+        other: The other BatchTraits or (shape, axis_order) tuple to combine with.
+        allow_mixed_axis_order: If True, skip the axis_order compatibility check and pick
+            the first non-empty axis_order. Useful for explicit batching where each
+            operand's pointer array is computed independently.
 
         Returns
         -------
@@ -205,6 +217,8 @@ class BatchTraits:
             new_axis_order = axis_order
         elif not axis_order:
             new_axis_order = self.axis_order
+        elif allow_mixed_axis_order:
+            new_axis_order = self.axis_order  # pick self's order; D will be allocated fresh anyway
         else:
             msg = (
                 f"Batch order {self.axis_order} and {axis_order} are not compatible. "
@@ -212,6 +226,9 @@ class BatchTraits:
             )
             raise ValueError(msg)
         return new_shape, new_axis_order
+
+    def __mul__(self, other: BatchTraits | tuple[Sequence[int], Sequence[int]]) -> tuple[Sequence[int], Sequence[int]]:
+        return self.combine(other)
 
     def __str__(self) -> str:
         return f"shape {self.shape} and strides {self.strides}"

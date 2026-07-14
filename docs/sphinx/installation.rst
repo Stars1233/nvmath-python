@@ -12,7 +12,7 @@ building and running against 1. ``pip``-wheel, 2. ``conda``, or 3. system instal
 CTK. Having a full CTK installation at either build- or run-time is not necessary; only a
 small subset, as explained below, is enough.
 
-Host, distributed, and device APIs (see :ref:`nvmath overview`) have different run-time
+Host, distributed host, and device APIs (see :ref:`nvmath overview`) have different run-time
 dependencies and requirements. Even among host APIs the needed underlying libraries are
 different (for example, :func:`~nvmath.fft.fft` on GPUs only needs cuFFT and not cuBLAS).
 Libraries are loaded only when needed. Therefore, nvmath-python is designed to have most
@@ -56,13 +56,23 @@ needed; the dependencies are pulled via extras).
      - Install nvmath-python along with all CUDA 12 optional
        dependencies (wheels for cuBLAS/cuFFT/...) to support
        nvmath host & callback APIs using numba as the compiler toolchain.
+
+       **Note**: The numba extra installs both the ``numba-cuda`` and the
+       ``numba-cuda-mlir`` compilers. ``numba-cuda-mlir`` requires Python 3.11+
+       and is not yet fully supported by all device APIs
+       (see :ref:`device-api-supported-compilers`).
    * - ``pip install nvmath-python[cu12-dx]``
      - Install nvmath-python along with all CUDA 12 optional
        dependencies (wheels for cuBLAS/cuFFT/..., Numba, ...) to support
        nvmath host & device APIs [8]_.
+
+       **Note**: The installed numba toolchain includes both the ``numba-cuda``
+       and the ``numba-cuda-mlir`` compilers. ``numba-cuda-mlir`` requires
+       Python 3.11+ and is not yet fully supported by all device APIs
+       (see :ref:`device-api-supported-compilers`).
    * - ``pip install nvmath-python[cpu]``
      - Install nvmath-python along with all CPU optional dependencies
-       (wheels for NVPL or MKL) to support optimized CPU FFT APIs. [1]_
+       (wheels for NVPL or MKL) to support optimized CPU FFT APIs.
 
        **Note**:
 
@@ -80,7 +90,7 @@ needed; the dependencies are pulled via extras).
    * - ``pip install nvmath-python[cu12-distributed]``
      - Install nvmath-python along with all multi-GPU multi-node (MGMN) optional
        dependencies (wheels for NVSHMEM, NCCL, cuBLASMp, cuFFTMp, ...) to support
-       distributed APIs.
+       distributed host APIs.
 
        **Note**: Users must provide mpi4py (and MPI implementation) or ``torch.distributed``
        to initialize ``nvmath.distributed``.
@@ -93,7 +103,7 @@ needed; the dependencies are pulled via extras).
        lag behind the latest CUDA component releases. We must therefore explicitly require
        that the nvcc and nvrtc components installed for device extensions match; otherwise,
        pip will create a mismatched environment with CTK components from different releases.
-       Verbose installation commands such as the the one here are necessary because of
+       Verbose installation commands such as the one here are necessary because of
        limitations of the current wheel format and Python package index. Please see the
        PyTorch installation instructions for releases built with other CTK versions.
 
@@ -122,10 +132,14 @@ themselves. The following assumes that **system CTK is installed**.
        2. To use :mod:`nvmath.device` APIs, set ``CUDA_HOME`` (or ``CUDA_PATH``)
           to point to the system CTK.
        3. Set ``MATHDX_HOME`` to point to the MathDx headers.
+       4. The installed numba toolchain includes both the ``numba-cuda`` and the
+          ``numba-cuda-mlir`` compilers. ``numba-cuda-mlir`` requires Python 3.11+
+          and is not yet fully supported by all device APIs
+          (see :ref:`device-api-supported-compilers`).
 
    * - ``pip install nvmath-python[sysctk12-distributed]``
      - Install nvmath-python and nccl4py with no other MGMN optional dependencies to support
-       distributed APIs.
+       distributed host APIs.
 
        **Note**: Users must provide mpi4py (and MPI implementation) or ``torch.distributed``
        to initialize ``nvmath.distributed``, and provide the required cuMp libraries and
@@ -161,7 +175,7 @@ Conda packages can be installed from the `conda-forge <https://conda-forge.org>`
           ``nvmath-python`` and other dependencies.
    * - ``conda install -c conda-forge nvmath-python-cpu``
      - Install nvmath-python along with all CPU optional dependencies
-       (NVPL or other) to support optimized CPU FFT APIs. [1]_
+       (NVPL or other) to support optimized CPU FFT APIs.
 
        **Note**:
 
@@ -180,7 +194,7 @@ Conda packages can be installed from the `conda-forge <https://conda-forge.org>`
 
    * - ``conda install -c conda-forge nvmath-python-distributed``
      - Install nvmath-python along with all MGMN optional dependencies (packages for
-       NVSHMEM, cuFFTMp, ...) to support distributed APIs.
+       NVSHMEM, cuFFTMp, ...) to support distributed host APIs.
 
        **Note**: mpi4py is an optional way to initialize ``nvmath.distributed``. conda-forge
        provides mpi4py and MPI packages, as well as a pass-through MPI package variant that
@@ -266,12 +280,12 @@ dependency is *required* unless stated otherwise.
      - When Running - host APIs
      - When Running - device APIs
      - When Running - host API callbacks
-     - When Running - distributed APIs
+     - When Running - distributed host APIs
    * - CPU architecture & OS
      - linux-64, linux-aarch64, win-64
      - linux-64, linux-aarch64, win-64
-     - linux-64, linux-aarch64 [1]_
-     - linux-64, linux-aarch64
+     - linux-64, linux-aarch64, win-64
+     - linux-64, linux-aarch64, win-64
      - linux-64, linux-aarch64
    * - GPU hardware
      -
@@ -333,19 +347,19 @@ dependency is *required* unless stated otherwise.
        | (NVRTC, NVVM, CCCL [8]_, CUDART)
        | nvJitLink >=12.3 [11]_
      - CUDA >=12.0
-     - CUDA >=12.0
+     - CUDA >=12.9 (for 12.x); CUDA >=13.0.2 (for 13.x)
    * - cuda-pathfinder
      -
-     - >=1.4.4,<2.0
-     - >=1.4.4,<2.0
-     - >=1.4.4,<2.0
-     - >=1.4.4,<2.0
+     - >=1.5.1,<2.0
+     - >=1.5.1,<2.0
+     - >=1.5.1,<2.0
+     - >=1.5.1,<2.0
    * - cuda-core
      -
-     - >=0.4.2
-     - >=0.4.2
-     - >=0.4.2
-     - >=0.4.2
+     - >=0.5.0
+     - >=0.5.0
+     - >=0.5.0
+     - >=0.5.0
    * - NumPy
      -
      - >=1.25
@@ -378,6 +392,12 @@ dependency is *required* unless stated otherwise.
      - >=0.28.1
      - >=0.28.1
      -
+   * - numba-cuda-mlir
+     -
+     -
+     - >=0.4.1
+     - >=0.4.1
+     -
    * - Math Kernel Library (MKL)
      -
      - >=2024 (optional)
@@ -396,7 +416,8 @@ dependency is *required* unless stated otherwise.
      -
      -
      - | cuFFTMp >=11.4.0
-       | cuBLASMp >=0.8.1
+       | cuBLASMp >=0.8.1,<0.10
+       | cuSOLVERMp >=0.8.0,<0.10
 
 
 Troubleshooting
@@ -435,11 +456,7 @@ libraries, there are user-visible caveats.
    From beta 2 (v0.2.0) onwards the libraries are "soft-loaded" (no error is raised if a
    library is not installed) when ``import nvmath`` happens. This behavior may change in a
    future release.
-4. Numba installed from ``pip`` currently (as of v0.60.0) only supports conda and system
-   CTK, and not ``pip``-installed CUDA wheels. nvmath-python can also help Numba use the
-   CUDA compilers installed to ``site-packages`` if ``nvmath`` is imported. Same as above,
-   this behavior may change in a future release.
-5. PyTorch installed from ``pip`` pins some CUDA wheels packages to version v12.6 (or v12.8
+4. PyTorch installed from ``pip`` pins some CUDA wheels packages to version v12.6 (or v12.8
    depending on the installation method). However, nvmath-python does not pin CUDA wheels
    packages, so they will float up the latest version. This can cause a mismatch between
    compiler components when using the ``dx`` extra. In this case, it's recommended to
@@ -562,7 +579,7 @@ nvmath-python is tested in the following environments:
    :widths: 50 50
 
    * - CUDA
-     - 12.0, 12.9, 13.2
+     - 12.0, 12.9, 13.3
    * - Driver
      - R525, R575, R580
    * - GPU model
@@ -578,11 +595,10 @@ nvmath-python is tested in the following environments:
 
 .. rubric:: Footnotes
 
-.. [1] Windows support will be added in a future release.
 .. [2] nvmath-python relies on `CUDA minor version compatibility
     <https://docs.nvidia.com/deploy/cuda-compatibility
     /minor-version-compatibility.html>`_.
-.. [4] As of Beta 7.0 (v0.7.0), CuPy is an optional run-time dependency. It is not included in
+.. [4] CuPy is an optional run-time dependency. It is not included in
     the extras/meta-packages, and must be installed separately if desired.
 .. [5] For example, Blackwell GPUs are supported starting CUDA 12.8, so they would not work
     with libraries from CUDA 12.6 or below (There is no CUDA 12.7).

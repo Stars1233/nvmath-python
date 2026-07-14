@@ -20,12 +20,12 @@ import torch
 
 import nvmath
 
-# Prepare sample input data. Note that A and B are FP8 numbers of different types.
+# Prepare sample input data. Note that 'a' and 'b' are FP8 numbers of different types.
 m, n, k = 64, 32, 48
 a = torch.rand(m, k, device="cuda").type(torch.float8_e5m2)
 b = torch.rand(n, k, device="cuda").type(torch.float8_e4m3fn).T
 
-# Perform the multiplication, requesting FP32 output. Note that a scale for the result (D
+# Perform the multiplication, requesting FP32 output. Note that a scale for the result ('d')
 # is not specified because it is not FP8.
 result_fp32 = nvmath.linalg.advanced.matmul(
     a, b, quantization_scales={"a": 1, "b": 1}, options={"result_type": nvmath.CudaDataType.CUDA_R_32F}
@@ -36,8 +36,8 @@ result_fp16 = nvmath.linalg.advanced.matmul(
     a, b, quantization_scales={"a": 1, "b": 1}, options={"result_type": nvmath.CudaDataType.CUDA_R_16F}
 )
 
-# Now, request FP8 (e4m3fn) output. We set the scale for D to 1 for simplicity - with small
-# values in A and B, we won't exceed the range of the type anyway.
+# Now, request FP8 (e4m3fn) output. We set the scale for 'd' to 1 for simplicity,
+# with small values in 'a' and 'b', we won't exceed the range of the type anyway.
 result_fp8_e4m3fn = nvmath.linalg.advanced.matmul(
     a, b, quantization_scales={"a": 1, "b": 1, "d": 1}, options={"result_type": nvmath.CudaDataType.CUDA_R_8F_E4M3}
 )

@@ -1,0 +1,13 @@
+---
+# Uncomment a section header and replace with your own note.
+#release_summary:
+#features:
+#api:
+#deprecations:
+fixes:
+#issues:
+#security:
+#doc:
+ - >
+  Fixed a cuSPARSE handle leak which occurred when :meth:`nvmath.sparse.generic.Matmul.plan`
+  was called multiple times on the same instance.

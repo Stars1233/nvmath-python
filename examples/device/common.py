@@ -50,8 +50,8 @@ def random(shape, dtype, order=None, arrangement=None):
 
 def CHECK_CUDART(err):
     if err != cudart.cudaError_t.cudaSuccess:
-        err2, str = cudart.cudaGetErrorString(cudart.cudaError_t.cudaSuccess)
-        raise RuntimeError(f"CUDArt Error: {str}")
+        _, msg = cudart.cudaGetErrorString(err)
+        raise RuntimeError(f"CUDArt Error: {msg}")
 
 
 def fft_perf_GFlops(fft_size, batch, time_ms, coef=1.0):

@@ -12,6 +12,7 @@ import re
 
 import numpy as np
 import pytest
+from cuda.core import Stream, system
 
 import nvmath.distributed
 from nvmath.bindings import nvshmem
@@ -21,11 +22,6 @@ from nvmath.distributed.process_group import ReductionOp
 from nvmath.internal.utils import device_ctx, get_or_create_stream
 
 from .helpers import assert_close
-
-try:
-    from cuda.core import Stream, system
-except ImportError:
-    from cuda.core.experimental import Stream, system
 
 SHAPE = (2, 5)
 VALUE = 17
@@ -47,11 +43,7 @@ def nvmath_distributed(process_group):
     if torch_installed():
         maybe_register_package("torch")
 
-    try:
-        num_devices = system.get_num_devices()
-    except AttributeError:
-        num_devices = system.num_devices
-    device_id = process_group.rank % num_devices
+    device_id = process_group.rank % system.get_num_devices()
     nvmath.distributed.initialize(device_id, process_group, backends=["nvshmem"])
 
     yield
@@ -65,11 +57,7 @@ def test_nvshmem_bootstrapped(nvmath_distributed):
 
     rank = ctx.process_group.rank
     nranks = ctx.process_group.nranks
-    try:
-        num_devices = system.get_num_devices()
-    except AttributeError:
-        num_devices = system.num_devices
-    assert ctx.device_id == rank % num_devices
+    assert ctx.device_id == rank % system.get_num_devices()
     assert nvshmem.my_pe() == rank
     assert nvshmem.n_pes() == nranks
 
@@ -150,7 +138,7 @@ def test_allocate_non_symmetric(package, device_id, nvmath_distributed, check_sy
         dtype="int32",
         device_id=device_id,
         stream_holder=stream,
-        symmetric_memory=False,
+        symmetric_memory=None,
     )
     assert tensor.device_id == device_id
     assert not tensor.is_symmetric_memory
@@ -167,7 +155,7 @@ def test_allocate_non_symmetric(package, device_id, nvmath_distributed, check_sy
         pytest.param("torch", marks=[pytest.mark.skipif(not torch_installed(), reason="torch not found")]),
     ],
 )
-@pytest.mark.parametrize("symmetric_memory", [False, True])
+@pytest.mark.parametrize("symmetric_memory", [None, "nvshmem"])
 def test_tensor_to(package, symmetric_memory, nvmath_distributed, check_symmetric_memory_leaks):
     if package == "torch":
         from nvmath.distributed._internal.tensor_ifc_torch import (
@@ -199,7 +187,7 @@ def test_tensor_to(package, symmetric_memory, nvmath_distributed, check_symmetri
     tensor_device = tensor_cpu.to(device_id, stream_holder=stream, symmetric_memory=symmetric_memory)
     assert isinstance(tensor_device, DistributedTensor)
 
-    assert tensor_device.is_symmetric_memory == symmetric_memory
+    assert tensor_device.is_symmetric_memory == (symmetric_memory == "nvshmem")
     if symmetric_memory:
         assert nvshmem.ptr(tensor_device.data_ptr, nvshmem.my_pe()) != 0
         with device_ctx(device_id):
@@ -316,7 +304,7 @@ def test_mem_leak_reporting_internal(tensor_type, nvmath_distributed, symmetric_
 
     device_id = nvmath.distributed.get_context().device_id
     stream = Stream.from_handle(0)
-    a = Tensor.empty((4,), stream_holder=stream, device_id=device_id, symmetric_memory=True)
+    a = Tensor.empty((4,), stream_holder=stream, device_id=device_id, symmetric_memory="nvshmem")
     assert a.is_symmetric_memory
     # We don't free memory with a.free_symmetric(), which means it leaks.
     del a

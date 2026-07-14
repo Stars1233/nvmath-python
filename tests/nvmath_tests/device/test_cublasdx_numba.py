@@ -12,10 +12,22 @@ from collections.abc import Sequence
 
 import numpy as np
 import pytest
-from numba import cuda
 
-from nvmath.device import Dim3, Matmul, TransposeMode, float16x2_type, float32x2_type, float64x2_type, matmul
-from nvmath.device.common import axpby, clear, copy, copy_fragment, copy_wait, make_fragment_like, make_tensor
+from nvmath.device import (
+    Dim3,
+    Matmul,
+    TransposeMode,
+    axpby,
+    clear,
+    complex32,
+    complex64,
+    complex128,
+    copy,
+    copy_fragment,
+    copy_wait,
+    make_fragment_like,
+    make_tensor,
+)
 from nvmath.device.common_cuda import ComputeCapability
 from nvmath.device.cublasdx import DevicePipeline
 from nvmath.device.cublasdx_backend import MAX_ALIGNMENT, Arrangement, Precision
@@ -33,6 +45,9 @@ from .helpers import (
     skip_nvbug_5218000,
     time_this,
 )
+from .utils.common_axes import Compiler, all_compiler_params, xfail_mlir_fp16
+
+_MLIR_XFAIL = {Compiler.numba_cuda_mlir: "cublasdx is not yet supported by numba-cuda-mlir"}
 
 
 def flip_if(shape, trans):
@@ -47,7 +62,7 @@ def flip_if(shape, trans):
 
 
 @pytest.mark.parametrize(
-    "shape,block_size,block_dim,data_type,trans,arrangement,precision,np_type,numba_type,explicit_ld",
+    "shape,block_size,block_dim,data_type,trans,arrangement,precision,np_type,nvmath_type,explicit_ld",
     [
         # Various data_types and T/N/C
         (
@@ -59,7 +74,7 @@ def flip_if(shape, trans):
             None,
             np.float32,
             np.complex64,
-            float32x2_type,
+            complex64,
             True,
         ),
         (
@@ -71,7 +86,7 @@ def flip_if(shape, trans):
             None,
             np.float32,
             np.complex64,
-            float32x2_type,
+            complex64,
             False,
         ),
         (
@@ -83,7 +98,7 @@ def flip_if(shape, trans):
             None,
             np.float16,
             np.dtype([("x", np.float16), ("y", np.float16)]),
-            float16x2_type,
+            complex32,
             False,
         ),
         (
@@ -95,7 +110,7 @@ def flip_if(shape, trans):
             None,
             np.float16,
             np.dtype([("x", np.float16), ("y", np.float16)]),
-            float16x2_type,
+            complex32,
             False,
         ),
         (
@@ -107,7 +122,7 @@ def flip_if(shape, trans):
             None,
             np.float32,
             np.complex64,
-            float32x2_type,
+            complex64,
             False,
         ),
         (
@@ -119,7 +134,7 @@ def flip_if(shape, trans):
             None,
             np.float64,
             np.complex128,
-            float64x2_type,
+            complex128,
             True,
         ),
         (
@@ -274,7 +289,23 @@ def flip_if(shape, trans):
         ),
     ],
 )
-def test_matmul(shape, block_size, block_dim, data_type, trans, arrangement, precision, np_type, numba_type, explicit_ld):
+@pytest.mark.parametrize("compiler", all_compiler_params())
+def test_matmul(
+    request,
+    compiler,
+    shape,
+    block_size,
+    block_dim,
+    data_type,
+    trans,
+    arrangement,
+    precision,
+    np_type,
+    nvmath_type,
+    explicit_ld,
+):
+    cuda = compiler.runtime
+    xfail_mlir_fp16(request, compiler, precision)
     skip_nvbug_5218000(precision, size=shape, dynamic_ld=explicit_ld)
 
     a_precision = precision[0] if isinstance(precision, Sequence) else precision
@@ -286,9 +317,9 @@ def test_matmul(shape, block_size, block_dim, data_type, trans, arrangement, pre
     SM = set_device()
     if SM.major * 100 + SM.minor * 10 not in {900, 1000, 1030, 1100}:
         SM = ComputeCapability(SM.major, SM.minor)
-    MM = time_this(
+    MM: Matmul = time_this(
         "matmul codegen",
-        matmul,
+        Matmul,
         size=(m, n, k),
         data_type=data_type,
         precision=precision,
@@ -297,8 +328,6 @@ def test_matmul(shape, block_size, block_dim, data_type, trans, arrangement, pre
         block_size=block_size,
         block_dim=block_dim,
         execution="Block",
-        compiler="numba",
-        execute_api="static_leading_dimensions" if not explicit_ld else "dynamic_leading_dimensions",
     )
     show_MM_traits(MM)
 
@@ -307,7 +336,6 @@ def test_matmul(shape, block_size, block_dim, data_type, trans, arrangement, pre
     c_value_type = MM.c_value_type
 
     assert MM.size == (m, n, k)
-    assert all(f.endswith(".ltoir") for f in MM.files)
     if trans:
         assert MM.transpose_mode == TransposeMode(*trans)
     else:
@@ -316,9 +344,9 @@ def test_matmul(shape, block_size, block_dim, data_type, trans, arrangement, pre
         assert MM.arrangement == Arrangement(*arrangement)
     else:
         assert MM.arrangement is None
-    assert MM.a_value_type == numba_type[0] if isinstance(numba_type, Sequence) else numba_type
-    assert MM.b_value_type == numba_type[1] if isinstance(numba_type, Sequence) else numba_type
-    assert MM.c_value_type == numba_type[2] if isinstance(numba_type, Sequence) else numba_type
+    assert MM.a_value_type == (nvmath_type[0] if isinstance(nvmath_type, Sequence) else nvmath_type)
+    assert MM.b_value_type == (nvmath_type[1] if isinstance(nvmath_type, Sequence) else nvmath_type)
+    assert MM.c_value_type == (nvmath_type[2] if isinstance(nvmath_type, Sequence) else nvmath_type)
     assert MM.a_dim == flip_if((m, k), trans[0] if trans else "non_transposed")
     assert MM.b_dim == flip_if((k, n), trans[1] if trans else "non_transposed")
     assert MM.c_dim == (m, n)
@@ -327,7 +355,7 @@ def test_matmul(shape, block_size, block_dim, data_type, trans, arrangement, pre
     assert MM.c_size == m * n
 
     # There is a dedicated test for shared memory size
-    assert MM.shared_memory_size > 0
+    assert MM.get_shared_storage_size() > 0
 
     if block_size is not None:
         assert MM.block_dim == (block_size, 1, 1)
@@ -359,7 +387,7 @@ def test_matmul(shape, block_size, block_dim, data_type, trans, arrangement, pre
     B_ROW_MAJOR = arrangement and arrangement[1] == "row_major"
     C_ROW_MAJOR = arrangement and arrangement[2] == "row_major"
 
-    @cuda.jit(link=MM.files)
+    @cuda.jit(launch_bounds=(MM.block_size, 1))
     def f(a_global, b_global, c_global):
         # Input/output
         a_smem = cuda.shared.array(shape=(a_size,), dtype=a_value_type)
@@ -399,9 +427,9 @@ def test_matmul(shape, block_size, block_dim, data_type, trans, arrangement, pre
 
         # Execute FFT
         if explicit_ld:
-            MM(alpha, a_smem, lda, b_smem, ldb, beta, c_smem, ldc)
+            MM.execute(alpha, a_smem, lda, b_smem, ldb, beta, c_smem, ldc)
         else:
-            MM(alpha, a_smem, b_smem, beta, c_smem)
+            MM.execute(alpha, a_smem, b_smem, beta, c_smem)
 
         cuda.syncthreads()
         if cuda.threadIdx.x == 0 and cuda.threadIdx.y == 0 and cuda.threadIdx.z == 0:
@@ -483,20 +511,21 @@ def test_matmul(shape, block_size, block_dim, data_type, trans, arrangement, pre
 
 
 def test_valid():
-    base_MM = Matmul(
-        size=(8, 4, 16),
-        data_type="real",
-        precision=np.float32,
-        transpose_mode=TransposeMode("transposed", "non_transposed"),
-        execution="Block",
-        sm=SM80.cc,
-    )
+    base_kwargs = {
+        "size": (8, 4, 16),
+        "data_type": "real",
+        "precision": np.float32,
+        "transpose_mode": TransposeMode("transposed", "non_transposed"),
+        "execution": "Block",
+        "sm": SM80.cc,
+    }
+    base_MM = Matmul(**base_kwargs)
 
     count = 0
     for (bd,) in base_MM.valid("block_dim"):
-        MM0 = base_MM.create(block_dim=bd, compiler="numba")
+        MM0 = Matmul(**base_kwargs, block_dim=bd)
         assert isinstance(MM0, Matmul)
-        MM1 = base_MM.create(block_dim=bd, compiler="numba")
+        MM1 = Matmul(**base_kwargs, block_dim=bd)
         assert isinstance(MM1, Matmul)
         count += 1
 
@@ -513,22 +542,21 @@ def test_valid():
         ("suggested_smem_a", "suggested_smem_b", "suggested_rmem_c"),
     ],
 )
-def test_opaque_tensor(tensor_types):
+@pytest.mark.parametrize("compiler", all_compiler_params(_MLIR_XFAIL))
+def test_opaque_tensor(compiler, tensor_types):
+    cuda = compiler.runtime
     m, n, k = 4, 2, 8
     block_size = 64
     precision = Precision(np.float32, np.float32, np.float64)
 
     assert precision.a == precision.b
-    MM = matmul(
+    MM = Matmul(
         size=(m, n, k),
         precision=precision,
         data_type="real",
         arrangement=("col_major", "row_major", "row_major"),
         execution="Block",
         block_size=block_size,
-        compiler="numba",
-        tensor_types=tensor_types,
-        execute_api="tensors",
     )
 
     is_suggested_a = "suggested" in tensor_types[0]
@@ -537,7 +565,7 @@ def test_opaque_tensor(tensor_types):
 
     is_rmem_c = "rmem" in tensor_types[2]
 
-    @cuda.jit(link=MM.files)
+    @cuda.jit()
     def f(alpha, a, b, beta, c, output):
         # Workaround to set shared memory alignment = 16 bytes (size of c64).
         smem = cuda.shared.array(shape=(0,), dtype=np.complex64).view(precision.a)
@@ -605,7 +633,7 @@ def test_opaque_tensor(tensor_types):
     c_d = cuda.to_device(c)
     output_d = cuda.to_device(output)
 
-    f[1, MM.block_dim, 0, MM.shared_memory_size](alpha, a_d, b_d, beta, c_d, output_d)
+    f[1, MM.block_dim, 0, MM.get_shared_storage_size()](alpha, a_d, b_d, beta, c_d, output_d)
     cuda.synchronize()
 
     data_test = output_d.copy_to_host()
@@ -615,24 +643,23 @@ def test_opaque_tensor(tensor_types):
     assert error < 1e-2
 
 
-def test_copy_negative_cases():
+@pytest.mark.parametrize("compiler", all_compiler_params(_MLIR_XFAIL))
+def test_copy_negative_cases(compiler):
     """Test error handling in copy and copy_fragment functions"""
-    from numba.core.errors import TypingError
+    cuda = compiler.runtime
+    TypingError = compiler.typing_error
 
     m, n, k = 4, 2, 8
     block_size = 64
     precision = Precision(np.float32, np.float32, np.float32)
 
-    MM = matmul(
+    MM = Matmul(
         size=(m, n, k),
         precision=precision,
         data_type="real",
         arrangement=("col_major", "row_major", "row_major"),
         execution="Block",
         block_size=block_size,
-        compiler="numba",
-        tensor_types=("suggested_smem_a", "suggested_smem_b", "suggested_rmem_c"),
-        execute_api="tensors",
     )
 
     # Test 1: copy_fragment used with non-rmem tensor
@@ -668,22 +695,21 @@ def test_copy_negative_cases():
 
 
 @pytest.mark.skip("Blas partition_like_C is not yet implemented")
-def test_make_fragment_like_C():
-    MM = matmul(
+@pytest.mark.parametrize("compiler", all_compiler_params(_MLIR_XFAIL))
+def test_make_fragment_like_C(compiler):
+    cuda = compiler.runtime
+    MM = Matmul(
         size=(2, 2, 2),
         data_type="real",
         precision=np.float32,
         arrangement=("col_major", "col_major", "col_major"),
         execution="Block",
-        execute_api="tensors",
-        compiler="numba",
-        tensor_types=("suggested_smem_a", "suggested_smem_b", "suggested_rmem_c"),
     )
 
     c_size = MM.suggest_layout_rmem_c().size
     assert c_size == 1
 
-    @cuda.jit(link=MM.files)
+    @cuda.jit()
     def kernel(c):
         gmem_c = make_tensor(c, MM.get_layout_gmem_c())
         accumulator = MM.suggest_accumulator()
@@ -700,7 +726,8 @@ def test_make_fragment_like_C():
     assert np.allclose(a, expected)
 
 
-def test_lto_symbol_duplicate():
+@pytest.mark.parametrize("compiler", all_compiler_params(_MLIR_XFAIL))
+def test_lto_symbol_duplicate(compiler):
     """
     Test that two different MM(...) function overloads points to the same LTO
     symbol without causing a duplicate symbol error at link time.
@@ -708,6 +735,7 @@ def test_lto_symbol_duplicate():
     Two local arrays have different type (ndim is different), so that triggers
     overload resolution twice in Numba.
     """
+    cuda = compiler.runtime
     alpha, beta = 1.1, 1.2
     m, n, k = 4, 2, 8
     block_size = 64
@@ -777,7 +805,9 @@ skip_pre_sm75_nvdisasm13 = pytest.mark.skipif(
 
 
 @skip_pre_sm75_nvdisasm13
-def test_ensure_proper_linking():
+@pytest.mark.parametrize("compiler", all_compiler_params(_MLIR_XFAIL))
+def test_ensure_proper_linking(compiler):
+    cuda = compiler.runtime
     # We validate LLVM declarations for cublasDx device symbols
     # and require no CALLs in SASS,  because even small
     # IR prototype/type mismatches (named vs anonymous tensor structs,
@@ -894,7 +924,9 @@ def test_ensure_proper_linking():
 
 @requires_pipeline()
 @skip_pre_sm75_nvdisasm13
-def test_ensure_proper_linking_pipeline():
+@pytest.mark.parametrize("compiler", all_compiler_params(_MLIR_XFAIL))
+def test_ensure_proper_linking_pipeline(compiler):
+    cuda = compiler.runtime
     m, n, k = 256, 256, 64
     tile_m, tile_n, tile_k = 128, 128, 32
     block_size = 128
@@ -968,3 +1000,80 @@ def test_ensure_proper_linking_pipeline():
     m_exec = [m for m in re.findall(r'declare void @"cublasdx_execute[^"]+"\([^)]*\)', ir_str) if "libmathdx_pipeline" in m][0]
     assert m_exec and m_exec.count("libmathdx_pipeline") == 1
     assert m_exec and m_exec.count("libmathdx_tensor_0s_0s") == 1
+
+
+@requires_pipeline()
+@pytest.mark.parametrize("compiler", all_compiler_params(_MLIR_XFAIL))
+@pytest.mark.parametrize("container", ["cupy", "torch", "numba"])
+def test_device_pipeline_dlpack(compiler, container):
+    cuda = compiler.runtime
+
+    if container == "cupy":
+        try:
+            import cupy as cp
+
+            asarray = cp.asarray
+        except ImportError:
+            pytest.skip("cupy is not installed")
+    elif container == "torch":
+        try:
+            import torch
+
+            def asarray(x):
+                return torch.from_numpy(x).cuda()
+        except ImportError:
+            pytest.skip("torch is not installed")
+    elif container == "numba":
+        asarray = cuda.to_device
+
+    m, n, k = 256, 256, 64
+    tile_m, tile_n, tile_k = 128, 128, 32
+    block_size = 128
+    pipeline_depth = 2
+
+    alpha, beta = 2.0, 3.0
+
+    MM = Matmul(
+        size=(tile_m, tile_n, tile_k),
+        precision=(np.float16, np.float16, np.float32),
+        data_type="real",
+        arrangement=("row_major", "col_major", "row_major"),
+        alignment=MAX_ALIGNMENT,
+        execution="Block",
+        block_size=block_size,
+        with_pipeline=True,
+        enable_input_streaming=True,
+    )
+
+    @cuda.jit(extensions=pipeline_extensions, launch_bounds=[MM.block_size, 1])
+    def matmul_kernel(alpha, beta, c, device_pipeline: DevicePipeline):
+        smem = cuda.shared.array(shape=(0,), dtype=np.byte, alignment=device_pipeline.buffer_alignment)
+
+        blockIdx = cuda.blockIdx
+        c_tile = c[blockIdx.x * tile_m : (blockIdx.x + 1) * tile_m, blockIdx.y * tile_n : (blockIdx.y + 1) * tile_n]
+        gmem_c = make_tensor(c_tile, MM.get_layout_gmem_c(n))
+
+        tile_pipeline = device_pipeline.get_tile(smem, blockIdx.x, blockIdx.y)
+
+        accumulator = MM.suggest_accumulator()
+        tile_pipeline.execute(accumulator)
+
+        if accumulator.is_thread_active():
+            d_frag = accumulator.make_partition_and_copy(gmem_c)
+            axpby(alpha, accumulator.get_results(), beta, d_frag)
+            accumulator.partition_and_copy(d_frag, gmem_c)
+
+        tile_pipeline._del()
+
+    a = asarray(random_real((m, k), MM.a_value_type, order="C"))
+    b = asarray(random_real((k, n), MM.b_value_type, order="F"))
+    c = asarray(random_real((m, n), MM.c_value_type, order="C"))
+
+    # Test initialization with arrays (which use __dlpack__)
+    device_pipeline = MM.suggest_device_pipeline(pipeline_depth, a, b)
+
+    # Pass the pipeline to the Numba kernel
+    matmul_kernel[((m + tile_m - 1) // tile_m, (n + tile_n - 1) // tile_n), block_size, 0, device_pipeline.buffer_size](
+        alpha, beta, c, device_pipeline
+    )
+    cuda.synchronize()

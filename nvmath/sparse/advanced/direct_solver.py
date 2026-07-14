@@ -6,7 +6,11 @@
 __all__ = [
     "direct_solver",
     "DirectSolver",
-    "DirectSolverAlgType",
+    "DirectSolverReorderingAlg",
+    "DirectSolverFactorizationAlg",
+    "DirectSolverSolveAlg",
+    "DirectSolverPivotEpsilonAlg",
+    "DirectSolverMatchingAlg",
     "DirectSolverFactorizationConfig",
     "DirectSolverFactorizationInfo",
     "DirectSolverPlanConfig",
@@ -23,11 +27,12 @@ import math
 import operator
 import os
 from collections.abc import Sequence
-from dataclasses import fields
+from dataclasses import fields, replace
 from typing import Any, TypeAlias
 
 from nvmath.bindings import cudss
 from nvmath.internal import formatters, tensor_wrapper, utils
+from nvmath.internal.memory import get_device_memory_resource
 from nvmath.internal.package_wrapper import StreamHolder
 from nvmath.internal.typemaps import NAME_TO_DATA_TYPE
 from nvmath.sparse._internal import common_utils as sp_utils
@@ -52,7 +57,11 @@ DirectSolverFactorizationConfig: TypeAlias = cudss_config_ifc.FactorizationConfi
 DirectSolverSolutionConfig: TypeAlias = cudss_config_ifc.SolutionConfig
 DirectSolverPlanInfo: TypeAlias = cudss_data_ifc.PlanInfo
 DirectSolverFactorizationInfo: TypeAlias = cudss_data_ifc.FactorizationInfo
-DirectSolverAlgType: TypeAlias = cudss.AlgType
+DirectSolverReorderingAlg: TypeAlias = cudss.ReorderingAlg
+DirectSolverFactorizationAlg: TypeAlias = cudss.FactorizationAlg
+DirectSolverSolveAlg: TypeAlias = cudss.SolveAlg
+DirectSolverPivotEpsilonAlg: TypeAlias = cudss.PivotEpsilonAlg
+DirectSolverMatchingAlg: TypeAlias = cudss.MatchingAlg
 
 
 def get_threading_lib(library=None):
@@ -65,6 +74,32 @@ def get_threading_lib(library=None):
     if library is None or not os.path.isfile(library):
         return
     return library
+
+
+def set_async_workspace_allocator(handle: int, device_id: int, logger: logging.Logger):
+    """
+    By default, cuDSS allocates workspace memory using synchronous cudaMalloc/cudaFree.
+    This call sets a custom allocator that forwards the alloc/dealloc calls to cuda
+    stream-aware device memory pool.
+    """
+    with utils.device_ctx(device_id) as device:
+        if device.properties.memory_pools_supported:
+            pool = get_device_memory_resource(device_id)
+            if cudss.set_async_workspace_allocator(handle, int(pool.handle)):
+                logger.info("An async workspace allocator has been set for the provided handle.")
+                return True
+            else:
+                logger.info(
+                    f"Could not set async workspace allocator for handle {handle} "
+                    f"on device {device_id}. The provided handle already has "
+                    f"a custom allocator set."
+                )
+        else:
+            logger.info(
+                f"The device {device_id} does not support memory pools. "
+                f"Workspace memory will be allocated using synchronous cudaMalloc/cudaFree."
+            )
+    return False
 
 
 def check_dense_tensor_layout(shape: Sequence[int], strides: Sequence[int], *, explicitly_batched=None):
@@ -278,6 +313,12 @@ Specify solution preferences as a :class:`DirectSolverSolutionPreferences` objec
 Alternatively, a `dict` containing the parameters for the ``DirectSolverSolutionPreferences`` constructor
 can also be provided. If not specified, the default cuDSS solution configuration will be used.""".replace("\n", " "),
         #
+        "reset_operands_unchecked": utils._reset_operand_unchecked_docstring(True, experimental=False),
+        #
+        "release_operands": utils._release_operand_docstring(
+            True, version_added="0.9.0", execution_methods=("factorize", "solve")
+        ),
+        #
         "stream": """\
 Provide the CUDA stream to use for executing the operation. Acceptable inputs include
 ``cudaStream_t`` (as Python :class:`int`), :class:`cupy.cuda.Stream`, and
@@ -292,7 +333,7 @@ class InvalidDirectSolverState(Exception):
 
 
 def _check_cudss_version():
-    required = (0, 7)
+    required = (0, 8)
     available = cudss.get_property(0), cudss.get_property(1)
     if available != required:
         raise RuntimeError(
@@ -392,8 +433,8 @@ class DirectSolver:
 
         Here we set the reordering algorithm to choice 1.
 
-        >>> AlgType = nvmath.sparse.advanced.DirectSolverAlgType
-        >>> plan_config.reordering_algorithm = AlgType.ALG_1
+        >>> ReorderingAlg = nvmath.sparse.advanced.DirectSolverReorderingAlg
+        >>> plan_config.reordering_algorithm = ReorderingAlg.NESTED_DISSECTION
 
         Plan the operation, which reorders the system to minimize fill-in and performs the
         symbolic factorization. Planning returns a :class:`DirectSolverPlanInfo` object,
@@ -401,7 +442,7 @@ class DirectSolver:
 
         >>> plan_info = solver.plan()
         >>> plan_info.col_permutation
-        array([ 0,  1,  8,  9,  2,  3,  4, 11, 15,  5, 10,  6, 12, 13,  7, 14],
+        array([ 5,  4, 15, 13,  8, 12, 11,  9,  0, 14,  6,  3, 10,  2,  1,  7],
               dtype=int32)
 
         The next step is to perform the numerical factorization of the system using
@@ -501,8 +542,8 @@ class DirectSolver:
         a,
         b,
         *,
-        options: DirectSolverOptions | None = None,
-        execution: ExecutionCUDA | ExecutionHybrid | None = None,
+        options: DirectSolverOptions | dict[str, Any] | None = None,
+        execution: ExecutionCUDA | ExecutionHybrid | str | dict[str, Any] | None = None,
         stream: utils.AnyStream | int | None = None,
     ):
         # Check if the required cuDSS version is available.
@@ -518,10 +559,13 @@ class DirectSolver:
             (ExecutionCUDA, ExecutionHybrid), execution, "execution options", default_name="cuda"
         )
         if self.execution_options.name == "cuda":
-            self.execution_options.hybrid_memory_mode_options = utils.check_or_create_options(
-                HybridMemoryModeOptions,
-                self.execution_options.hybrid_memory_mode_options,
-                "hybrid memory mode options",
+            self.execution_options = replace(
+                self.execution_options,
+                hybrid_memory_mode_options=utils.check_or_create_options(
+                    HybridMemoryModeOptions,
+                    self.execution_options.hybrid_memory_mode_options,
+                    "hybrid memory mode options",
+                ),
             )
 
         self.logger = self.options.logger if self.options.logger is not None else logging.getLogger()
@@ -783,14 +827,12 @@ with compact col-major layout."
         # TODO: This should be fixed when we use cuda.core for copying across memspace.
         rhs_layout_flag = self.rhs_package == "numpy" and len(self.rhs_shape) > 2 and self.implicitly_batched_rhs
 
+        # NumPy has no stream support, use cuda.core stream interface if needed.
+        self.stream_package = "cuda" if self.rhs_package == "numpy" else self.rhs_package
         if self.device_id == "cpu":
-            # Note #2: We always set the RHS package to one that supports GPU execution,
-            # irrespective of whether it's hybrid or CUDA execution since we need the
-            # current stream.
-            if self.rhs_package == "numpy":
-                self.rhs_package = "cuda"
             # For CPU operands, set the device ID based on the execution options.
             self.device_id = self.execution_options.device_id
+
         self.logger.info(
             f"The operands' memory space is {self.memory_space}, and the execution space is on device {self.device_id}."
         )
@@ -819,8 +861,11 @@ with compact col-major layout."
         #     operands.
         #   - if hybrid memory and CUDA execution, need to copy to GPU.
 
-        # Create the stream holder.
-        stream_holder = utils.get_or_create_stream(self.device_id, stream, self.rhs_package)
+        # Create the stream holder using the appropriate package for stream operations.
+        # NOTE: the resolved ctor stream holder is stored in ``_init_stream_holder``;
+        # currently it is only intended for use in the stateless function, which reuses that
+        # stream for all required method calls instead of resolving the stream repeatedly.
+        self._init_stream_holder = stream_holder = utils.get_or_create_stream(self.device_id, stream, self.stream_package)
         self.logger.info(f"The specified stream for the DirectSolver ctor is {stream_holder.obj}.")
 
         # cupy.asarray() doesn't preserve layout for > 2D arrays when copying from CPU
@@ -925,7 +970,7 @@ be significantly lower than if you provide a multithreading library."
         # Set CUDA execution options (including hybrid memory mode).
         if self.execution_space == "cuda":
             hmo = self.execution_options.hybrid_memory_mode_options
-            self._internal_config.hybrid_mode = hmo.hybrid_memory_mode
+            self._internal_config.hybrid_memory_mode = hmo.hybrid_memory_mode
             # Set device memory limit for hybrid memory.
             if hmo.hybrid_device_memory_limit is not None:
                 memory_limit = utils.get_memory_limit_from_device_id(hmo.hybrid_device_memory_limit, self.device_id)
@@ -952,6 +997,9 @@ be significantly lower than if you provide a multithreading library."
             self.call_prologue = (
                 "This call is non-blocking and will return immediately after the operation is launched on the device."
             )
+
+        if not self.blocking:
+            set_async_workspace_allocator(self.handle, self.device_id, self.logger)
 
         # The result (solution) class is that of the wrapped RHS.
         self.result_class = self.b[0].__class__ if self.explicitly_batched_rhs else self.b.__class__
@@ -1008,7 +1056,7 @@ be significantly lower than if you provide a multithreading library."
             self.result_class,
             self.result_shape,
             self.result_data_type,
-            self.result_device_id,  # see notes #1 and #2.
+            self.result_device_id,  # see notes #1.
             stream_holder=None if self.result_device_id == "cpu" else stream_holder,
             verify_strides=False,  # the strides are computed so that they are contiguous
             strides=self.result_strides,
@@ -1029,7 +1077,7 @@ be significantly lower than if you provide a multithreading library."
                 self.result_class,
                 shape,
                 self.result_data_type,
-                self.result_device_id,  # see notes #1 and #2.
+                self.result_device_id,  # see notes #1.
                 stream_holder=None if self.result_device_id == "cpu" else stream_holder,
                 verify_strides=False,  # the strides are computed so that they are contiguous
                 strides=strides,
@@ -1123,16 +1171,6 @@ be significantly lower than if you provide a multithreading library."
     ):
         """
         Reset one or both operands held by this :class:`DirectSolver` instance.
-        Only the operands explicitly passed are updated; omitted operands retain
-        their current values.
-
-        This method will perform various checks on the new operands to make sure:
-
-        - The shapes, index and data types match those of the old ones.
-
-        - The packages that the operands belong to match those of the old ones.
-
-        - If input tensors are on GPU, the device must match.
 
         .. versionchanged:: 0.9
             All parameters are now keyword-only.
@@ -1143,6 +1181,17 @@ be significantly lower than if you provide a multithreading library."
             b: {b}
 
             stream: {stream}
+
+        Semantics:
+            - Only the operands explicitly passed are updated. At least one operand
+              is required (all of them after :meth:`release_operands`), otherwise
+              a :class:`ValueError` is raised.
+
+            - This method will perform various checks on the new operands to make sure:
+
+              - The shapes, index and data types match those of the old ones.
+              - The packages that the operands belong to match those of the old ones.
+              - If input tensors are on GPU, the device must match.
 
         Examples:
 
@@ -1206,16 +1255,15 @@ be significantly lower than if you provide a multithreading library."
             <https://github.com/NVIDIA/nvmath-python/tree/main/examples/sparse/advanced/direct_solver/example05_reset_operands.py>`_.
         """
 
-        # If operands have been released, all required operands must be provided
-        if self._operands_released and (a is None or b is None):
-            raise ValueError("After release_operands(), both 'a' and 'b' must be provided to reset_operands().")
+        # If operands have been released, all required operands must be provided.
+        if self._operands_released:
+            if a is None or b is None:
+                raise ValueError("After release_operands(), both 'a' and 'b' must be provided to reset_operands().")
+        elif a is None and b is None:
+            # All arguments are None: there is nothing to update, so reject the call.
+            raise ValueError("reset_operands() requires at least one operand to be provided.")
 
-        if a is None and b is None:
-            msg = "Calling reset_operands() with both 'a' and 'b' set to None is not allowed. "
-            msg += "Use release_operands() to release all operands."
-            raise ValueError(msg)
-
-        stream_holder = utils.get_or_create_stream(self.device_id, stream, self.rhs_package)
+        stream_holder = utils.get_or_create_stream(self.device_id, stream, self.stream_package)
 
         # Update LHS.
         if a is not None:
@@ -1281,14 +1329,14 @@ be significantly lower than if you provide a multithreading library."
                 # Copy operand into original buffer if it exists or create new ones.
                 log_warning = False
                 if explicitly_batched:
-                    if self.a is not None:
+                    if not self._operands_released:
                         for x, y in zip(self.a, a, strict=True):
                             x.copy_(y, stream_holder)
                     else:
                         self.a = [x.to(self.device_id, stream_holder) for x in a]
                         log_warning = True
                 else:
-                    if self.a is not None:
+                    if not self._operands_released:
                         self.a.copy_(a, stream_holder)
                     else:
                         self.a = a.to(self.device_id, stream_holder)
@@ -1347,10 +1395,6 @@ iterative refinement during solve(), but it's the user's responsibility to check
                 shape = b.shape
                 strides = b.strides
 
-            # Handle cupy <> numpy asymmetry. See note #2.
-            if rhs_package == "numpy":
-                rhs_package = "cuda"
-
             # Check package, device ID, shape, strides, and dtype.
             if rhs_package != self.rhs_package:
                 raise TypeError(f"The package for 'b' ({rhs_package}) doesn't match the original one ({self.rhs_package}).")
@@ -1378,13 +1422,13 @@ iterative refinement during solve(), but it's the user's responsibility to check
             if self.copy_across_memspace:
                 # Copy operand into original buffer if it exists or create new ones.
                 if explicitly_batched:
-                    if self.b is not None:
+                    if not self._operands_released:
                         for x, y in zip(self.b, b, strict=True):
                             x.copy_(y, stream_holder)
                     else:
                         self.b = [x.to(self.device_id, stream_holder) for x in b]
                 else:
-                    if self.b is not None:
+                    if not self._operands_released:
                         self.b.copy_(b, stream_holder)
                     else:
                         self.b = b.to(self.device_id, stream_holder)
@@ -1403,19 +1447,151 @@ iterative refinement during solve(), but it's the user's responsibility to check
         # Clear the operands released flag
         self._operands_released = False
 
+    def _reset_operands_unchecked_cross_memspace(self, a, b, stream):
+        """
+        (private) Reset operands unchecked for cross-memspace scenario,
+        i.e., when a copy across memory spaces is required.
+        """
+        # We need to create a stream holder here because for this
+        # cross-memspace scenario, we need to copy the operands across memory spaces.
+        stream_holder = utils.get_or_create_stream(self.device_id, stream, self.stream_package)
+
+        if a is not None:
+            a = sp_utils.wrap_sparse_operands(a)
+            if self.explicitly_batched_lhs:
+                if not self._operands_released:
+                    for x, y in zip(self.a, a, strict=True):
+                        x.copy_(y, stream_holder)
+                else:
+                    self.a = [x.to(self.device_id, stream_holder) for x in a]
+            else:
+                if not self._operands_released:
+                    self.a.copy_(a, stream_holder)
+                else:
+                    self.a = a.to(self.device_id, stream_holder)
+
+            cudss_utils.update_cudss_csr_ptr_wrapper(
+                existing_ptrs=self.resources_a_ptrs,
+                lhs_ptr=self.a_ptr,
+                batch_indices=self.batch_indices,
+                new_lhs=self.a,
+                stream_holder=stream_holder,
+            )
+
+        if b is not None:
+            b = tensor_wrapper.wrap_operands(b) if self.explicitly_batched_rhs else tensor_wrapper.wrap_operand(b)
+            if self.explicitly_batched_rhs:
+                if not self._operands_released:
+                    for x, y in zip(self.b, b, strict=True):
+                        x.copy_(y, stream_holder)
+                else:
+                    self.b = [x.to(self.device_id, stream_holder) for x in b]
+            else:
+                if not self._operands_released:
+                    self.b.copy_(b, stream_holder)
+                else:
+                    self.b = b.to(self.device_id, stream_holder)
+
+            cudss_utils.update_cudss_dense_ptr_wrapper(
+                existing_ptrs=self.resources_b_ptrs,
+                rhs_ptr=self.b_ptr,
+                batch_indices=self.batch_indices,
+                new_rhs=self.b,
+                stream_holder=stream_holder,
+            )
+
+    def _reset_operands_unchecked_same_memspace(self, a, b, stream):
+        """
+        (private) Reset operands unchecked for not cross-memspace scenario,
+        i.e., when no copy across memory spaces is required and we can
+        directly reference the user-provided operands.
+        """
+        # The stream holder is created lazily because the non-batched paths
+        # (update_cudss_*_matrix_ptr inside cudss_utils.update_cudss_*_ptr_wrapper)
+        # do not need one, so avoid it if we can, since it has non-trivial overhead.
+        stream_holder = None
+        if self.batched:
+            stream_holder = utils.get_or_create_stream(self.device_id, stream, self.stream_package)
+
+        if a is not None:
+            if self.explicitly_batched_lhs:
+                for ai_wrapper, ai_raw in zip(self.a, a, strict=True):
+                    ai_wrapper.reset_unchecked_keeping_shell(ai_raw)
+            else:
+                self.a.reset_unchecked_keeping_shell(a)
+
+            cudss_utils.update_cudss_csr_ptr_wrapper(
+                existing_ptrs=self.resources_a_ptrs,
+                lhs_ptr=self.a_ptr,
+                batch_indices=self.batch_indices,
+                new_lhs=self.a,
+                stream_holder=stream_holder,
+            )
+            self.solver_planned = self.solver_factorized = False
+
+        if b is not None:
+            if self.explicitly_batched_rhs:
+                for bi_wrapper, bi_raw in zip(self.b, b, strict=True):
+                    bi_wrapper.tensor = bi_raw
+            else:
+                self.b.tensor = b
+
+            cudss_utils.update_cudss_dense_ptr_wrapper(
+                existing_ptrs=self.resources_b_ptrs,
+                rhs_ptr=self.b_ptr,
+                batch_indices=self.batch_indices,
+                new_rhs=self.b,
+                stream_holder=stream_holder,
+            )
+
+    def reset_operands_unchecked(
+        self,
+        *,
+        a=None,
+        b=None,
+        stream: utils.AnyStream | int | None = None,
+    ):
+        """
+        {reset_operands_unchecked}
+        """
+
+        if self.copy_across_memspace:
+            self._reset_operands_unchecked_cross_memspace(a, b, stream)
+        else:
+            self._reset_operands_unchecked_same_memspace(a, b, stream)
+
+        self._operands_released = False
+
     @utils.precondition(_check_valid_solver)
     def release_operands(self):
         """
         {release_operands}
         """
+        if self._operands_released:
+            self.logger.info("Operands have already been released; nothing to do.")
+            return
+
         # When copy_across_memspace is False
         # (CUDA execution with GPU operands, or hybrid execution), self.a
         # and self.b hold direct references to user-provided tensors.
         # When copy_across_memspace is True (CUDA execution with CPU operands),
         # self.a and self.b hold internal device mirrors.
-        # In both cases, we release them.
-        self.a = None
-        self.b = None
+        # In both cases, for both a and b, we release the tensor references
+        # held by the wrapper objects while keeping the wrapper alive.
+        # This achieves the desired effect while preserving any metadata
+        # (shape, device, etc.) so that reset_operands_unchecked can reuse.
+
+        if self.explicitly_batched_lhs:
+            for ai in self.a:
+                ai.release_keeping_shell()
+        else:
+            self.a.release_keeping_shell()
+
+        if self.explicitly_batched_rhs:
+            for bi in self.b:
+                bi.tensor = None
+        else:
+            self.b.tensor = None
 
         self._operands_released = True
         self.logger.info("User-provided operands have been released.")
@@ -1463,7 +1639,9 @@ iterative refinement during solve(), but it's the user's responsibility to check
             >>> with nvmath.sparse.advanced.DirectSolver(a, b) as solver:
             ...     # Configure the reordering algorithm for the plan.
             ...     plan_config = solver.plan_config
-            ...     plan_config.reordering_algorithm = nvmath.sparse.advanced.DirectSolverAlgType.ALG_1
+            ...     plan_config.reordering_algorithm = (
+            ...         nvmath.sparse.advanced.DirectSolverReorderingAlg.NESTED_DISSECTION
+            ...     )
             ...     # Plan the operation using the specified plan configuration, which
             ...     # returns a DirectSolverPlanInfo object.
             ...     plan_info = solver.plan()
@@ -1621,7 +1799,7 @@ iterative refinement during solve(), but it's the user's responsibility to check
         log_info = self.logger.isEnabledFor(logging.INFO)
         log_debug = self.logger.isEnabledFor(logging.DEBUG)
 
-        stream_holder = utils.get_or_create_stream(self.device_id, stream, self.rhs_package)
+        stream_holder = utils.get_or_create_stream(self.device_id, stream, self.stream_package)
 
         cudss.set_stream(self.handle, stream_holder.ptr)
 
@@ -1744,11 +1922,11 @@ def direct_solver(
     b,
     /,
     *,
-    options: DirectSolverOptions | None = None,
+    options: DirectSolverOptions | dict[str, Any] | None = None,
     plan_preferences: DirectSolverPlanPreferences | None = None,
     factorization_preferences: DirectSolverFactorizationPreferences | None = None,
     solution_preferences: DirectSolverSolutionPreferences | None = None,
-    execution: ExecutionCUDA | ExecutionHybrid | None = None,
+    execution: ExecutionCUDA | ExecutionHybrid | str | dict[str, Any] | None = None,
     stream: utils.AnyStream | int | None = None,
 ):
     """
@@ -1872,13 +2050,20 @@ def direct_solver(
         if solution_preferences is not None:
             update_config_with_preferences(solver.solution_config, solution_preferences)
 
+        # Stateless API calls are all executed on the same stream, so we can reuse the
+        # stream resolved in DirectSolver.__init__ (self._init_stream_holder) for plan,
+        # factorize, and solve. Otherwise, in the most common use case when stream = None
+        # is passed, package.cuda.get_current_stream() is repeatedly called inside each
+        # method with non-negligible overhead.
+        resolved_stream = solver._init_stream_holder.external if solver._init_stream_holder is not None else None
+
         # Planning and factorization information cannot be returned without making copies
         # because of scope (the interfaces need the solver object, which is released when
         # the function returns).
-        solver.plan(stream=stream)
+        solver.plan(stream=resolved_stream)
 
-        solver.factorize(stream=stream)
+        solver.factorize(stream=resolved_stream)
 
-        r = solver.solve(stream=stream)
+        r = solver.solve(stream=resolved_stream)
 
     return r

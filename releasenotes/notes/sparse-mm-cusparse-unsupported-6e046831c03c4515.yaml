@@ -1,0 +1,17 @@
+---
+# Uncomment a section header and replace with your own note.
+#release_summary:
+api:
+#features:
+#dependencies:
+#deprecations:
+ - Support for ``complex32`` operands in sparse matrix multiplication
+   (:func:`nvmath.sparse.generic.matmul`) has been removed. Passing ``complex32``
+   operands now raises a ``TypeError``.
+#fixes:
+issues:
+#security:
+#doc:
+ - Sparse matrix multiplication (:func:`nvmath.sparse.generic.matmul`) using the
+   CSC format with ``float16`` or ``bfloat16`` operands is not supported on newer
+   CUDA Toolkit versions and raises ``cuSPARSEError NOT_SUPPORTED``.

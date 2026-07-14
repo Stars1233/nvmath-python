@@ -17,27 +17,24 @@ from cuda import pathfinder
 
 from nvmath._internal.layout import is_contiguous_and_dense
 from nvmath.internal import tensor_wrapper, utils
-from nvmath.internal.package_ifc import StreamHolder
-from nvmath.internal.tensor_ifc_numpy import NumpyTensor
 from nvmath.sparse._internal.common_utils import sparse_or_dense, wrap_sparse_operand
 
 from ._converters import TensorConverter
 from ._drawer import animate_tensor, draw_tensor, draw_tensor_raw, draw_tensor_storage
-from ._emitter import emit_apply, populate_apply_parameters
+from ._emitter import emit_apply_kernel, populate_apply_parameters
 from ._jit import compile_cpp_and_link, compile_python_function, launch_kernel
-from ._utils import LevelMap
+from ._utils import LevelMap, resolve_stream, stream_context
 from .tensor_format import Dimension, LevelFormat, TensorFormat, is_unique
 
 
 def _tensor_to_list(wrapped_operand, truncate=32):
     m = wrapped_operand.memory_buffer()
-    t = m.tensor
-    o = [str(v.item()) for v in t[:truncate]]
+    stream = None if m.device_id == "cpu" else utils.get_or_create_stream(m.device_id, None, m.name)
+    o = [str(v.item()) for v in m.__class__(m.tensor[:truncate]).to("cpu", stream).tensor]
     if m.size > truncate:
         o += ["..."]
-
     if m.size > 2 * truncate:
-        o += [str(v.item()) for v in t[-truncate:]]
+        o += [str(v.item()) for v in m.__class__(m.tensor[-truncate:]).to("cpu", stream).tensor]
 
     return "[{}]".format(", ".join(o))
 
@@ -46,20 +43,6 @@ def _top_array(value, *, dtype, device_id, dense_tensorholder_type, stream_holde
     a = utils.create_empty_tensor(dense_tensorholder_type, (2,), dtype, device_id, stream_holder, verify_strides=False)
     a.tensor[0], a.tensor[1] = 0, value
     return a
-
-
-def _convert_ndbuffer_perhaps(wrapped_operand):
-    package = utils.infer_object_package(wrapped_operand.tensor)
-    if package != "nvmath":
-        return wrapped_operand
-
-    package = "cuda"
-    if wrapped_operand.device_id == "cpu":
-        stream = None
-    else:
-        stream = utils.get_or_create_stream(wrapped_operand.device_id, None, package)
-
-    return NumpyTensor.create_host_from(wrapped_operand, stream)
 
 
 def _axis_order_in_memory(shape, strides):
@@ -185,7 +168,7 @@ class Tensor:
         self._val = None
 
         # Set wrapped operand.
-        self.wrapped_operand = None
+        self._wrapped_operand = None
 
         # Kernel.
         self._kernel = None
@@ -197,6 +180,10 @@ class Tensor:
         A helper to create a universal sparse tensor (in COO representation) from a file.
         The supported file formats are the Matrix Market format (.mtx) for matrices and
         the FROSTT format (.tns) for tensors.
+
+        Args:
+            filename: The path to the source file (with a '.mtx' or '.tns' extension).
+            stream: {stream}
         """
         message = f"The format of {filename} is not recognized. The supported extensions are '.mtx' and '.tns'"
         m = re.match(r".*\.(\w+)", filename)
@@ -216,7 +203,7 @@ class Tensor:
 
             coo = sp.io.mmread(filename, spmatrix=True)
             coo.sum_duplicates()
-            return cls.from_package(coo)
+            return cls.from_package(coo, stream=stream)
 
         if suffix == "tns":
             # Convenience Python utility to map file data to indices and values. Note
@@ -239,7 +226,7 @@ class Tensor:
             values = data[num_dimensions]
 
             coo = torch.sparse_coo_tensor(indices, values, extents)
-            return cls.from_package(coo.coalesce())
+            return cls.from_package(coo.coalesce(), stream=stream)
 
         raise TypeError(message)
 
@@ -278,7 +265,7 @@ class Tensor:
                 device_ctx = contextlib.nullcontext() if device_id == "cpu" else utils.device_ctx(device_id)
                 with device_ctx:
                     ust = wrapped_operand.to_ust(stream=stream)
-                ust.wrapped_operand = wrapped_operand
+                ust._wrapped_operand = wrapped_operand
                 return ust
             except Exception as e:
                 raise TypeError(f"The sparse operand type {type(tensor)} is unsupported or invalid.") from e
@@ -306,7 +293,7 @@ class Tensor:
         axis_order = _dense_ust_axis_order(self.tensor_format, shape)
         strides = _calculate_strides(shape, axis_order)
 
-        wrapped_dense = self.val.memory_buffer_to_tensor(shape, strides)  # unflatten
+        wrapped_dense = self._val.memory_buffer_to_tensor(shape, strides)  # unflatten
 
         return wrapped_dense
 
@@ -324,15 +311,15 @@ class Tensor:
         with device_ctx:
             if self._is_dense_format():
                 # Extract from the wrapped operand, if it exists.
-                if self.wrapped_operand is not None:
-                    return self.wrapped_operand.tensor
+                if self._wrapped_operand is not None:
+                    return self._wrapped_operand.tensor
 
                 # Otherwise, create a new dense tensor view.
                 return self._dense_tensor_from_buffer().tensor
 
-            return self.wrapped_operand.to_package()
+            return self._wrapped_operand.to_package()
 
-    def convert(self, *, tensor_format=None, index_type=None, dtype=None):
+    def convert(self, *, tensor_format=None, index_type=None, dtype=None, copy=None, stream=None):
         """
         Convert a UST into a new UST with the specified format, index type, and data
         type. The default values of these for the target UST are taken from the
@@ -349,6 +336,11 @@ class Tensor:
             tensor_format: {tensor_format}
             index_type: {index_type}
             dtype: {dtype}
+            copy: for the case where the target tensor format, data and index
+                types match those of the source object, return the same object if
+                ``copy=None`` or return a copy if ``copy=True``. In the complementary
+                case (where any of tensor format, data or index types don't match)
+                a copy is always made.
 
         Returns:
             A UST in the specified format, with the specified index and data types.
@@ -362,28 +354,29 @@ class Tensor:
 
         # Fast path.
         if self.tensor_format.name == tensor_format.name and self.index_type == index_type and self.dtype == dtype:
-            return self.clone()
+            return self.clone(stream=stream) if copy else self
 
         target = Tensor(
             self.extents,
             tensor_format=tensor_format,
             index_type=index_type,
             dtype=dtype,
+            stream=stream,
         )
-        TensorConverter(self, target).run()
+        TensorConverter(self, target).run(stream=stream)
 
         # Set wrapped operand.
         if target._is_dense_format():
-            target.wrapped_operand = target._dense_tensor_from_buffer()
+            target._wrapped_operand = target._dense_tensor_from_buffer()
         else:
-            target.wrapped_operand = wrap_sparse_operand(target)
+            target._wrapped_operand = wrap_sparse_operand(target)
 
         return target
 
     def to(self, device_id: int | Literal["cpu"], stream=None):
         """Copy the UST to a different device (contents only).
 
-        The sparse representation is not copied (it is a  view) if the UST
+        The sparse representation is not copied (it is a view) if the UST
         is already on the requested device.
 
         .. note:: Any kernel associated with the source is not copied over to target.
@@ -414,17 +407,10 @@ currently requires the UST to be backed by PyTorch storage."
 a UST backed by PyTorch storage."
             )
 
-        # The device for the stream should be the source device. If the source is CPU, the
-        # operation is blocking and the stream holder can be None.
-        stream_holder = None
-        if self.device_id != "cpu":
-            # For internal use, we accept StreamHolder so that UST `to` has a
-            # consistent interface with `TensorHolder.to`.
-            if isinstance(stream, StreamHolder):
-                stream_holder = stream
-            else:
-                stream_holder = utils.get_or_create_stream(self.device_id, stream, package)
+        stream_holder = resolve_stream(stream, self, device_id)
+        return self._to(device_id, stream_holder)
 
+    def _to(self, device_id: int | Literal["cpu"], stream_holder):
         target = Tensor(
             self.extents,
             tensor_format=self.tensor_format,
@@ -432,7 +418,7 @@ a UST backed by PyTorch storage."
             dtype=self.dtype,
             package=self._package,
             options=None,
-            stream=stream,
+            stream=stream_holder,
         )
 
         # Set the UST data.
@@ -443,9 +429,9 @@ a UST backed by PyTorch storage."
 
         # Set wrapped operand.
         if target._is_dense_format():
-            target.wrapped_operand = target._dense_tensor_from_buffer()
+            target._wrapped_operand = target._dense_tensor_from_buffer()
         else:
-            target.wrapped_operand = wrap_sparse_operand(target)
+            target._wrapped_operand = wrap_sparse_operand(target)
 
         return target
 
@@ -476,16 +462,7 @@ a UST backed by PyTorch storage."
         if self.dtype != src.dtype:
             raise ValueError(f"The source {src.dtype} and target {self.dtype} dtypes are not compatible.")
 
-        stream_holder = None
-        device_id = src.device_id
-        if device_id != "cpu":
-            # For internal use, we accept StreamHolder so that UST `copy_` has a
-            # consistent interface with `TensorHolder.copy_`.
-            if isinstance(stream, StreamHolder):
-                stream_holder = stream
-            else:
-                package = self._dense_tensorholder_type.name
-                stream_holder = utils.get_or_create_stream(device_id, stream, package)
+        stream_holder = resolve_stream(stream, src, self.device_id)
 
         # Copy the UST data.
         self._pos.copy_(src._pos, stream_holder)
@@ -509,11 +486,7 @@ a UST backed by PyTorch storage."
         Returns:
             A clone of this UST.
         """
-        stream_holder = None
-        device_id = self.device_id
-        if device_id != "cpu":
-            package = self._dense_tensorholder_type.name
-            stream_holder = utils.get_or_create_stream(device_id, stream, package)
+        stream_holder = resolve_stream(stream, self)
 
         target = Tensor(
             self.extents,
@@ -522,14 +495,14 @@ a UST backed by PyTorch storage."
             dtype=self.dtype,
             package=self._package,
             options=None,
-            stream=stream,
+            stream=stream_holder,
         )
 
         # Empty UST data.
         target._pos = self._pos.empty_like(stream_holder)
         target._crd = self._crd.empty_like(stream_holder)
         target._val = utils.create_empty_tensor(
-            self._dense_tensorholder_type, self.nse, self.dtype, device_id, stream_holder, verify_strides=False
+            self._dense_tensorholder_type, self.nse, self.dtype, self.device_id, stream_holder, verify_strides=False
         )
 
         # Copy the UST data.
@@ -542,9 +515,9 @@ a UST backed by PyTorch storage."
 
         # Set wrapped operand.
         if target._is_dense_format():
-            target.wrapped_operand = target._dense_tensor_from_buffer()
+            target._wrapped_operand = target._dense_tensor_from_buffer()
         else:
-            target.wrapped_operand = wrap_sparse_operand(target)
+            target._wrapped_operand = wrap_sparse_operand(target)
 
         return target
 
@@ -557,12 +530,12 @@ a UST backed by PyTorch storage."
         of the element.
 
         Args:
-            code: The callback code as a unary Python function object or as a bytes object
-               with the LTO-IR code. The function must take a single argument representing
-               the original value if ``with_indices`` is ``False``, otherwise it takes
-               the original value followed by the coordinate for that value, as a sequence.
-               The original value must be representable in the data type of the UST, while
-               the indices must be integers.
+            user_code: The callback code as a unary Python function object or as a bytes
+               object with the LTO-IR code. The function must take a single argument
+               representing the original value if ``with_indices`` is ``False``, otherwise
+               it takes the original value followed by the coordinate for that value, as a
+               sequence. The original value must be representable in the data type of the
+               UST, while the indices must be integers.
 
             with_indices: A flag to choose between the value-only or value-with-indices
                 signatures.
@@ -580,8 +553,7 @@ a UST backed by PyTorch storage."
                 signature += (self.index_type,) * self.num_dimensions
             user_code = compile_python_function(user_code, "apply", signature)
 
-        driver_src = emit_apply(self, with_indices)
-
+        driver_src, grid_iter = emit_apply_kernel(self, with_indices)
         complex_path = pathfinder.find_nvidia_header_directory("cccl")
         narrow_prec_path = pathfinder.find_nvidia_header_directory("cudart")
         compiler_options = {
@@ -599,6 +571,7 @@ a UST backed by PyTorch storage."
             compiler_options=compiler_options,
             linker_options=linker_options,
         )
+        self._grid_iter = grid_iter
         self._with_indices = with_indices
 
     def _check_valid_kernel(self, *args, **kwargs):
@@ -615,22 +588,24 @@ a UST backed by PyTorch storage."
         """
 
         assert self._kernel is not None, "Internal error."
+        stream_holder = resolve_stream(stream, self)
 
-        parameters, size = populate_apply_parameters(self, self._with_indices)
-
-        package = self.val.__class__.name
-        device_id = self.val.device_id
-
-        stream_holder = utils.get_or_create_stream(device_id, stream, package)
-        launch_kernel(
-            self._kernel, parameters, problem_size=size, device_id=device_id, stream_holder=stream_holder, blocking=True
+        (grid, block), params = populate_apply_parameters(
+            self, self._with_indices, self._grid_iter, stream_holder=stream_holder
         )
 
-    def get_value(self, indices):
+        device_id = self._val.device_id
+        launch_kernel(self._kernel, grid, block, params, device_id=device_id, stream_holder=stream_holder)
+
+    def get_value(self, indices, stream=None):
         """
         Retrieve the value at specified indices (coordinate) or ``None`` if there is no
         value at that coordinate. This is *not* random access, and searches compressed
         levels.
+
+        Args:
+            indices: The logical dimension indices of the element to retrieve.
+            stream: {stream}
 
         Returns:
           ``tensor.get_value[i, j, k, ...]` returns the value of the element appearing at
@@ -642,11 +617,12 @@ a UST backed by PyTorch storage."
                 f"The number of indices specified {indices} doesn't match the number of \
 tensor dimensions {self.num_dimensions}."
             )
+        stream_holder = resolve_stream(stream, self)
+        with stream_context(stream_holder):
+            p = self._locate(list(self.tensor_format.levels.values()), self.tensor_format.dim2lvl(indices), 0, 0)
+            return p if p is None else self._val.tensor[p].item()
 
-        p = self._locate(list(self.tensor_format.levels.values()), self.tensor_format.dim2lvl(indices), 0, 0)
-        return p if p is None else self.val.tensor[p]
-
-    def draw(self, name=None):
+    def draw(self, name=None, stream=None):
         """
         Draws the tensor contents (for 1D, 2D, 3D). The method saves the constructed
         :class:`PIL.Image` in a file named `name` when name is not None. It always
@@ -657,6 +633,7 @@ tensor dimensions {self.num_dimensions}."
 
         Args:
             name: filename to save the image to, if not None
+            stream: {stream}
         Returns:
             PIL.Image, can be displayed with show()
 
@@ -676,9 +653,9 @@ tensor dimensions {self.num_dimensions}."
 
             >>> img = u.draw()  # doctest: +SKIP
         """
-        return draw_tensor(self, name)
+        return draw_tensor(self, name, stream=stream)
 
-    def draw_storage(self, name=None):
+    def draw_storage(self, name=None, stream=None):
         """
         Draws the tensor storage (for any UST). The method saves the constructed
         :class:`PIL.Image` in a file named `name` when name is not None. It always
@@ -689,6 +666,7 @@ tensor dimensions {self.num_dimensions}."
 
         Args:
             name: filename to save the image to, if not None
+            stream: {stream}
         Returns:
             PIL.Image, can be displayed with show()
 
@@ -708,9 +686,9 @@ tensor dimensions {self.num_dimensions}."
 
             >>> img = u.draw_storage()  # doctest: +SKIP
         """
-        return draw_tensor_storage(self, name)
+        return draw_tensor_storage(self, name, stream=stream)
 
-    def draw_raw(self, name=None):
+    def draw_raw(self, name=None, stream=None):
         """
         Draws the tensor nonzero structure (for 2D, 3D). The method saves the constructed
         :class:`PIL.Image` in a file named `name` when name is not None. It always
@@ -721,6 +699,7 @@ tensor dimensions {self.num_dimensions}."
 
         Args:
             name: filename to save the image to, if not None
+            stream: {stream}
         Returns:
             PIL.Image, can be displayed with show()
 
@@ -740,9 +719,9 @@ tensor dimensions {self.num_dimensions}."
 
             >>> img = u.draw_raw()  # doctest: +SKIP
         """
-        return draw_tensor_raw(self, name)
+        return draw_tensor_raw(self, name, stream=stream)
 
-    def animate(self, name=None):
+    def animate(self, name=None, stream=None):
         """
         Animates the tensor nonzero structure (for 3D). The method either saves the
         animated GIF in a file named `name` when name is not None, or otherwise
@@ -752,6 +731,7 @@ tensor dimensions {self.num_dimensions}."
 
         Args:
             name: filename to save the animated GIF to, if not None
+            stream: {stream}
         Returns:
             IPython.display.HTML, if name is None (to embed in other output)
 
@@ -771,7 +751,7 @@ tensor dimensions {self.num_dimensions}."
 
             >>> html = u.animate()  # doctest: +SKIP
         """
-        return animate_tensor(self, name)
+        return animate_tensor(self, name, stream=stream)
 
     @property
     def extents(self):
@@ -839,7 +819,8 @@ tensor dimensions {self.num_dimensions}."
         Args:
             level: An ordinal specifying the level.
         """
-        return self._pos.get(level, None)
+        holder = self._pos.get(level, None)
+        return None if holder is None else holder.tensor
 
     def crd(self, level):
         """
@@ -848,14 +829,15 @@ tensor dimensions {self.num_dimensions}."
         Args:
             level: An ordinal specifying the level.
         """
-        return self._crd.get(level, None)
+        holder = self._crd.get(level, None)
+        return None if holder is None else holder.tensor
 
     @property
     def val(self):
         """
         The explicit values stored in this UST object.
         """
-        return [] if self._val is None else self._val
+        return [] if self._val is None else self._val.tensor
 
     @property
     def device(self):
@@ -883,15 +865,15 @@ tensor dimensions {self.num_dimensions}."
         """
         Get the "package" tensor from which the UST view was created, if available.
         """
-        if self.wrapped_operand is not None:
-            return self.wrapped_operand.tensor
+        if self._wrapped_operand is not None:
+            return self._wrapped_operand.tensor
 
     @property
     def _dense_tensorholder_type(self):
         """
         (Internal use only) The tensor holder type for the wrapped dense tensors.
         """
-        return self.val.__class__
+        return self._val.__class__
 
     def __repr__(self):
         s = (
@@ -906,21 +888,19 @@ tensor dimensions {self.num_dimensions}."
         s += f"nse      : {self.nse}\n"
         data = 0
         for level in range(self.num_levels):
-            pos = self.pos(level)
+            pos = self._pos.get(level)
             if pos is None:
                 continue
-            pos = _convert_ndbuffer_perhaps(pos)
             s += f"pos[{level}]   : {_tensor_to_list(pos)} #{pos.size}\n"
             data += pos.size * pos.itemsize
         for level in range(self.num_levels):
-            crd = self.crd(level)
+            crd = self._crd.get(level)
             if crd is None:
                 continue
-            crd = _convert_ndbuffer_perhaps(crd)
             s += f"crd[{level}]   : {_tensor_to_list(crd)} #{crd.size}\n"
             data += crd.size * crd.itemsize
         if self.nse > 0:
-            val = self.val
+            val = self._val
             s += f"values   : {_tensor_to_list(val)} #{val.size}\n"
             data += val.size * val.itemsize
         s += f"data     : {data} bytes\n"
@@ -943,8 +923,8 @@ tensor dimensions {self.num_dimensions}."
             return self._locate(formats, lvls, level + 1, p * self.levels[level] + lvls[level])
         elif fmt == LevelFormat.COMPRESSED:
             unique = is_unique(prop)
-            pos = self.pos(level).tensor
-            crd = self.crd(level).tensor
+            pos = self._pos[level].tensor
+            crd = self._crd[level].tensor
             assert pos.ndim == crd.ndim
             adjust = 0
             if pos.ndim > 1:
@@ -960,21 +940,21 @@ tensor dimensions {self.num_dimensions}."
             lo = pos[p].item()
             hi = pos[p + 1].item()
             for i in range(lo, hi):
-                if crd[i] == lvls[level]:
+                if crd[i].item() == lvls[level]:
                     cpos = self._locate(formats, lvls, level + 1, i + adjust)
                     if unique:
                         return cpos  # always end scan (unique)
                     elif cpos is not None:
                         return cpos  # only end scan on success (non-unique)
         elif fmt == LevelFormat.SINGLETON:
-            crd = self.crd(level).tensor
+            crd = self._crd[level].tensor
             assert crd.ndim == 1
-            if crd[p] == lvls[level]:
+            if crd[p].item() == lvls[level]:
                 return self._locate(formats, lvls, level + 1, p)
         elif fmt == LevelFormat.DELTA:
             assert is_unique(prop)
-            pos = self.pos(level).tensor
-            crd = self.crd(level).tensor
+            pos = self._pos[level].tensor
+            crd = self._crd[level].tensor
             assert pos.ndim == 1 and crd.ndim == 1
             corig = 0
             lo = pos[p].item()
@@ -984,6 +964,15 @@ tensor dimensions {self.num_dimensions}."
                 if corig == lvls[level]:
                     return self._locate(formats, lvls, level + 1, i)
                 corig += 1
+        elif fmt == LevelFormat.STRUCTURED:
+            assert isinstance(prop, int)  # n is the property
+            crd = self._crd[level].tensor
+            assert crd.ndim == 1
+            lo = p * prop
+            hi = lo + prop
+            for i in range(lo, hi):
+                if crd[i] == lvls[level]:
+                    return self._locate(formats, lvls, level + 1, i)
         else:
             raise AssertionError(f"Unsupported: {fmt}")
         return None
@@ -1022,6 +1011,6 @@ tensor dimensions {self.num_dimensions}."
         ust = cls(operand.shape, tensor_format=tensor_format, index_type=index_type, dtype=dtype)
         ust._val = values
 
-        ust.wrapped_operand = operand
+        ust._wrapped_operand = operand
 
         return ust

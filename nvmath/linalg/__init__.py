@@ -23,6 +23,12 @@ from .generic import (
     matmul,
     matrix_qualifiers_dtype,
 )
+from .generic.solvermod import (
+    DirectSolver,
+    DirectSolverOptions,
+    InvalidDirectSolverState,
+    direct_solver,
+)
 
 __all__ = [
     "advanced",
@@ -33,11 +39,15 @@ __all__ = [
     "GeneralMatrixQualifier",
     "HermitianMatrixQualifier",
     "InvalidMatmulState",
+    "InvalidDirectSolverState",
+    "DirectSolver",
+    "DirectSolverOptions",
     "matmul",
     "Matmul",
     "MatmulOptions",
     "MatrixQualifier",
     "matrix_qualifiers_dtype",
+    "direct_solver",
     "SymmetricMatrixQualifier",
     "TriangularMatrixQualifier",
     "SideMode",

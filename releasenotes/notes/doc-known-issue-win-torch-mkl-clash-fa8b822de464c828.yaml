@@ -1,0 +1,32 @@
+---
+# Uncomment a section header and replace with your own note.
+#release_summary:
+#api:
+#  - Backward incompatible changes
+#features:
+#  - Non-breaking additions or performance improvements
+#dependencies:
+#  - Dependency change announcements
+#deprecations:
+#  - Announcements of deprecations
+#fixes:
+#  - Bug fixes only
+issues:
+#  - Known issues that are not yet fixed
+#security:
+#  - Non-breaking fixes of security issues
+#doc:
+#  - Notable documentation changes
+ - |
+   On Windows, if both ``torch`` and ``nvmath-python[cpu]`` are installed,
+   there may be two ``libiomp5md.dll`` files present in the environment:
+
+   * one shipped with ``torch``, and
+   * one coming from transitive dependency: ``nvmath-python[cpu] -> mkl -> intel_openmp``.
+
+   By default, OMP will terminate the program with an error when attempting to load both copies.
+   As a workaround, users can:
+
+   * set ``KMP_DUPLICATE_LIB_OK=TRUE`` environment variable to silence the error, or
+   * remove one of the ``libiomp5md.dll`` copies, for instance, by uninstalling
+     ``intel_openmp`` package (e.g. ``pip uninstall intel-openmp``).

@@ -12,18 +12,23 @@ Enums and constants
 .. autosummary::
    :toctree: generated/
 
-    AlgType
+
     ConfigParam
     cuDSSError
     DataParam
+    FactorizationAlg
     IndexBase
     Layout
+    MatchingAlg
     MatrixFormat
     MatrixType
     MatrixViewType
     OpType
     Phase
+    PivotEpsilonAlg
     PivotType
+    ReorderingAlg
+    SolveAlg
     Status
 
 Functions

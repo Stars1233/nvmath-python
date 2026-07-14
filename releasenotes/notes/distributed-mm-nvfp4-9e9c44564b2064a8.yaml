@@ -1,0 +1,11 @@
+---
+# Uncomment a section header and replace with your own note.
+#release_summary:
+features:
+#api:
+#deprecations:
+#fixes:
+#issues:
+#security:
+#doc:
+ - Support for NVFP4 in the distributed matrix multiplication API.

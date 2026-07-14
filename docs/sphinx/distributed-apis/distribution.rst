@@ -2,6 +2,8 @@
 Operand distribution
 ********************
 
+.. experimental:: module
+
 To perform distributed math operations with ``nvmath.distributed`` you must first
 specify how the operands are distributed across processes. nvmath-python supports
 multiple distribution types (Slab, Box, BlockCyclic, etc.) which we'll explain in
@@ -23,7 +25,9 @@ of the global array. See
 :ref:`Distribution, memory layout and transpose <distribution-mem-layout>` for more
 information.
 
-In the following we describe the available distribution types.
+In the following we describe the available distribution types, as well as the
+:ref:`Redistribute API <redistribute-overview>` to modify the distribution of an
+operand (by shuffling its data across processes).
 
 .. _distribution-slab:
 
@@ -114,11 +118,9 @@ Using the ``nvmath.distributed`` APIs, you can specify the above distribution li
 
 .. note::
 
-    Box is natively supported by cuFFTMp (:doc:`distributed FFT<fft/index>`
-    and :ref:`Reshape <distributed-reshape-overview>` APIs).
-    For further information, refer to the `cuFFTMp documentation
-    <https://docs.nvidia.com/cuda/cufftmp/usage/api_usage.html
-    #usage-with-custom-slabs-and-pencils-data-decompositions>`_.
+    Box is natively supported by cuFFTMp (:doc:`distributed FFT API <fft/index>`).
+    For further information, refer to the
+    :cufftmp_doc:`cuFFTMp documentation <usage/api_usage.html#usage-with-custom-slabs-and-pencils-data-decompositions>`.
 
 .. _distribution-block:
 
@@ -183,8 +185,8 @@ The above distribution can be specified like this:
     distribution = BlockCyclic(process_grid, (N, B))
 
 .. note::
-    Block distributions are natively supported by cuBLASMp
-    (:doc:`distributed matrix multiplication APIs<linalg/index>`).
+    Block distributions are natively supported by
+    :doc:`distributed dense linear algebra APIs<linalg/index>`.
 
 .. _distribution-block-non-cyclic:
 
@@ -216,8 +218,8 @@ The above distribution can be specified like this:
 
 
 .. note::
-    Block distributions are natively supported by cuBLASMp
-    (:doc:`distributed matrix multiplication APIs<linalg/index>`).
+    Block distributions are natively supported by
+    :doc:`distributed dense linear algebra APIs<linalg/index>`.
 
 .. tip::
     Slab and BlockNonCyclic are equivalent for uniform partition sizes.
@@ -249,6 +251,65 @@ If desired, you may do explicit conversion between distribution types. For examp
     distribution = BlockNonCyclic(process_grid)
     slab_distribution = distribution.to(Slab)
     print(slab_distribution)  # prints "Slab(partition_dim=1, ndim=2)"
+
+
+.. _redistribute-overview:
+
+Operand redistribution
+======================
+
+You can efficiently redistribute operands across multiple processes using
+the Redistribute APIs. Both stateless function-form APIs and stateful class-form APIs
+are provided:
+
+- function-form redistribute using :func:`nvmath.distributed.distribution.redistribute`.
+- stateful redistribute using :class:`nvmath.distributed.distribution.Redistribute`.
+
+Redistribute is a general-purpose API to change the distribution of operands
+from one distribution to another. It accepts any distribution type as long as it
+can be converted to a :ref:`distribution-box` distribution (this excludes BlockCyclic
+distribution with cycles). The redistribution is achieved by shuffling data between
+processes.
+
+Example
+-------
+
+Consider a matrix that is distributed column-wise on *two processes* (each
+process owning a contiguous chunk of columns). To redistribute the matrix row-wise:
+
+.. note::
+    To use the Redistribute APIs you need to
+    :ref:`initialize the distributed runtime <distributed-api-initialize>`
+    with the NVSHMEM communication backend.
+
+.. code-block:: python
+
+    from nvmath.distributed.distribution import Slab
+
+    # Get my process rank.
+    rank = nvmath.distributed.get_context().process_group.rank
+
+    # The global dimensions of the matrix are 4x4. The matrix is distributed
+    # column-wise, so each process has 4 rows and 2 columns.
+    global_shape = (4, 4)
+    local_shape = Slab.Y.shape(rank, (4, 4))
+
+    # Initialize the matrix on each process, as a NumPy ndarray (on the CPU).
+    a = np.zeros(local_shape) if rank == 0 else np.ones(local_shape)
+
+    # Redistribute returns a new operand with its own buffer.
+    b = nvmath.distributed.distribution.redistribute(a, Slab.Y, Slab.X)
+
+    # The result is a NumPy ndarray, distributed row-wise:
+    # [0] b:
+    # [[0. 0. 1. 1.]
+    #  [0. 0. 1. 1.]]
+    #
+    # [1] b:
+    # [[0. 0. 1. 1.]
+    #  [0. 0. 1. 1.]]
+    print(f"[{rank}] b:\n{b}")
+
 
 .. _distribution-mem-layout:
 
@@ -304,7 +365,7 @@ to convert the layout of your inputs. Two common ways to convert the layout are:
 .. seealso::
     See
     `distributed matmul examples
-    <https://github.com/NVIDIA/nvmath-python/tree/main/examples/ distributed/linalg/
+    <https://github.com/NVIDIA/nvmath-python/tree/main/examples/distributed/linalg/
     advanced/matmul>`_ for more examples showing the interaction between memory layout,
     transpose and distribution.
 
@@ -322,3 +383,11 @@ API Reference
    ProcessGrid
    BlockCyclic
    BlockNonCyclic
+   redistribute
+   Redistribute
+
+.. autosummary::
+   :toctree: generated/
+   :template: dataclass
+
+   RedistributeOptions

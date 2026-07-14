@@ -1,0 +1,14 @@
+---
+# Uncomment a section header and replace with your own note.
+#release_summary:
+#features:
+#api:
+#deprecations:
+#fixes:
+#issues:
+security:
+#doc:
+ - >
+  Added :meth:`~nvmath.linalg.advanced.Algorithm.from_numpy` and
+  :meth:`~nvmath.linalg.advanced.Algorithm.as_numpy` so that Matmul plans may be saved
+  without pickle.

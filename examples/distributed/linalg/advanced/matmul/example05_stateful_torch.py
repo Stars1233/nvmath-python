@@ -8,7 +8,7 @@ Stateful objects amortize the cost of preparation across multiple executions.
 
 The inputs as well as the result are PyTorch tensors on the GPU.
 
-The global operation performed in this example is: A.T @ B
+The global operation performed in this example is: a.T @ b
 
 $ mpiexec -n 4 python example05_stateful_torch.py
 """
@@ -50,15 +50,15 @@ with torch.cuda.device(device_id):
     b[:] = torch.rand(*b_shape, device="cuda")
 
 # Get a transposed view to obtain column-major memory layout. Note that this
-# also changes the distribution of a and b (see example01 for more information).
-a = a.T  # a is now (k, m) with row_wise_distribution
-b = b.T  # b is now (k, n) with row_wise_distribution
+# also changes the distribution of 'a' and 'b' (see example01 for more information).
+a = a.T  # 'a' is now (k, m) with row_wise_distribution
+b = b.T  # 'b' is now (k, n) with row_wise_distribution
 
-# Distribution of a, b and output.
+# Distribution of 'a', 'b' and output.
 distributions = [row_wise_distribution, row_wise_distribution, col_wise_distribution]
 
 qualifiers = np.zeros((3,), dtype=matrix_qualifiers_dtype)
-qualifiers[0]["is_transpose"] = True  # a is transposed
+qualifiers[0]["is_transpose"] = True  # 'a' is transposed
 
 # Use the stateful object as a context manager to automatically release resources.
 with nvmath.distributed.linalg.advanced.Matmul(a, b, distributions=distributions, qualifiers=qualifiers) as mm:

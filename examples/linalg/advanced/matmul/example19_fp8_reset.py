@@ -18,8 +18,8 @@ import nvmath
 m, n, k = 128, 256, 16
 a = torch.ones(m, k, device="cuda", dtype=torch.float8_e5m2)
 b = torch.ones(n, k, device="cuda", dtype=torch.float8_e4m3fn).T
-print(f"A = \n{a}")
-print(f"\nB = \n{b}")
+print(f"'a' = \n{a}")
+print(f"\n'b' = \n{b}")
 
 scales = {"a": 3, "b": 2, "d": 1}
 
@@ -31,16 +31,16 @@ with nvmath.linalg.advanced.Matmul(
 
     # Execute the multiplication and print the result
     result = mm.execute()
-    print(f"\nA (A scale: {scales['a']}) @ B (B scale: {scales['b']}) = (D scale: {scales['d']}) \n{result}")
+    print(f"\n'a' (scale: {scales['a']}) @ 'b' (scale: {scales['b']}) = 'd' (scale: {scales['d']}) \n{result}")
 
-    # Replace A with a matrix filled with 128 and adjust A and D scales.
-    # Note that since no new scale for B is specified, it will remain unchanged.
+    # Replace 'a' with a matrix filled with 128 and adjust 'a' and 'd' scales.
+    # Note that since no new scale for 'b' is specified, it will remain unchanged.
     new_a = torch.full((m, k), 128, device="cuda").type(torch.float8_e5m2)
-    print(f"\nnew A = \n{new_a}")
+    print(f"\nnew 'a' = \n{new_a}")
     new_a_scale = 1
     new_d_scale = 0.01
     mm.reset_operands(a=new_a, quantization_scales={"a": new_a_scale, "d": new_d_scale})
 
     # Execute the multiplication again and print the new result
     result2 = mm.execute()
-    print(f"\nA (A scale: {new_a_scale}) @ B (B scale: {scales['b']}) = (D scale: {new_d_scale}) \n{result2}")
+    print(f"\n'a' (scale: {new_a_scale}) @ 'b' (scale: {scales['b']}) = 'd' (scale: {new_d_scale}) \n{result2}")

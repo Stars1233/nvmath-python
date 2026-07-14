@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 #
-# This code was automatically generated with version 0.8.0, generator version 0.3.1.dev1303+g031f1197f. Do not modify it directly.
+# This code was automatically generated with version 0.8.0, generator version 0.3.1.dev1471+g7122059e9. Do not modify it directly.
 
 cimport cython  # NOQA
 from libc.stdint cimport int64_t
@@ -342,7 +342,6 @@ cpdef get_matmul_descriptor_attribute_dtype(int attr):
     return matmul_descriptor_attribute_sizes[attr]
 
 ###########################################################################
-
 
 cpdef matmul_descriptor_set_attribute(intptr_t matmul_desc, int attr, intptr_t buf, size_t size_in_bytes):
     """See `cublasMpMatmulDescriptorSetAttribute`."""

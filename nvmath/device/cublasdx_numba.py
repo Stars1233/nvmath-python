@@ -16,10 +16,9 @@ from numba.core.base import BaseContext
 from numba.core.errors import TypingError
 from numba.core.extending import models
 from numba.cuda.cudaimpl import lower_constant
-from numba.cuda.cudaimpl import registry as cuda_registry
 from numba.cuda.extending import intrinsic, overload, overload_method, typeof_impl
 from numba.cuda.models import StructModel, register_model
-from numba.extending import types, utils
+from numba.extending import types
 from numba.np import numpy_support
 
 from nvmath.device.common_cuda import get_default_code_type
@@ -64,64 +63,14 @@ from .cublasdx import (
     compile_blas_tile_pipeline_execute,
     compile_blas_tile_pipeline_init,
 )
-
-_BLAS_DEFINITION_ARGS = [
-    "size",
-    "precision",
-    "data_type",
-    "sm",
-    "block_size",
-    "block_dim",
-    "leading_dimension",
-    "transpose_mode",
-    "arrangement",
-    "function",
-    "execution",
-    "alignment",
-    "with_pipeline",
-    "enable_input_streaming",
-    "static_block_dim",
-]
-
-_BLAS_COMPILED_ARGS = [
-    "a_value_type",
-    "b_value_type",
-    "c_value_type",
-    # value_type, input_type, and output_type not included intentionally,
-    # because they are deprecated.
-    "a_dim",
-    "b_dim",
-    "c_dim",
-    "a_size",
-    "b_size",
-    "c_size",
-    "leading_dimension",
-    "shared_memory_size",
-    "max_threads_per_block",
-]
-
-_DEVICE_PIPELINE_DEFINITION_ARGS = [
-    "mm",
-    "pipeline_depth",
-    "a",
-    "b",
-]
-
-_DEVICE_PIPELINE_COMPILED_ARGS = [
-    "buffer_alignment",
-    "buffer_size",
-    "storage_bytes",
-    "storage_alignment",
-]
-
-_TILE_PIPELINE_DEFINITION_ARGS = [
-    "device_pipeline",
-]
-
-_TILE_PIPELINE_COMPILED_ARGS = [
-    "storage_bytes",
-    "storage_alignment",
-]
+from .cublasdx_backend import (
+    _BLAS_COMPILED_ARGS,
+    _BLAS_DEFINITION_ARGS,
+    _DEVICE_PIPELINE_COMPILED_ARGS,
+    _DEVICE_PIPELINE_DEFINITION_ARGS,
+    _TILE_PIPELINE_COMPILED_ARGS,
+    _TILE_PIPELINE_DEFINITION_ARGS,
+)
 
 
 class BlasType(types.Type):
@@ -169,9 +118,10 @@ class DevicePipelineType(types.Type):
         assert isinstance(pipeline, DevicePipeline)
         self._pipeline = pipeline
         MM_type = BlasType(pipeline.mm)
+
         attributes = [
-            f"a_layout=(dtype={pipeline.a.dtype},shape={pipeline.a.shape},strides={pipeline.a_strides})",
-            f"b_layout=(dtype={pipeline.b.dtype},shape={pipeline.b.shape},strides={pipeline.b_strides})",
+            f"a_layout=(dtype={pipeline._a_view.dtype},shape={pipeline._a_view.shape},strides={pipeline.a_strides})",
+            f"b_layout=(dtype={pipeline._b_view.dtype},shape={pipeline._b_view.shape},strides={pipeline.b_strides})",
             f"pipeline_depth={pipeline.pipeline_depth}",
             f"mm={MM_type}",
         ]
@@ -325,27 +275,20 @@ def _set_tile_pipeline_buffer(typingctx: typing.Context, tile_pipeline_type: Til
 def ol_blas_numba_execute(
     blas_numba: BlasType, _arg1, _arg2, _arg3, _arg4=None, _arg5=None, _arg6=None, _arg7=None, _arg8=None
 ):
-    return ol_blas_numba(blas_numba, _arg1, _arg2, _arg3, _arg4, _arg5, _arg6, _arg7, _arg8)
+    none_set = {None, types.Omitted(None), types.none}
 
-
-@overload_method(BlasType, "__call__", strict=False)
-def ol_blas_numba_call(blas_numba: BlasType, _arg1, _arg2, _arg3, _arg4=None, _arg5=None, _arg6=None, _arg7=None, _arg8=None):
-    return ol_blas_numba(blas_numba, _arg1, _arg2, _arg3, _arg4, _arg5, _arg6, _arg7, _arg8)
-
-
-def ol_blas_numba(blas_numba: BlasType, _arg1, _arg2, _arg3, _arg4=None, _arg5=None, _arg6=None, _arg7=None, _arg8=None):
-    none_set = {None, types.Omitted(None)}
+    # execute(a, b, c) -> tensors API with rmem accumulator
     if {_arg4, _arg5, _arg6, _arg7, _arg8} <= none_set:
-        return lambda _, a, b, c, _arg4=None, _arg5=None, _arg6=None, _arg7=None, _arg8=None: _bals_type___call__(_, a, b, c)
-    elif {_arg6, _arg7, _arg8} <= none_set:
-        return lambda _, alpha, a, b, beta, c, _arg6=None, _arg7=None, _arg8=None: _bals_type___call__(_, alpha, a, b, beta, c)
-    else:
-        return lambda _, alpha, a, lda, b, ldb, beta, c, ldc: _bals_type___call__(_, alpha, a, lda, b, ldb, beta, c, ldc)
+        return ol_blas_type_execute_tensors_rmem(blas_numba, _arg1, _arg2, _arg3)
 
+    # execute(alpha, a, b, beta, c) -> tensors API (smem) or plain arrays (static ld)
+    if {_arg6, _arg7, _arg8} <= none_set:
+        if isinstance(_arg2, OpaqueTensorType):
+            return ol_blas_type_execute_tensors_smem(blas_numba, _arg1, _arg2, _arg3, _arg4, _arg5)
+        return ol_blas_type_execute_basic(blas_numba, _arg1, _arg2, _arg3, _arg4, _arg5)
 
-# TODO: use overload_method when supported
-def _bals_type___call__(*args):
-    raise Exception("Stub for overloads")
+    # execute(alpha, a, lda, b, ldb, beta, c, ldc) -> plain arrays (dynamic ld)
+    return ol_blas_type_execute_ldabc(blas_numba, _arg1, _arg2, _arg3, _arg4, _arg5, _arg6, _arg7, _arg8)
 
 
 def assert_suggested_tensors(tensor_types: tuple[types.Type, ...]):
@@ -363,8 +306,7 @@ def assert_suggested_tensors(tensor_types: tuple[types.Type, ...]):
         raise TypingError("All tensors must be either suggested or not suggested at the same time.")
 
 
-@overload(_bals_type___call__, jit_options={"forceinline": True}, strict=False)
-def ol_blas_type___call___tensors_rmem(
+def ol_blas_type_execute_tensors_rmem(
     blas_numba: BlasType,
     a: OpaqueTensorType,
     b: OpaqueTensorType,
@@ -404,14 +346,13 @@ def ol_blas_type___call___tensors_rmem(
     lto = cuda.LTOIR(code.data)
     blas_device_func = declare_cabi_device(symbol, sig, link=lto)
 
-    def impl(_, a, b, c):
+    def impl(_, a, b, c, _arg4=None, _arg5=None, _arg6=None, _arg7=None, _arg8=None):
         blas_device_func(get_mathdx_tensor(a), get_mathdx_tensor(b), get_mathdx_tensor(c))
 
     return impl
 
 
-@overload(_bals_type___call__, jit_options={"forceinline": True}, strict=False)
-def ol_blas_type___call___tensors_smem(
+def ol_blas_type_execute_tensors_smem(
     blas_numba: BlasType,
     alpha: types.Number,
     a: OpaqueTensorType,
@@ -452,7 +393,7 @@ def ol_blas_type___call___tensors_smem(
 
     dtype = c.dtype
 
-    def impl(_, alpha, a, b, beta, c):
+    def impl(_, alpha, a, b, beta, c, _arg6=None, _arg7=None, _arg8=None):
         alpha_ptr = get_value_ptr(dtype(alpha))
         beta_ptr = get_value_ptr(dtype(beta))
 
@@ -461,8 +402,7 @@ def ol_blas_type___call___tensors_smem(
     return impl
 
 
-@overload(_bals_type___call__, jit_options={"forceinline": True}, strict=False)
-def ol_blas_type___call___basic(
+def ol_blas_type_execute_basic(
     blas_numba: BlasType,
     alpha: types.Number,
     a: types.Array,
@@ -496,7 +436,7 @@ def ol_blas_type___call___basic(
 
     blas_device_func = declare_cabi_device(symbol, sig, link=lto)
 
-    def impl(_, alpha, a, b, beta, c):
+    def impl(_, alpha, a, b, beta, c, _arg6=None, _arg7=None, _arg8=None):
         aptr = get_array_ptr(a)
         bptr = get_array_ptr(b)
         cptr = get_array_ptr(c)
@@ -508,8 +448,7 @@ def ol_blas_type___call___basic(
     return impl
 
 
-@overload(_bals_type___call__, jit_options={"forceinline": True}, strict=False)
-def ol_blas_type___call___ldabc(
+def ol_blas_type_execute_ldabc(
     blas_numba: BlasType,
     alpha: types.Number,
     a: types.Array,
@@ -562,23 +501,6 @@ def ol_blas_type___call___ldabc(
         blas_device_func(alpha, aptr, lda, bptr, ldb, beta, cptr, ldc)
 
     return impl
-
-
-# __call__ overload is not supported by numba, however adding this overload
-# kind of activates proper behaviour and works like magic.
-# Issue reference: https://github.com/numba/numba/issues/5885
-# TODO: remove once supported
-@cuda_registry.lower(BlasType, BlasType, types.VarArg(types.Any))
-def method_impl(context, builder, sig, args):
-    typing_context = context.typing_context
-    fnty = typing_context.resolve_value_type(ol_blas_numba_call)
-    sig = fnty.get_call_type(typing_context, sig.args, {})
-    sig = sig.replace(pysig=utils.pysignature(ol_blas_numba_call))
-
-    call = context.get_function(fnty, sig)
-    # Link dependent library
-    context.add_linking_libs(getattr(call, "libs", ()))
-    return call(builder, args)
 
 
 @overload(copy, jit_options={"forceinline": True}, strict=False)

@@ -21,8 +21,11 @@ class FFTOptions:
             ``'C2R'``, and ``'R2C'``. The default is ``'C2C'`` for complex input and
             ``'R2C'`` for real input.
 
-        reshape: Reshape the output distribution to the same slab distribution used by the
+        redistribute: Redistribute the output to the same slab distribution used by the
             input. This only applies when using a Slab distribution. The default is `True`.
+
+            .. versionchanged:: 1.0
+                The name of this option changed from ``reshape`` to ``redistribute``.
 
         last_axis_parity: For complex-to-real FFT (corresponding to ``fft_type='C2R'``),
             specify whether the global size of the last axis in the result should be even
@@ -47,7 +50,7 @@ class FFTOptions:
     """
 
     fft_type: Literal["C2C", "C2R", "R2C"] | None = None
-    reshape: bool = True
+    redistribute: bool = True
     last_axis_parity: Literal["even", "odd"] = "even"
     logger: Logger | None = None
     blocking: Literal[True, "auto"] = "auto"
@@ -57,8 +60,8 @@ class FFTOptions:
         if self.fft_type not in valid_fft_types:
             raise ValueError(f"The value specified for 'fft_type' must be one of {valid_fft_types}.")
 
-        if not isinstance(self.reshape, bool):
-            raise ValueError("The value specified for 'reshape' must be of type bool (True or False).")
+        if not isinstance(self.redistribute, bool):
+            raise ValueError("The value specified for 'redistribute' must be of type bool (True or False).")
 
         valid_last_axis_parity = ["even", "odd"]
         if self.last_axis_parity not in valid_last_axis_parity:

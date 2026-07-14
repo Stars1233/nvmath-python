@@ -4,6 +4,8 @@
 
 import functools
 
+from cuda.core import system
+
 import nvmath
 
 from .common_axes import (
@@ -15,12 +17,6 @@ from .common_axes import (
     OptFftType,
     ShapeKind,
 )
-
-try:
-    from cuda.core import system
-except ImportError:
-    from cuda.core.experimental import system
-
 
 framework_backend_support = {
     Framework.cupy: [MemBackend.cuda],
@@ -195,10 +191,7 @@ def multi_gpu_only(fn):
 
     @functools.wraps(fn)
     def inner(*args, **kwargs):
-        try:
-            dev_count = system.get_num_devices()
-        except AttributeError:
-            dev_count = system.num_devices
+        dev_count = system.get_num_devices()
         if dev_count < 2:
             pytest.skip(f"Test requires at least two gpus, got {dev_count}")
         else:

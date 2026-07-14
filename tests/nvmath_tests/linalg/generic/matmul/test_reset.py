@@ -10,6 +10,7 @@ import pytest
 
 import nvmath
 
+from ....helpers import assert_reset_to_none_behavior
 from ...utils import assert_tensors_equal, random_torch_complex, sample_matrix, skip_if_cublas_before
 from . import CUBLAS_AVAILABLE, NVPL_AVAILABLE
 
@@ -51,8 +52,10 @@ use_cuda_options = (
         # (False, False, False, True, True),
     ),
 )
-@pytest.mark.parametrize("reset_to_none", (True, False))
+@pytest.mark.parametrize("release_operands", (True, False))
 @pytest.mark.parametrize("use_cuda", use_cuda_options)
+@pytest.mark.parametrize("use_execute_unchecked", (False, True), ids=("execute", "execute_unchecked"))
+@pytest.mark.parametrize("reset_method", ("checked", "unchecked"))
 def test_reset(
     framework,
     dtype,
@@ -65,14 +68,27 @@ def test_reset(
     reset_beta,
     with_epilog,
     reset_epilog,
-    reset_to_none,
+    release_operands,
     use_cuda,
+    use_execute_unchecked,
+    reset_method,
 ):
     """
     Tests resetting particular operands
     """
     if not any((reset_a, reset_b, reset_c, reset_alpha, reset_beta, reset_epilog)):
         pytest.skip("No operand will be reset in this test")
+
+    # The branch below for "released + partial reset" calls mm.reset_operands(...)
+    # inside pytest.raises -- it never calls reset_operands_unchecked. Reason: only
+    # the checked path validates that all required operands are provided after
+    # release_operands(); the unchecked path waives that check by design and would
+    # not raise. So when (reset_method == "unchecked", release_operands, partial), the
+    # test body would run identical code to (reset_method == "checked", ...).
+    # Skipping keeps that combination from reporting as a separate, redundant variant.
+    all_operands_reset = reset_a and reset_b and (reset_c or not with_c) and (reset_epilog or not with_epilog)
+    if reset_method == "unchecked" and release_operands and not all_operands_reset:
+        pytest.skip("Redundant: post-release partial-reset rejection is checked-path-only.")
 
     m, n, k = 12, 34, 56
     a = sample_matrix(framework, dtype, (m, k), use_cuda)
@@ -93,17 +109,18 @@ def test_reset(
         matmul_kwargs["c"] = c
         matmul_kwargs["beta"] = beta
 
-    with nvmath.linalg.generic.Matmul(a, b, **matmul_kwargs) as mm:
+    with nvmath.linalg.Matmul(a, b, **matmul_kwargs) as mm:
         mm.plan()
+        do_execute = mm.execute_unchecked if use_execute_unchecked else mm.execute
 
         reference1 = a @ b * (alpha if with_alpha else 1)
         if with_c:
             reference1 += c * beta
 
-        result1 = mm.execute()
+        result1 = do_execute()
         assert_tensors_equal(result1, reference1)
 
-        if reset_to_none:
+        if release_operands:
             mm.release_operands()
 
         new_a = sample_matrix(framework, dtype, (m, k), use_cuda)
@@ -127,19 +144,21 @@ def test_reset(
         if reset_epilog:
             reset_kwargs["epilog_inputs"] = new_epilog_inputs
 
-        all_operands_reset = reset_a and reset_b and (reset_c or not with_c) and (reset_epilog or not with_epilog)
-        if reset_to_none and not all_operands_reset:
+        if release_operands and not all_operands_reset:
             with pytest.raises(ValueError):
                 mm.reset_operands(**reset_kwargs)
         else:
-            mm.reset_operands(**reset_kwargs)
+            if reset_method == "unchecked":
+                mm.reset_operands_unchecked(**reset_kwargs)
+            else:
+                mm.reset_operands(**reset_kwargs)
 
             reference2 = (new_a if reset_a else a) @ (new_b if reset_b else b)
             reference2 *= new_alpha if reset_alpha else alpha if with_alpha else 1
             if with_c:
                 reference2 += (new_c if reset_c else c) * (new_beta if reset_beta else beta)
 
-            result2 = mm.execute()
+            result2 = do_execute()
             assert_tensors_equal(result2, reference2)
 
 
@@ -182,7 +201,7 @@ def test_shape_mismatch(
     if with_epilog:
         skip_if_cublas_before(11501)  # Epilog inputs not fully supported
 
-    with nvmath.linalg.generic.Matmul(a, b, c=c, beta=2 if with_c else None) as mm:
+    with nvmath.linalg.Matmul(a, b, c=c, beta=2 if with_c else None) as mm:
         mm.plan()
         mm.execute()
 
@@ -238,7 +257,7 @@ def test_dtype_mismatch(
     if with_epilog:
         skip_if_cublas_before(11501)  # Epilog inputs not fully supported
 
-    with nvmath.linalg.generic.Matmul(a, b, c=c, beta=2 if with_c else None) as mm:
+    with nvmath.linalg.Matmul(a, b, c=c, beta=2 if with_c else None) as mm:
         mm.plan()
         mm.execute()
 
@@ -299,7 +318,7 @@ def test_framework_mismatch(
     if with_epilog:
         skip_if_cublas_before(11501)  # Epilog inputs not fully supported
 
-    with nvmath.linalg.generic.Matmul(a, b, c=c, beta=2 if with_c else None) as mm:
+    with nvmath.linalg.Matmul(a, b, c=c, beta=2 if with_c else None) as mm:
         mm.plan()
         mm.execute()
 
@@ -331,7 +350,7 @@ def test_layout_change(framework, dtype, ta, tb, tc, use_cuda):
     b = sample_matrix(framework, dtype, (k, n), use_cuda=use_cuda)
     c = sample_matrix(framework, dtype, (m, n), use_cuda=use_cuda)
 
-    with nvmath.linalg.generic.Matmul(a, b, c=c, beta=1) as mm:
+    with nvmath.linalg.Matmul(a, b, c=c, beta=1) as mm:
         mm.plan()
         result1 = mm.execute()
         assert_tensors_equal(result1, a @ b + c)
@@ -365,7 +384,7 @@ def test_conjugate_flag(b_conj_init, b_conj_reset, use_cuda):
     if b_conj_init:
         b = b.conj()
 
-    with nvmath.linalg.generic.Matmul(a, b, c=c, beta=1) as mm:
+    with nvmath.linalg.Matmul(a, b, c=c, beta=1) as mm:
         mm.plan()
         result1 = mm.execute()
         assert_tensors_equal(result1, a @ b + c)
@@ -376,3 +395,20 @@ def test_conjugate_flag(b_conj_init, b_conj_reset, use_cuda):
 
         with pytest.raises(ValueError):
             mm.reset_operands(b=b)
+
+
+@pytest.mark.parametrize("with_release", [False, True])
+def test_reset_operands_all_none(with_release):
+    """reset_operands() with all-None always raises ValueError.
+    See assert_reset_to_none_behavior."""
+    m, n, k = 8, 8, 8
+    a = sample_matrix("numpy/cupy", "float32", (m, k), use_cuda=True)
+    b = sample_matrix("numpy/cupy", "float32", (k, n), use_cuda=True)
+
+    with nvmath.linalg.Matmul(a, b) as mm:
+        mm.plan()
+        assert_reset_to_none_behavior(
+            with_release=with_release,
+            single_operand=False,
+            obj=mm,
+        )

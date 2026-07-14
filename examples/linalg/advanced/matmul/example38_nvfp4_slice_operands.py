@@ -25,32 +25,32 @@ device = "cuda"
 # In practice FP4 tensors come from a quantized model or a prior computation.
 # Here we create them from float32 ones using the helper function quantize_to_fp4
 # so the result is easy to verify.
-# For A, we use axis=-1 because the nvmath API requires A in row-major layout,
+# For 'a', we use axis=-1 because the nvmath API requires 'a' in row-major layout,
 # so packing is done row-wise, yielding: float (M, K) --> FP4 (M, K // 2).
-# For B, we use axis=-2 because B must be column-major, so packing is
+# For 'b', we use axis=-2 because 'b' must be column-major, so packing is
 # done column-wise, yielding: float (K, N) --> FP4 (K // 2, N).
 M_big, K_big, N_big = 256, 128, 256
 a_big = quantize_to_fp4(torch.ones(M_big, K_big, device=device, dtype=torch.float32), axis=-1)
 b_big = quantize_to_fp4(torch.ones(K_big, N_big, device=device, dtype=torch.float32), axis=-2)
 
-# Define the logical matmul we want: C(m, n) = A(m, k) @ B(k, n)
+# Define the logical matmul we want: c(m, n) = a(m, k) @ b(k, n)
 # Dimensions must satisfy nvmath requirements: multiples of 128 for unblocked
 # scaling, 64 for block-scaled.  Offsets must preserve 16-byte alignment.
 m, k, n = 128, 64, 128
 m_offset, k_offset, n_offset = 16, 32, 48
 
 # Derive packed indices for slicing
-# FP4 packs 2 values per byte along the contiguous axis, so both A and B
+# FP4 packs 2 values per byte along the contiguous axis, so both 'a' and 'b'
 # store the K dimension in packed form. k_off must be even in logical space
 k_packed = k // 2  # 32
 k_packed_offset = k_offset // 2  # 16
 
-# Slice A: shape (M_big, K_big//2), row-major.
-# A is packed along axis=-1, so only column indices need halving.
+# Slice 'a': shape (M_big, K_big//2), row-major.
+# 'a' is packed along axis=-1, so only column indices need halving.
 a = a_big[m_offset : m_offset + m, k_packed_offset : k_packed_offset + k_packed]
 
-# Slice B: shape (K_big//2, N_big), col-major.
-# B is packed along axis=-2, so only row indices need halving.
+# Slice 'b': shape (K_big//2, N_big), col-major.
+# 'b' is packed along axis=-2, so only row indices need halving.
 b = b_big[k_packed_offset : k_packed_offset + k_packed, n_offset : n_offset + n]
 
 # Block scales: one scale per 16 logical FP4 values along k.

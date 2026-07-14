@@ -2,6 +2,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+import importlib.util
 import os
 import tempfile
 from abc import abstractmethod
@@ -11,6 +12,9 @@ from typing import Any
 import numpy as np
 
 from .common_cuda import MAX_SUPPORTED_CC, MIN_SUPPORTED_CC, CodeType, ComputeCapability, get_current_device_cc
+
+_HAS_NUMBA = importlib.util.find_spec("numba.cuda") is not None
+_HAS_NUMBA_CUDA_MLIR = importlib.util.find_spec("numba_cuda_mlir") is not None
 
 __all__ = [
     "make_tensor",
@@ -25,8 +29,6 @@ __all__ = [
 ]
 
 SHARED_DEVICE_DOCSTRINGS = {
-    "compiler": "A string to specify the compiler for the device code, currently supports ``None`` (default) and ``'numba'``",
-    #
     "precision": """\
 The computation precision specified as a numpy float dtype, currently supports ``numpy.float16``, ``numpy.float32`` and
 ``numpy.float64``.""".replace("\n", " "),
@@ -67,15 +69,15 @@ def check_in(name, value, coll, format="{name} must be in {coll_str} ; got {name
         raise ValueError(msg)
 
 
-def check_not_in(name, value, coll, format="{name} must not be any of those value {coll_str} ; got {name} = {value}"):
+def check_not_in(name, value, coll, format="{name} must not be any of these values: {coll_str} ; got {name} = {value}"):
     if value in coll:
         coll_str = ", ".join(f'"{t}"' for t in coll)
         msg = format.format(name=name, value=value, coll_str=coll_str)
         raise ValueError(msg)
 
 
-def check_contains(set, key):
-    check_in("", key, set, "{arg} must be in {set}")
+def check_contains(coll, key):
+    check_in("", key, coll, "missing required key {value!r}; got keys {coll_str}")
 
 
 def parse_sm(sm: Any) -> ComputeCapability:
@@ -94,7 +96,7 @@ def check_sm(sm, library_name: str, var_name: str = "sm"):
     if not isinstance(sm, ComputeCapability):
         raise ValueError(f"{var_name} should be an instance of ComputeCapability ; got {var_name} = {sm}")
     if sm < MIN_SUPPORTED_CC:
-        raise RuntimeError(f"Minimal compute capability {MIN_SUPPORTED_CC} is required by {library_name}, got {sm}")
+        raise RuntimeError(f"Minimum compute capability {MIN_SUPPORTED_CC} is required by {library_name}, got {sm}")
     if sm > MAX_SUPPORTED_CC:
         raise RuntimeError(f"The maximum compute capability currently supported by device APIs is {MAX_SUPPORTED_CC}, got {sm}")
     if sm.minor < 0:
@@ -124,7 +126,7 @@ class Layout:
     Layout for the :py:class:`nvmath.device.OpaqueTensor`.
 
     .. note:: Do not create directly, use appropriate method from
-        :py:func:`nvmath.device.Matmul`. Refer to
+        :py:class:`nvmath.device.Matmul`. Refer to
         :cublasdx_doc:`api/other_tensors.html#imported-tensor-utilities`
         for guidance on which method to use.
     """
@@ -149,7 +151,7 @@ class Layout:
     def cosize(self) -> int:
         """
         Returns a distance from last element of a tensor to its first element.
-        It describes how many elements does the argument layout span.
+        It describes how many elements the argument layout spans.
 
         Refer to the cuBLASDx documentation for more details on how to use this attribute:
         :cublasdx_doc:`api/other_tensors.html#imported-tensor-utilities`
@@ -172,7 +174,7 @@ class OpaqueTensor:
     """
     Abstraction over the cuBLASDx tensor type (an alias of the CuTe tensor type).
     The CuTe tensor layout is powerful and supports layouts not provided by NumPy,
-    so this a bridge to add this functionality to Python.
+    so this is a bridge to add this functionality to Python.
 
     .. note:: Do not create directly, use :py:func:`nvmath.device.make_tensor`.
 
@@ -185,7 +187,7 @@ class OpaqueTensor:
     leading_dimension: int | None
 
     def __init__(self, *args):
-        raise RuntimeError("OpaqueTensor should not be called directly outside of a numba.cuda.jit(...) kernel.")
+        raise RuntimeError("OpaqueTensor should not be called directly outside of a jitted kernel.")
 
 
 def make_tensor(array: np.ndarray, layout: Layout) -> OpaqueTensor:
@@ -201,7 +203,7 @@ def make_tensor(array: np.ndarray, layout: Layout) -> OpaqueTensor:
     Refer to the cuBLASDx documentation for more details on how to use this function:
     :cublasdx_doc:`api/other_tensors.html#create-tensor-other-label`
     """
-    raise RuntimeError("make_tensor should not be called directly outside of a numba.cuda.jit(...) kernel.")
+    raise RuntimeError("make_tensor should not be called directly outside of a jitted kernel.")
 
 
 def make_fragment_like(tensor: OpaqueTensor, dtype) -> OpaqueTensor:
@@ -216,7 +218,7 @@ def make_fragment_like(tensor: OpaqueTensor, dtype) -> OpaqueTensor:
     Refer to the cuBLASDx documentation for more details on how to use this function:
     :cublasdx_doc:`api/other_tensors.html#imported-tensor-utilities`
     """
-    raise RuntimeError("make_fragment_like should not be called directly outside of a numba.cuda.jit(...) kernel.")
+    raise RuntimeError("make_fragment_like should not be called directly outside of a jitted kernel.")
 
 
 def axpby(alpha: float, x_tensor: OpaqueTensor, beta: float, y_tensor: OpaqueTensor) -> None:
@@ -233,7 +235,7 @@ def axpby(alpha: float, x_tensor: OpaqueTensor, beta: float, y_tensor: OpaqueTen
     Refer to the cuBLASDx documentation for more details on how to use this function:
     :cublasdx_doc:`api/other_tensors.html#imported-tensor-utilities`
     """
-    raise RuntimeError("axpby should not be called directly outside of a numba.cuda.jit(...) kernel.")
+    raise RuntimeError("axpby should not be called directly outside of a jitted kernel.")
 
 
 def copy(src: OpaqueTensor, dst: OpaqueTensor, alignment=None):
@@ -248,7 +250,7 @@ def copy(src: OpaqueTensor, dst: OpaqueTensor, alignment=None):
     Refer to the cuBLASDx documentation for more details on how to use this function:
     :cublasdx_doc:`api/other_tensors.html#cooperative-global-shared-copying`
     """
-    raise RuntimeError("copy should not be called directly outside of a numba.cuda.jit(...) kernel.")
+    raise RuntimeError("copy should not be called directly outside of a jitted kernel.")
 
 
 def copy_fragment(src: OpaqueTensor, dst: OpaqueTensor, alignment=None):
@@ -264,7 +266,7 @@ def copy_fragment(src: OpaqueTensor, dst: OpaqueTensor, alignment=None):
     Refer to the cuBLASDx documentation for more details on how to use this function:
     :cublasdx_doc:`api/other_tensors.html#copying-registers-tensors`
     """
-    raise RuntimeError("copy_fragment should not be called directly outside of a numba.cuda.jit(...) kernel.")
+    raise RuntimeError("copy_fragment should not be called directly outside of a jitted kernel.")
 
 
 def clear(arr: OpaqueTensor):
@@ -277,19 +279,19 @@ def clear(arr: OpaqueTensor):
     Refer to the cuBLASDx documentation for more details on how to use this function:
     :cublasdx_doc:`api/other_tensors.html#imported-tensor-utilities`
     """
-    raise RuntimeError("clear should not be called directly outside of a numba.cuda.jit(...) kernel.")
+    raise RuntimeError("clear should not be called directly outside of a jitted kernel.")
 
 
 def copy_wait():
     """
-    Creates synchronization point. It has to be called after :py:func:`nvmath.device.copy`
+    Creates a synchronization point. It has to be called after :py:func:`nvmath.device.copy`
     to ensure that the copy operation has completed before any subsequent
     operations are executed.
 
     Refer to the cuBLASDx documentation for more details on how to use this function:
     :cublasdx_doc:`api/other_tensors.html#cooperative-global-shared-copying`
     """
-    raise RuntimeError("copy_wait should not be called directly outside of a numba.cuda.jit(...) kernel.")
+    raise RuntimeError("copy_wait should not be called directly outside of a jitted kernel.")
 
 
 def check_positive_integer_sequence(arg, arg_name, min_len, max_len):

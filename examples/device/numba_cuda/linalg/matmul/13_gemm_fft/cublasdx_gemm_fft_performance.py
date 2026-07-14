@@ -1,0 +1,136 @@
+# Copyright (c) 2024-2026, NVIDIA CORPORATION & AFFILIATES. ALL RIGHTS RESERVED.
+#
+# SPDX-License-Identifier: Apache-2.0
+
+#
+# Mirrors https://github.com/NVIDIA/CUDALibrarySamples/blob/main/MathDx/cuBLASDx/13_gemm_fft/gemm_fft_performance.cu
+#
+
+import sys
+from pathlib import Path
+
+import cupy as cp
+import numpy as np
+from numba import cuda
+
+from nvmath.device import FFT, Matmul
+
+# Add parent directory to sys.path to access common libraries
+sys.path.append(str(Path(__file__).resolve().parents[4]))
+sys.path.append(str(Path(__file__).resolve().parents[3]))
+
+from common import random_complex  # type: ignore[misc, import-not-found]
+from common_cupy import time_cupy  # type: ignore[misc, import-not-found]
+from common_numba import load_to_shared, time_numba  # type: ignore[misc, import-not-found]
+
+
+@cuda.jit(device=True, forceinline=True)
+def nb_transform(x):
+    return x * x
+
+
+def main():
+    ncycles = 10
+    batch_size = 128 * 1024
+    m, n, k = 8, 8, 8
+
+    fft = FFT(
+        fft_type="c2c",
+        size=m * n,
+        precision=np.float32,
+        direction="forward",
+        elements_per_thread=2,
+        ffts_per_block=1,
+        execution="Block",
+    )
+
+    MM = Matmul(
+        size=(m, n, k),
+        precision=np.float32,
+        data_type="complex",
+        arrangement=("col_major", "col_major", "col_major"),
+        execution="Block",
+        block_dim=fft.block_dim,
+    )
+
+    shared_memory_size = max(MM.get_shared_storage_size(), fft.shared_memory_size)
+
+    @cuda.jit
+    def kernel(a, b, c, alpha, beta, output):
+        thread_data = cuda.local.array(shape=(fft.storage_size,), dtype=fft.value_type)
+        shared_mem = cuda.shared.array(shape=(0,), dtype=fft.value_type)
+
+        batch = cuda.blockIdx.x
+        local_fft_id = cuda.threadIdx.y
+        index = cuda.threadIdx.x
+
+        smem_a = shared_mem[0:]
+        smem_b = shared_mem[MM.a_size :]
+        smem_c = shared_mem[MM.a_size + MM.b_size :]
+        [lda, ldb, ldc] = MM.leading_dimension
+
+        # Load data
+        load_to_shared(a[batch, :, :], smem_a, MM.a_dim, lda)
+        load_to_shared(b[batch, :, :], smem_b, MM.b_dim, ldb)
+        load_to_shared(c[batch, :, :], smem_c, MM.c_dim, ldc)
+
+        cuda.syncthreads()
+
+        # Transform A
+        for i in range(cuda.threadIdx.x, MM.a_size, cuda.blockDim.x):
+            smem_a[i] = nb_transform(smem_a[i])
+
+        # Execute GEMM
+        MM.execute(alpha, smem_a, smem_b, beta, smem_c)
+
+        cuda.syncthreads()
+
+        # Load data into local array
+        index = local_fft_id * fft.ffts_per_block + cuda.threadIdx.x
+        for i in range(fft.elements_per_thread):
+            thread_data[i] = smem_c[index]
+            index += fft.stride
+
+        cuda.syncthreads()
+
+        # Execute FFT
+        fft.execute(thread_data, shared_mem)
+
+        # Transform and store data
+        index = local_fft_id * fft.ffts_per_block + cuda.threadIdx.x
+        for i in range(fft.elements_per_thread):
+            output[batch, index] = nb_transform(thread_data[i])
+            index += fft.stride
+
+    a = cp.array(random_complex((batch_size, *MM.a_dim), np.float32))
+    b = cp.array(random_complex((batch_size, *MM.b_dim), np.float32))
+    c = cp.array(random_complex((batch_size, *MM.c_dim), np.float32))
+    data_test = cp.zeros((batch_size, MM.c_dim[0] * MM.c_dim[1]), dtype=np.complex64)
+
+    alpha = 2.0 + 0j
+    beta = 3.0 + 0j
+    grid_dim = batch_size // fft.ffts_per_block
+    block_dim = fft.block_dim
+
+    kernel[grid_dim, block_dim, 0, shared_memory_size](a, b, c, alpha, beta, data_test)
+    cuda.synchronize()
+
+    def cp_kernel(a, b, c):
+        cp_transform = lambda x: cp.multiply(x, x)
+        abc = cp.swapaxes(alpha * cp.einsum("bik,bkj->bij", cp_transform(a), b) + beta * c, 1, 2).reshape((batch_size, -1))
+        return cp_transform(cp.fft.fft(abc, axis=-1))
+
+    data_ref = cp_kernel(a, b, c)
+
+    error = cp.linalg.norm(data_test - data_ref) / cp.linalg.norm(data_ref)
+    assert error < 1e-5
+
+    time_cp = time_cupy(cp_kernel, ncycles, a, b, c)
+    time_nb = time_numba(kernel, grid_dim, block_dim, shared_memory_size, ncycles, a, b, c, alpha, beta, data_test)
+
+    print(f"cupy average time: {time_cp} [ms]")
+    print(f"numba average time: {time_nb} [ms]")
+
+
+if __name__ == "__main__":
+    main()

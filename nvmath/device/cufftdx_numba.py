@@ -5,10 +5,9 @@
 from numba import cuda
 from numba.core import cgutils, typing
 from numba.cuda.cudaimpl import lower_constant
-from numba.cuda.cudaimpl import registry as cuda_registry
-from numba.cuda.extending import overload, overload_method, typeof_impl
+from numba.cuda.extending import overload_method, typeof_impl
 from numba.cuda.models import register_model
-from numba.extending import types, utils
+from numba.extending import types
 
 from nvmath.device.common_cuda import get_default_code_type
 from nvmath.device.cufftdx import FFT, compile_fft_execute
@@ -20,29 +19,7 @@ from .common_numba import (
     get_array_ptr,
     overload_type_attribute,
 )
-
-_FFT_DEFINITION_ARGS = [
-    "size",
-    "precision",
-    "fft_type",
-    "execution",
-    "sm",
-    "direction",
-    "ffts_per_block",
-    "elements_per_thread",
-    "real_fft_options",
-]
-
-_FFT_COMPILED_ARGS = [
-    "value_type",
-    "input_type",
-    "output_type",
-    "storage_size",
-    "shared_memory_size",
-    "stride",
-    "block_dim",
-    "implicit_type_batching",
-]
+from .cufftdx_backend import _FFT_COMPILED_ARGS, _FFT_DEFINITION_ARGS
 
 
 class FFTType(types.Type):
@@ -88,28 +65,12 @@ for attribute in _FFT_DEFINITION_ARGS + _FFT_COMPILED_ARGS:
 # https://github.com/numba/numba/issues/10143
 @overload_method(FFTType, "execute", jit_options={"forceinline": True}, strict=False)
 def ol_fft_numba_execute(fft_numba: FFTType, _arg1, _arg2=None):
-    return ol_fft_numba(fft_numba, _arg1, _arg2)
+    if _arg2 in {None, types.Omitted(None), types.none}:
+        return ol_fft_type_execute_rmem(fft_numba, _arg1)
+    return ol_fft_type_execute_smem(fft_numba, _arg1, _arg2)
 
 
-@overload_method(FFTType, "__call__", strict=False)
-def ol_fft_numba_call(fft_numba: FFTType, _arg1, _arg2=None):
-    return ol_fft_numba(fft_numba, _arg1, _arg2)
-
-
-def ol_fft_numba(fft_numba: FFTType, _arg1, _arg2=None):
-    if _arg2 in {None, types.Omitted(None)}:
-        return lambda _, smem, _arg2=None: _fft_type___call__(_, smem)
-    else:
-        return lambda _, thread_data, smem: _fft_type___call__(_, thread_data, smem)
-
-
-# TODO: use overload_method when supported
-def _fft_type___call__(*args):
-    raise Exception("Stub for overloads")
-
-
-@overload(_fft_type___call__, jit_options={"forceinline": True}, strict=False)
-def ol_fft_type___call___rmem(
+def ol_fft_type_execute_rmem(
     fft_numba: FFTType,
     thread_data: types.Array,
 ):
@@ -117,6 +78,7 @@ def ol_fft_type___call___rmem(
         return
     if not isinstance(thread_data, types.Array):
         return
+
     FFT = fft_numba.fft
     value_type = NUMBA_FE_TYPES_TO_NUMBA_IR[FFT.value_type]
     if thread_data.dtype != value_type:
@@ -133,15 +95,14 @@ def ol_fft_type___call___rmem(
     sig = types.void(types.CPointer(value_type))
     fft_device_func = declare_cabi_device(symbol, sig, link=lto)
 
-    def impl(_, thread_data):
+    def impl(_, thread_data, _arg2=None):
         tptr = get_array_ptr(thread_data)
         fft_device_func(tptr)
 
     return impl
 
 
-@overload(_fft_type___call__, jit_options={"forceinline": True}, strict=False)
-def ol_fft_type___call___smem(
+def ol_fft_type_execute_smem(
     fft_numba: FFTType,
     thread_data: types.Array,
     smem: types.Array,
@@ -177,20 +138,3 @@ def ol_fft_type___call___smem(
         fft_device_func(tptr, sptr)
 
     return impl
-
-
-# __call__ overload is not supported by numba, however adding this overload
-# kind of activates proper behaviour and works like magic.
-# Issue reference: https://github.com/numba/numba/issues/5885
-# TODO: remove once supported
-@cuda_registry.lower(FFTType, FFTType, types.VarArg(types.Any))
-def method_impl(context, builder, sig, args):
-    typing_context = context.typing_context
-    fnty = typing_context.resolve_value_type(ol_fft_numba_call)
-    sig = fnty.get_call_type(typing_context, sig.args, {})
-    sig = sig.replace(pysig=utils.pysignature(ol_fft_numba_call))
-
-    call = context.get_function(fnty, sig)
-    # Link dependent library
-    context.add_linking_libs(getattr(call, "libs", ()))
-    return call(builder, args)

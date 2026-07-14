@@ -37,7 +37,12 @@ class MatmulOptions:
 
     Attributes:
         inplace: Whether the matrix multiplication is performed in-place (operand C is
-            overwritten). The default is ``inplace=False``.
+            overwritten). The default is ``inplace=True`` when C is provided.
+
+            .. versionchanged:: 1.0
+                The ``inplace`` option is now enabled by default.
+
+            .. experimental:: attribute
 
         compute_type (nvmath.distributed.linalg.ComputeType): CUDA compute type. A suitable
             compute type will be selected if not specified.
@@ -84,7 +89,7 @@ class MatmulOptions:
        :class:`Matmul`, :func:`matmul`
     """
 
-    inplace: bool = False
+    inplace: bool = True
     compute_type: int | None = None
     scale_type: int | None = None
     result_type: int | None = None

@@ -1,0 +1,3 @@
+---
+api:
+  - Deprecated function ``get_mxfp8_scale_offset`` was removed. Use :func:`~nvmath.linalg.advanced.helpers.matmul.get_block_scale_offset` instead.

@@ -17,25 +17,17 @@ $ mpiexec -n 4 python example01_numpy_uneven_4p.py
 """
 
 import numpy as np
-
-try:
-    from cuda.core import system
-except ImportError:
-    from cuda.core.experimental import system
+from cuda.core import system
 from mpi4py import MPI
 
 import nvmath.distributed
 from nvmath.distributed.distribution import Slab
 
 # Initialize nvmath.distributed.
-try:
-    num_devices = system.get_num_devices()
-except AttributeError:
-    num_devices = system.num_devices
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 nranks = comm.Get_size()
-device_id = rank % num_devices
+device_id = rank % system.get_num_devices()
 nvmath.distributed.initialize(device_id, comm, backends=["nvshmem"])
 
 if nranks != 4:
@@ -67,8 +59,9 @@ a[:] = np.random.rand(*shape) + 1j * np.random.rand(*shape)
 
 # Forward FFT.
 # In this example, the forward FFT operand is distributed according to Slab.X distribution.
-# With reshape=False, the FFT result will be distributed according to Slab.Y distribution.
-b = nvmath.distributed.fft.fft(a, distribution=Slab.X, options={"reshape": False})
+# With redistribute=False, the FFT result will be distributed according to Slab.Y
+# distribution.
+b = nvmath.distributed.fft.fft(a, distribution=Slab.X, options={"redistribute": False})
 
 # Distributed FFT performs computations in-place. The result is stored in the same
 # buffer as operand a. Note, however, that operand b has a different shape (due
@@ -79,9 +72,9 @@ if rank == 0:
 
 # Inverse FFT.
 # Recall from previous transform that the inverse FFT operand is distributed according to
-# Slab.Y. With reshape=False, the inverse FFT result will be distributed according to
+# Slab.Y. With redistribute=False, the inverse FFT result will be distributed according to
 # Slab.X distribution.
-c = nvmath.distributed.fft.ifft(b, distribution=Slab.Y, options={"reshape": False})
+c = nvmath.distributed.fft.ifft(b, distribution=Slab.Y, options={"redistribute": False})
 
 # The shape of c is the same as a (due to Slab.X distribution). Once again, note that
 # a, b and c are sharing the same symmetric memory buffer (distributed FFT operations

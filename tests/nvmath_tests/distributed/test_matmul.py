@@ -13,6 +13,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+from cuda.core import Device, system
 
 import nvmath.distributed
 from nvmath.bindings import cublasLt, cublasMp
@@ -26,15 +27,17 @@ from nvmath.distributed.process_group import MPIProcessGroup, ReductionOp
 from nvmath.internal.tensor_wrapper import wrap_operand
 from nvmath.internal.typemaps import NAME_TO_DATA_TYPE, NAME_TO_DATA_WIDTH
 from nvmath.internal.utils import device_ctx, get_or_create_stream
-from nvmath.linalg.advanced.helpers.matmul import apply_mxfp8_scale
+from nvmath.linalg.advanced.helpers.matmul import (
+    BlockScalingFormat,
+    apply_mxfp8_scale,
+    expand_block_scale,
+    quantize_to_fp4,
+    unpack_fp4,
+)
 
-from ..helpers import check_freed_after
+from ..helpers import assert_reset_to_none_behavior, check_freed_after
+from ..linalg.advanced.matmul.fp4_utils import create_uniform_fp4_scales
 from .helpers import assert_close, gather_array, generate_random_data, process_group_broadcast, to_host
-
-try:
-    from cuda.core import Device, system
-except ImportError:
-    from cuda.core.experimental import Device, system
 
 package_name_to_package = {"numpy": np}
 
@@ -59,16 +62,14 @@ def nvmath_distributed(process_group):
     except ImportError:
         pass
 
-    try:
-        num_devices = system.get_num_devices()
-    except AttributeError:
-        num_devices = system.num_devices
-    device_id = process_group.rank % num_devices
-    # nvshmem is needed for distributed reshape operation (used by some tests).
+    device_id = process_group.rank % system.get_num_devices()
+    # nvshmem is needed for redistribute operation (used by some tests).
     backends = ["nvshmem", "nccl"] if process_group.nranks > 1 else ["nccl"]
     nvmath.distributed.initialize(device_id, process_group, backends=backends)
 
     yield
+
+    assert len(nvmath.distributed.linalg.advanced.matmulmod._grid_cache.buf_registrations) == 0
 
     nvmath.distributed.finalize()
 
@@ -191,7 +192,7 @@ def test_symmetric_memory(symmetric_memory, nvmath_distributed, check_symmetric_
         nvmath.distributed.free_symmetric_memory(a, b, d.tensor)
 
 
-@pytest.mark.parametrize("global_size", [32, 64, 48])
+@pytest.mark.parametrize("global_size", [32, 64, 48, 1024])
 def test_matmul_execute_sequence(global_size, nvmath_distributed, check_symmetric_memory_leaks):
     """Calculate A^4 where A is a square matrix, by creating and planning three separate
     matmuls, which then execute in sequence."""
@@ -210,17 +211,22 @@ def test_matmul_execute_sequence(global_size, nvmath_distributed, check_symmetri
     matrix_shape = (global_size // nranks, global_size)
 
     import cupy as cp
+    import nccl.core as nccl
 
     stream = get_or_create_stream(device_id, stream=None, op_package="cupy")
     with device_ctx(device_id):
-        a = cp.random.rand(*matrix_shape).astype(cp.float32)
-        a = cp.asfortranarray(a)
-        a_ = a.copy(order="F")
+        a = nccl.cupy.empty(matrix_shape, dtype=cp.float32, order="F")
+        a_ = nccl.cupy.empty(matrix_shape, dtype=cp.float32, order="F")
+        a[:] = cp.random.rand(*matrix_shape, dtype=cp.float32)
+        a_[:] = a[:]
 
     distributions = [Slab.X] * 3
     mm1 = nvmath.distributed.linalg.advanced.Matmul(a, a_, distributions=distributions)
     mm2 = nvmath.distributed.linalg.advanced.Matmul(a, a_, distributions=distributions)
     mm3 = nvmath.distributed.linalg.advanced.Matmul(a, a_, distributions=distributions)
+
+    grids_cpp = set(mm1.lib_process_grids)
+    b_ptr = a_.data.ptr
 
     mm1.plan()
     mm2.plan()
@@ -231,8 +237,15 @@ def test_matmul_execute_sequence(global_size, nvmath_distributed, check_symmetri
         a[:] = mm2.execute()
         d = mm3.execute()
 
-    for mm in (mm1, mm2, mm3):
+    buf_registrations = nvmath.distributed.linalg.advanced.matmulmod._grid_cache.buf_registrations
+
+    for i, mm in enumerate((mm1, mm2, mm3)):
+        for grid in grids_cpp:
+            assert buf_registrations[(b_ptr, grid)] == 3 - i
         mm.free()
+    # Since all Matmul objects share the same B operand, check that B's buffer is only
+    # deregistered when no longer referenced by any Matmul.
+    assert len(buf_registrations) == 0
 
     a_global = gather_array(to_host(dist_wrap_operand(a_), device_id, stream), 0, process_group, rank)
     result_global = gather_array(to_host(dist_wrap_operand(d), device_id, stream), 0, process_group, rank)
@@ -309,7 +322,14 @@ def skip_test_uniform_1d_distributions(
     input_C,
     inplace,
     epilog_AR,
+    reset_method,
+    register_B_with_nccl_symmetric_memory,
 ):
+    if input_memory_space == "cpu" and register_B_with_nccl_symmetric_memory:
+        # register_B_with_nccl_symmetric_memory doesn't apply with CPU operands
+        # because B is always registered in this case.
+        return True
+
     if inplace and not input_C:
         return True
 
@@ -326,6 +346,10 @@ def skip_test_uniform_1d_distributions(
     if package == "cupy" and input_memory_space != "gpu":
         return True  # cupy only supports GPU memory space
 
+    # Pin the unchecked path to a single size to keep the test matrix manageable.
+    if reset_method == "unchecked" and M_N_K != (64, 64, 64):
+        return True
+
 
 @pytest.mark.uncollect_if(func=skip_test_uniform_1d_distributions)
 @pytest.mark.parametrize("package", ["numpy", "cupy", "torch"])
@@ -339,6 +363,8 @@ def skip_test_uniform_1d_distributions(
 @pytest.mark.parametrize("input_C", [False, True])
 @pytest.mark.parametrize("inplace", [False, True])
 @pytest.mark.parametrize("epilog_AR", [False, True])
+@pytest.mark.parametrize("reset_method", ["checked", "unchecked"])
+@pytest.mark.parametrize("register_B_with_nccl_symmetric_memory", [False, True])
 def test_uniform_1d_distributions(
     package,
     input_memory_space,
@@ -351,6 +377,8 @@ def test_uniform_1d_distributions(
     input_C,
     inplace,
     epilog_AR,
+    reset_method,
+    register_B_with_nccl_symmetric_memory,
     nvmath_distributed,
     cublasmp_logfile_with_cleanup,
     check_symmetric_memory_leaks,
@@ -444,7 +472,7 @@ def test_uniform_1d_distributions(
 
     dtype = np.float32
 
-    def generate_random_matrix(shape, dtype, symmetric_memory=False):
+    def generate_random_matrix(shape, dtype, symmetric_memory=None):
         return generate_random_data(
             np if package != "torch" else pkg,
             input_memory_space,
@@ -456,7 +484,9 @@ def test_uniform_1d_distributions(
         )
 
     a_cpu, a = generate_random_matrix(A_shape, dtype)
-    b_cpu, b = generate_random_matrix(B_shape, dtype)
+    b_cpu, b = generate_random_matrix(
+        B_shape, dtype, symmetric_memory="nccl" if register_B_with_nccl_symmetric_memory else None
+    )
     if input_C:
         beta = 0.8
         c_cpu, c = generate_random_matrix(C_shape, dtype)
@@ -495,6 +525,10 @@ def test_uniform_1d_distributions(
         mm_count = 0
         MM_LIMIT = 2
         while True:
+            if input_memory_space == "cpu":
+                assert len(nvmath.distributed.linalg.advanced.matmulmod._grid_cache.buf_registrations) == len(
+                    set(mm.lib_process_grids)
+                )
             d = mm.execute()
             if inplace:
                 assert d is c.tensor
@@ -519,8 +553,8 @@ def test_uniform_1d_distributions(
                 free_symmetric_memory(b.tensor)
 
             if isinstance(distributions[0], BlockCyclic) and distributions[0].first_process != (0, 0):
-                # Reshape A to a BlockNonCyclic distribution with first_process=(0,0) before
-                # gathering.
+                # Redistribute A to a BlockNonCyclic distribution with first_process=(0,0)
+                # before gathering.
                 assert distributions[0].process_grid.shape == (nranks, 1)
                 assert distributions[0].first_process[0] > 0
                 rank_adjusted = (rank - distributions[0].first_process[0]) % nranks
@@ -534,7 +568,7 @@ def test_uniform_1d_distributions(
                 upper = (mb * rank + mb, nb)
                 output_box = Box(lower, upper)
 
-                a_cpu = nvmath.distributed.reshape.reshape(a_cpu.tensor, input_box, output_box)
+                a_cpu = nvmath.distributed.distribution.redistribute(a_cpu.tensor, input_box, output_box)
                 a_cpu = dist_wrap_operand(a_cpu)
 
             a_global = gather_array(a_cpu, 0 if A_distribution == "R" else 1, process_group, rank)
@@ -592,7 +626,9 @@ def test_uniform_1d_distributions(
 
             # Reset operands.
             a_cpu, a = generate_random_matrix(A_shape, dtype)
-            b_cpu, b = generate_random_matrix(B_shape, dtype)
+            b_cpu, b = generate_random_matrix(
+                B_shape, dtype, symmetric_memory="nccl" if register_B_with_nccl_symmetric_memory else None
+            )
             if input_C:
                 beta = 0.5
                 c_cpu, c = generate_random_matrix(C_shape, dtype)
@@ -605,7 +641,11 @@ def test_uniform_1d_distributions(
                         c.tensor[:] = 10.0 if rank == 0 else 0.0
             else:
                 beta = c_cpu = c = None
-            mm.reset_operands(a=a.tensor, b=b.tensor, c=c.tensor if c is not None else None, beta=beta)
+            reset_kwargs = {"a": a.tensor, "b": b.tensor, "c": c.tensor if c is not None else None, "beta": beta}
+            if reset_method == "unchecked":
+                mm.reset_operands_unchecked(**reset_kwargs)
+            else:
+                mm.reset_operands(**reset_kwargs)
 
 
 @pytest.mark.parametrize("M_N_K", [(64, 64, 64), (128, 96, 64), (64, 128, 64)])
@@ -670,6 +710,7 @@ def test_2d_block(
         beta=beta,
         distributions=[distribution] * 3,
         qualifiers=qualifiers,
+        options={"inplace": False},
     ) as mm:
         # Check that the global matrix sizes were inferred correctly.
         assert M == mm.mm_traits.M
@@ -684,12 +725,12 @@ def test_2d_block(
     mypcol = rank // nprow if process_grid.layout == ProcessGrid.Layout.COL_MAJOR else rank % npcol
 
     def gather_matrix(matrix, mb, nb, global_shape):
-        # Reshape matrix to 1D column-wise (partitioning on Y) to be able to gather it.
+        # Redistribute matrix to 1D column-wise (partitioning on Y) to be able to gather it.
         lower = (myprow * mb, mypcol * nb)
         upper = (lower[0] + mb, lower[1] + nb)
         input_box = Box(lower, upper)
         output_box = Box((0, global_shape[1] // nranks * rank), (global_shape[0], global_shape[1] // nranks * (rank + 1)))
-        matrix = nvmath.distributed.reshape.reshape(matrix, input_box, output_box)
+        matrix = nvmath.distributed.distribution.redistribute(matrix, input_box, output_box)
         # Gather matrix
         return gather_array(dist_wrap_operand(matrix), 1, process_group, rank)
 
@@ -829,23 +870,28 @@ def valid_matrix_dtypes():
     return [dt for dt in SUPPORTED_TYPES if dt != "complex32"]
 
 
-def is_invalid_compute_and_dtype_combination(compute_type, a_dtype, b_dtype, c_dtype, d_dtype, M_N_K, algo, inplace, mxfp8):
+def is_invalid_compute_and_dtype_combination(
+    compute_type, a_dtype, b_dtype, c_dtype, d_dtype, M_N_K, algo, inplace, block_scaling
+):
     assert all(dtype is not None for dtype in (a_dtype, b_dtype, d_dtype))
 
-    if mxfp8 and NAME_TO_DATA_WIDTH[a_dtype] != 8:
+    if block_scaling == "mxfp8" and NAME_TO_DATA_WIDTH[a_dtype] != 8:
         return True
 
-    if mxfp8 and all(x < 512 for x in M_N_K):
-        # MXFP8 requires matrix sizes for local GEMMs that are divisible by 128. Given the
-        # matrix sizes that test_dtypes tests for, the simplest way to guarantee this is
-        # is to only test MXFP8 with the larger sizes.
+    if (block_scaling == "nvfp4") ^ (NAME_TO_DATA_WIDTH[a_dtype] == 4):
+        return True
+
+    if block_scaling and all(x < 512 for x in M_N_K):
+        # NVFP4/MXFP8 requires matrix sizes for local GEMMs that are divisible by 128.
+        # Given the matrix sizes that test_dtypes tests for, the simplest way to
+        # guarantee this is is to only test NVFP4/MXFP8 with the larger sizes.
         return True
 
     d_dtype_bitwidth = NAME_TO_DATA_WIDTH[d_dtype]
 
     if c_dtype is not None:
-        if d_dtype_bitwidth == 8:
-            # if d_dtype is FP8 c_dtype must be FP16
+        if d_dtype_bitwidth <= 8:
+            # if d_dtype is FP4/FP8 c_dtype must be FP16
             if NAME_TO_DATA_WIDTH[c_dtype] != 16:
                 return True
         elif c_dtype != d_dtype:
@@ -891,12 +937,14 @@ def is_invalid_compute_and_dtype_combination(compute_type, a_dtype, b_dtype, c_d
     if compute_type in ("COMPUTE_32F", "COMPUTE_32F_PEDANTIC") and d_dtype_bitwidth == 64 and a_dtype == "float32":
         return True
 
-    if NAME_TO_DATA_WIDTH[a_dtype] != 8 and NAME_TO_DATA_WIDTH[b_dtype] != 8:
+    if NAME_TO_DATA_WIDTH[a_dtype] > 8 and NAME_TO_DATA_WIDTH[b_dtype] > 8:
         if a_dtype != b_dtype:
             return True
     else:
-        # FP8
+        # FP4/FP8
         if d_dtype == "float64" or d_dtype.startswith("complex"):
+            return True
+        if d_dtype == "float4_e2m1fn_x2" and a_dtype != "float4_e2m1fn_x2" and b_dtype != "float4_e2m1fn_x2":
             return True
         if d_dtype == "float8_e5m2" and a_dtype != "float8_e5m2" and b_dtype != "float8_e5m2":
             return True
@@ -907,7 +955,7 @@ def is_invalid_compute_and_dtype_combination(compute_type, a_dtype, b_dtype, c_d
         if a_dtype == "float8_e5m2" and b_dtype == "float8_e5m2":
             return True
 
-    if d_dtype_bitwidth == 8 and NAME_TO_DATA_WIDTH[a_dtype] != 8:
+    if d_dtype_bitwidth <= 8 and NAME_TO_DATA_WIDTH[a_dtype] != d_dtype_bitwidth:
         return True
 
     if NAME_TO_DATA_WIDTH[a_dtype] == 64 and (NAME_TO_DATA_WIDTH[b_dtype] != 64 or d_dtype_bitwidth != 64):
@@ -932,14 +980,14 @@ def is_invalid_compute_and_dtype_combination(compute_type, a_dtype, b_dtype, c_d
 @pytest.mark.parametrize("M_N_K", [(64, 64, 64), (128, 96, 64), (64, 128, 64), (512, 512, 512)])
 @pytest.mark.parametrize("algo", ["AG+GEMM", "GEMM+RS"])
 @pytest.mark.parametrize("inplace", [False, True])
-@pytest.mark.parametrize("mxfp8", [False, True])
+@pytest.mark.parametrize("block_scaling", [None, "mxfp8", "nvfp4"])
 def test_dtypes(
     compute_type,
     d_dtype,
     M_N_K,
     algo,
     inplace,
-    mxfp8,
+    block_scaling,
     nvmath_distributed,
     subtests,
 ):
@@ -951,8 +999,8 @@ def test_dtypes(
     nranks = process_group.nranks
     device_id = distributed_ctx.device_id
 
-    if nranks > 1 and mxfp8 and algo == "GEMM+RS" and cublasMp.get_version() == 800:
-        pytest.xfail("MXFP8 and GEMM+RS expected to fail with cuBLASMp 0.8 (fixed in >=0.8.1)")
+    if nranks > 1 and block_scaling and algo == "GEMM+RS" and cublasMp.get_version() == 800:
+        pytest.xfail("NVFP4/MXFP8 and GEMM+RS expected to fail with cuBLASMp 0.8 (fixed in >=0.8.1)")
 
     version = nvmath.bindings.cublasLt.get_version()
     if version < 120900 and compute_type == "COMPUTE_32F_EMULATED_16BFX9":
@@ -965,28 +1013,42 @@ def test_dtypes(
     if cublasMp.get_version() < 900 and compute_type == "COMPUTE_64F_EMULATED_FIXEDPOINT":
         pytest.skip("COMPUTE_64F_EMULATED_FIXEDPOINT is not supported in this version of cuBLASMp.")
 
-    if d_dtype == "float4_e2m1fn_x2":
-        pytest.skip("FP4 is not supported in distributed matmul")
-    torch_required = d_dtype in {"float8_e4m3fn", "float8_e5m2", "bfloat16"}
+    torch_required = d_dtype in {"float4_e2m1fn_x2", "float8_e4m3fn", "float8_e5m2", "bfloat16"}
     if torch_required and "torch" not in package_name_to_package:
         pytest.skip(f"torch is required for {d_dtype} but is not installed")
 
     cc = Device(device_id).compute_capability
     if NAME_TO_DATA_WIDTH[d_dtype] <= 8 and cc < (8, 9):
         pytest.skip("FP8 requires compute capability >= 8.9")
-    if mxfp8 and cc < (10, 0):
-        pytest.skip("MXFP8 requires compute capability >= 10.0")
+    if block_scaling and cc < (10, 0):
+        pytest.skip("MXFP8/NVFP4 requires compute capability >= 10.0")
+
+    if block_scaling:
+        m, n, k = M_N_K
+        if algo == "AG+GEMM" and m // nranks % 128 != 0:
+            pytest.skip(
+                f"{block_scaling} requires local M ({m // nranks}) to be a multiple of 128 for AG+GEMM (nranks={nranks})"
+            )
+        elif algo == "GEMM+RS":
+            b = 128 if block_scaling == "mxfp8" else 64
+            if k // nranks % b != 0:
+                pytest.skip(
+                    f"{block_scaling} requires local K ({k // nranks}) to be a multiple of {b} for GEMM+RS (nranks={nranks})"
+                )
 
     for a_dtype in valid_matrix_dtypes():
         for b_dtype in valid_matrix_dtypes():
             for c_dtype in [None] + valid_matrix_dtypes():
                 if is_invalid_compute_and_dtype_combination(
-                    compute_type, a_dtype, b_dtype, c_dtype, d_dtype, M_N_K, algo, inplace, mxfp8
+                    compute_type, a_dtype, b_dtype, c_dtype, d_dtype, M_N_K, algo, inplace, block_scaling
                 ):
                     continue
 
-                with subtests.test(msg=f"a_dtype={a_dtype} b_dtype={b_dtype} c_dtype={c_dtype}", i=(a_dtype, b_dtype, c_dtype)):
-                    run_test_dtypes(compute_type, a_dtype, b_dtype, c_dtype, d_dtype, M_N_K, algo, inplace, mxfp8)
+                with subtests.test(
+                    msg=f"a_dtype={a_dtype} b_dtype={b_dtype} c_dtype={c_dtype} d_dtype={d_dtype}",
+                    i=(a_dtype, b_dtype, c_dtype),
+                ):
+                    run_test_dtypes(compute_type, a_dtype, b_dtype, c_dtype, d_dtype, M_N_K, algo, inplace, block_scaling)
 
 
 def run_test_dtypes(
@@ -998,7 +1060,7 @@ def run_test_dtypes(
     M_N_K,
     algo,
     inplace,
-    mxfp8,
+    block_scaling,
 ):
     distributed_ctx = nvmath.distributed.get_context()
     process_group = distributed_ctx.process_group
@@ -1009,9 +1071,7 @@ def run_test_dtypes(
     compute_type = MatmulComputeType[compute_type]
     dtypes = (a_dtype, b_dtype, c_dtype, d_dtype)
 
-    if set(dtypes) & {"float4_e2m1fn_x2"}:
-        pytest.skip("FP4 is not supported in distributed matmul")
-    torch_required = set(dtypes) & {"float8_e4m3fn", "float8_e5m2", "bfloat16"}
+    torch_required = set(dtypes) & {"float4_e2m1fn_x2", "float8_e4m3fn", "float8_e5m2", "bfloat16"}
     if torch_required and "torch" not in package_name_to_package:
         pytest.skip(f"torch is required for one of {torch_required} but is not installed")
 
@@ -1054,22 +1114,35 @@ def run_test_dtypes(
 
         stream = get_or_create_stream(device_id, stream=None, op_package="torch")
         name_to_dtype = nvmath.internal.tensor_ifc_torch.TorchTensor.name_to_dtype
-        # transpose to get Fortran order
-        a = (torch.rand(*a_shape, device=f"cuda:{device_id}") * 10).type(name_to_dtype[a_dtype]).T
-        b = (torch.rand(*b_shape, device=f"cuda:{device_id}") * 10).type(name_to_dtype[b_dtype]).T
-        c = None
-        if c_dtype is not None:
-            c = (torch.rand(*c_shape, device=f"cuda:{device_id}") * 10).type(name_to_dtype[c_dtype]).T
-        if NAME_TO_DATA_WIDTH[a_dtype] == 8:
-            if mxfp8:
+        if NAME_TO_DATA_WIDTH[a_dtype] >= 8:
+            # Transpose to get Fortran order.
+            a = (torch.rand(*a_shape, device=f"cuda:{device_id}") * 10).type(name_to_dtype[a_dtype]).T
+            b = (torch.rand(*b_shape, device=f"cuda:{device_id}") * 10).type(name_to_dtype[b_dtype]).T
+        else:
+            a = torch.rand(*a_shape, device=f"cuda:{device_id}", dtype=torch.float32) * 5
+            b = torch.rand(*b_shape, device=f"cuda:{device_id}", dtype=torch.float32) * 5
+            a = quantize_to_fp4(a, axis=-1).T
+            b = quantize_to_fp4(b, axis=-1).T
+
+        if NAME_TO_DATA_WIDTH[a_dtype] <= 8:
+            if block_scaling == "mxfp8":
                 scales = {
                     "a": nvmath.linalg.advanced.helpers.matmul.create_mxfp8_scale(a, -1),  # 2^-1 = 0.5
                     "b": nvmath.linalg.advanced.helpers.matmul.create_mxfp8_scale(b, -1),  # 2^-1 = 0.5
+                }
+            elif block_scaling == "nvfp4":
+                scales = {
+                    "a": create_uniform_fp4_scales(a, 1.0, device=f"cuda:{device_id}"),
+                    "b": create_uniform_fp4_scales(b, 0.5, device=f"cuda:{device_id}"),
                 }
             else:
                 scales = {"a": 0.8, "b": 0.9}
                 if NAME_TO_DATA_WIDTH[d_dtype] == 8:
                     scales["d"] = 0.1
+
+        c = None
+        if c_dtype is not None:
+            c = (torch.rand(*c_shape, device=f"cuda:{device_id}") * 10).type(name_to_dtype[c_dtype]).T
         c_orig = c
         if inplace:
             # Need to make a copy to compare with cuBLASLt.
@@ -1104,9 +1177,9 @@ def run_test_dtypes(
         "compute_type": compute_type,
         "result_type": NAME_TO_DATA_TYPE[d_dtype],
         "inplace": inplace,
-        "block_scaling": mxfp8,
+        "block_scaling": block_scaling is not None,
     }
-    if NAME_TO_DATA_WIDTH[d_dtype] <= 8 and not mxfp8:
+    if NAME_TO_DATA_WIDTH[d_dtype] <= 8 and block_scaling is None:
         options["result_amax"] = True
     qualifiers = np.zeros((3,), dtype=matrix_qualifiers_dtype)
     if "complex" in a_dtype:
@@ -1131,9 +1204,17 @@ def run_test_dtypes(
             process_group.allreduce_buffer(result_amax, op=ReductionOp.MAX)
             aux_global["result_amax"] = float(result_amax[0])
 
-    if mxfp8 and NAME_TO_DATA_WIDTH[d_dtype] <= 8:
+    if block_scaling == "mxfp8" and NAME_TO_DATA_WIDTH[d_dtype] == 8:
         # Apply the d_out scales.
         d = apply_mxfp8_scale(d, aux["d_out_scale"], output_dtype=torch.float32)
+
+    if block_scaling == "nvfp4" and NAME_TO_DATA_WIDTH[d_dtype] == 4:
+        # Apply the d_out scales.
+        d = unpack_fp4(d, axis=-2)
+        expanded_scales = expand_block_scale(
+            aux["d_out_scale"], d, BlockScalingFormat.NVFP4, axis=-2, output_dtype=torch.float64
+        )
+        d = (d.type(torch.float64) * expanded_scales).type(torch.float32)
 
     if inplace:
         assert d is c
@@ -1143,7 +1224,7 @@ def run_test_dtypes(
     b = dist_wrap_operand(b)
     d = dist_wrap_operand(d)
     assert d.shape == distributions[2].shape(rank, (m, n))
-    if mxfp8 and NAME_TO_DATA_WIDTH[d_dtype] <= 8:
+    if block_scaling and NAME_TO_DATA_WIDTH[d_dtype] <= 8:
         assert d.dtype == "float32"  # scales were applied above to convert to FP32
     else:
         assert d.dtype == d_dtype
@@ -1160,22 +1241,35 @@ def run_test_dtypes(
                 to_host(dist_wrap_operand(c_orig), device_id, stream), distributions[2].partition_dim, process_group, rank
             )
     else:
+        # Unpack prior to gathering, to avoid issues with unsupported dtype operations
+        # in gather (e.g. for example torch doesn't implement copy_)
+        a_unpacked = unpack_fp4(a.tensor, axis=-2) if NAME_TO_DATA_WIDTH[a_dtype] == 4 else a.tensor
         a_global = gather_array(
-            to_host(dist_wrap_operand(a.tensor.T), device_id, stream), 1 - distributions[0].partition_dim, process_group, rank
+            to_host(dist_wrap_operand(a_unpacked.T), device_id, stream), 1 - distributions[0].partition_dim, process_group, rank
         )
+        if NAME_TO_DATA_WIDTH[a_dtype] == 4 and rank == 0:
+            a_global = wrap_operand(quantize_to_fp4(a_global.tensor, axis=-1))
         if c is not None:
             c_global = gather_array(
                 to_host(dist_wrap_operand(c_orig.T), device_id, stream), 1 - distributions[2].partition_dim, process_group, rank
             )
+    b_unpacked = unpack_fp4(b.tensor, axis=-2) if NAME_TO_DATA_WIDTH[b_dtype] == 4 else b.tensor
     b_global = gather_array(
-        to_host(dist_wrap_operand(b.tensor.T), device_id, stream), 1 - distributions[1].partition_dim, process_group, rank
+        to_host(dist_wrap_operand(b_unpacked.T), device_id, stream), 1 - distributions[1].partition_dim, process_group, rank
     )
+    if NAME_TO_DATA_WIDTH[b_dtype] == 4 and rank == 0:
+        b_global = wrap_operand(quantize_to_fp4(b_global.tensor, axis=-1))
     d_global = gather_array(to_host(d, device_id, stream), distributions[2].partition_dim, process_group, rank)
     if rank == 0:
-        if mxfp8:
+        if block_scaling == "mxfp8":
             scales_global = {
                 "a": nvmath.linalg.advanced.helpers.matmul.create_mxfp8_scale(a_global.tensor, -1),  # 2^-1 = 0.5
                 "b": nvmath.linalg.advanced.helpers.matmul.create_mxfp8_scale(b_global.tensor, -1),  # 2^-1 = 0.5
+            }
+        elif block_scaling == "nvfp4":
+            scales_global = {
+                "a": create_uniform_fp4_scales(a_global.tensor, 1.0, device="cpu"),
+                "b": create_uniform_fp4_scales(b_global.tensor.T, 0.5, device="cpu"),
             }
         else:
             scales_global = scales
@@ -1191,6 +1285,17 @@ def run_test_dtypes(
                 # C is provided.
                 beta = 1.0
                 c = np.zeros((m, n), dtype=name_to_dtype[d_dtype])
+        if d_dtype == "float4_e2m1fn_x2":
+            # If d_dtype is FP4, we have to compare with the FP32 reference instead of
+            # cuBLASLt FP4 output. The FP4 output of cuBLASMp and cuBLASLt won't match,
+            # even after applying the d_out scales, because cuBLASMp outputs in
+            # column-major while nvmath-python cuBLASLt API outputs in row-major, so
+            # the d_out scales are generated in a different dimension. This, combined
+            # with the limited range of FP4 means that the error of the cuBLASMp and
+            # cuBLASLt outputs wrt FP32 reference are different.
+            options = options | {"result_type": NAME_TO_DATA_TYPE["float32"]}
+            if c is not None:
+                c = c.type(torch.float32)
         single_gpu_result = nvmath.linalg.advanced.matmul(
             a_global.tensor if "complex" not in a_dtype else a_global.tensor.T,
             b_global.tensor.T,
@@ -1204,7 +1309,7 @@ def run_test_dtypes(
         if isinstance(single_gpu_result, Sequence) and len(single_gpu_result) == 2:
             single_gpu_result, single_gpu_aux = single_gpu_result
 
-        if mxfp8 and NAME_TO_DATA_WIDTH[d_dtype] <= 8:
+        if block_scaling == "mxfp8" and NAME_TO_DATA_WIDTH[d_dtype] == 8:
             # Apply the d_out scales.
             single_gpu_result = apply_mxfp8_scale(single_gpu_result, single_gpu_aux["d_out_scale"], output_dtype=torch.float32)
 
@@ -1219,7 +1324,9 @@ def run_test_dtypes(
                 assert math.isclose(
                     aux_global["result_amax"], single_gpu_aux["result_amax"].item(), rel_tol=1e-3, abs_tol=1e-3
                 ), "amax doesn't match cuBLASLt"
-            if NAME_TO_DATA_WIDTH[a_global.dtype] <= 16:
+            if NAME_TO_DATA_WIDTH[a_global.dtype] <= 4:
+                rtol, atol = 2e-1, 1
+            elif NAME_TO_DATA_WIDTH[a_global.dtype] <= 16:
                 rtol, atol = 1e-1, 1
                 if algo == "GEMM+RS" and nranks > 1:
                     # We compare distributed results with single-GPU cuBLASLt results, and
@@ -1315,12 +1422,13 @@ def skip_test_epilogues(M_N_K, transA, transB, algo, epilogue, fp8):
     if "BGRAD" in epilogue and fp8:
         # Not supported by cuBLAS
         return True
+    if "DRELU" in epilogue and fp8:
+        # Not supported by cuBLAS
+        return True
     if epilogue == "DEFAULT":
         return True
     if epilogue == "ALLREDUCE":
         return True  # ALLREDUCE is tested in test_uniform_1d_distributions
-    if epilogue in ("DRELU", "DRELU_BGRAD"):
-        return True  # cuBLASMp currently doesn't support this.
     if "BGRADA" in epilogue and transA:
         # CUBLASLT_EPILOGUE_BGRADA only works with non-transposed A.
         return True
@@ -1362,9 +1470,8 @@ def test_epilogues(
         pytest.skip("RELU_AUX tests require MPI")
 
     m, n, k = M_N_K
-    assert m % nranks == 0
-    assert n % nranks == 0
-    assert k % nranks == 0
+    if m % nranks != 0 or n % nranks != 0 or k % nranks != 0:
+        pytest.skip(f"M_N_K={M_N_K} dimensions not divisible by nranks={nranks}")
 
     if fp8 and "torch" not in package_name_to_package:
         pytest.skip("torch is required for FP8 but is not installed")
@@ -1440,6 +1547,17 @@ def test_epilogues(
         if fp8:
             dummy_dgelu_input = (torch.as_tensor(dummy_dgelu_input) * 10).type(dtype)
         epilog_inputs = {"gelu_aux": dummy_dgelu_input}
+    elif "DRELU" in epilogue.name:
+        local_m = distributions[2].shape(rank, (m, n))[0]
+        if local_m % 8 != 0:
+            pytest.skip(f"This test doesn't support local m ({local_m}) not divisible by 8 for DRELU epilogue.")
+        relu_local_shape = relu_aux_mm_shape(*distributions[2].shape(rank, (m, n)))
+        with device_ctx(device_id):
+            dummy_drelu_input_bitmask = cp.random.randint(0, 256, size=math.prod(relu_local_shape), dtype=cp.uint8).reshape(
+                relu_local_shape
+            )
+            dummy_drelu_input_bitmask = cp.asfortranarray(dummy_drelu_input_bitmask)
+        epilog_inputs = {"relu_aux": dummy_drelu_input_bitmask}
 
     qualifiers = np.zeros((3,), dtype=matrix_qualifiers_dtype)
     qualifiers[0]["is_transpose"] = transA
@@ -1490,6 +1608,21 @@ def test_epilogues(
             epilog_inputs["gelu_aux"] = np.asfortranarray(dgelu_input_global.tensor)
             epilog_inputs["gelu_aux"] = np.pad(
                 epilog_inputs["gelu_aux"], ((0, gelu_aux_mm_shape(m, n)[0] - m), (0, 0)), mode="constant", constant_values=0
+            )
+
+    if "DRELU" in epilogue.name:
+        drelu_input = to_host(wrap_operand(epilog_inputs["relu_aux"]), device_id, stream)
+        # remove padding from drelu_input if any
+        local_m = distributions[2].shape(rank, (m, n))[0] // 8
+        drelu_input = drelu_input.tensor[:local_m, :]
+        drelu_input_global = gather_array(dist_wrap_operand(drelu_input), distributions[2].partition_dim, process_group, rank)
+        if rank == 0:
+            epilog_inputs["relu_aux"] = np.asfortranarray(drelu_input_global.tensor)
+            epilog_inputs["relu_aux"] = np.pad(
+                epilog_inputs["relu_aux"],
+                ((0, relu_aux_mm_shape(m, n)[0] - (m // 8)), (0, 0)),
+                mode="constant",
+                constant_values=0,
             )
 
     if "RELU_AUX" in epilogue.name:
@@ -1663,6 +1796,7 @@ def test_release_operands_refcount(input_memory_space, with_c, nvmath_distribute
         c=c,
         beta=1.0 if with_c else None,
         distributions=[Slab.X] * 3,
+        options={"inplace": False},
     )
     mm.plan()
     result = mm.execute()
@@ -1749,12 +1883,19 @@ def test_release_operands_then_execute_fails(nvmath_distributed):
     mm.free()
 
 
-def test_release_operands_then_reset_works(nvmath_distributed):
+@pytest.mark.parametrize("reset_method", ["checked", "unchecked"])
+@pytest.mark.parametrize("package", ["cupy", "numpy"])
+@pytest.mark.parametrize("release_first", [True, False], ids=["after_release", "without_release"])
+def test_reset_operands(nvmath_distributed, reset_method, package, release_first):
     """
-    Test that reset_operands() restores functionality after release_operands().
-    """
-    cp = pytest.importorskip("cupy")
+    Test that reset_operands() / reset_operands_unchecked() works for both
+    CPU and GPU operands, with and without a prior release_operands() call.
 
+    The without_release + numpy + unchecked combination specifically exercises
+    the code path where the CPU branch in reset_operands_unchecked_impl must
+    preserve DistributedTensor wrappers (via copy_) so that
+    _set_result_sheap_flag can access is_symmetric_memory.
+    """
     distributed_ctx = nvmath.distributed.get_context()
     nranks = distributed_ctx.process_group.nranks
     device_id = distributed_ctx.device_id
@@ -1766,18 +1907,57 @@ def test_release_operands_then_reset_works(nvmath_distributed):
     n = 128
     local_shape = (n // nranks, n)
 
-    with device_ctx(device_id):
-        a = cp.asfortranarray(cp.random.rand(*local_shape), dtype=cp.float32)
-        b = cp.asfortranarray(cp.random.rand(*local_shape), dtype=cp.float32)
-        a_new = cp.asfortranarray(cp.random.rand(*local_shape), dtype=cp.float32)
-        b_new = cp.asfortranarray(cp.random.rand(*local_shape), dtype=cp.float32)
+    if package == "cupy":
+        cp = pytest.importorskip("cupy")
+        with device_ctx(device_id):
+            a = cp.asfortranarray(cp.random.rand(*local_shape), dtype=cp.float32)
+            b = cp.asfortranarray(cp.random.rand(*local_shape), dtype=cp.float32)
+            a_new = cp.asfortranarray(cp.random.rand(*local_shape), dtype=cp.float32)
+            b_new = cp.asfortranarray(cp.random.rand(*local_shape), dtype=cp.float32)
+    else:
+        a = np.asfortranarray(np.random.rand(*local_shape).astype(np.float32))
+        b = np.asfortranarray(np.random.rand(*local_shape).astype(np.float32))
+        a_new = np.asfortranarray(np.random.rand(*local_shape).astype(np.float32))
+        b_new = np.asfortranarray(np.random.rand(*local_shape).astype(np.float32))
 
     mm = nvmath.distributed.linalg.advanced.Matmul(a, b, distributions=[Slab.X] * 3)
     mm.plan()
     _ = mm.execute()
-    mm.release_operands()
-    mm.reset_operands(a=a_new, b=b_new)
+    if release_first:
+        mm.release_operands()
+    if reset_method == "unchecked":
+        mm.reset_operands_unchecked(a=a_new, b=b_new)
+    else:
+        mm.reset_operands(a=a_new, b=b_new)
     result = mm.execute()
     assert result is not None
 
     mm.free()
+
+
+@pytest.mark.parametrize("with_release", [False, True], ids=["without_release", "after_release"])
+def test_reset_operands_all_none(nvmath_distributed, with_release):
+    """reset_operands() with all-None always raises ValueError.
+    See assert_reset_to_none_behavior."""
+    cp = pytest.importorskip("cupy")
+    distributed_ctx = nvmath.distributed.get_context()
+    nranks = distributed_ctx.process_group.nranks
+    device_id = distributed_ctx.device_id
+
+    valid_nranks = (1, 4)
+    if nranks not in valid_nranks:
+        pytest.skip(f"This test needs nranks in {valid_nranks}")
+
+    n = 128
+    local_shape = (n // nranks, n)
+    with device_ctx(device_id):
+        a = cp.asfortranarray(cp.random.rand(*local_shape), dtype=cp.float32)
+        b = cp.asfortranarray(cp.random.rand(*local_shape), dtype=cp.float32)
+
+    with nvmath.distributed.linalg.advanced.Matmul(a, b, distributions=[Slab.X] * 3) as mm:
+        mm.plan()
+        assert_reset_to_none_behavior(
+            with_release=with_release,
+            single_operand=False,
+            obj=mm,
+        )

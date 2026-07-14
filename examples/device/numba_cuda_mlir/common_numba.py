@@ -1,0 +1,296 @@
+# Copyright (c) 2024-2026, NVIDIA CORPORATION & AFFILIATES. ALL RIGHTS RESERVED.
+#
+# SPDX-License-Identifier: Apache-2.0
+
+import ctypes
+import math
+
+from cuda.bindings import driver as cudadrv
+from numba_cuda_mlir import cuda, types
+from numba_cuda_mlir.extending import overload, typing_registry
+from numba_cuda_mlir.numba_cuda.typing import typeof as cuda_typeof
+
+# numba_cuda_mlir does not expose a complex32 constructor, so build one from the
+# half-precision Complex type. A shared array allocated with the cuBLASDx fp16
+# complex value type has complex32 elements.
+complex32 = types.Complex("complex32", types.float16)
+
+
+def time_simt(kernel, grid_dim, block_dim, shared_memory_size, ncycles, *args, get_results=None):
+    ## cuSIMT
+    stream = cuda.stream()
+    start, stop = cuda.event(), cuda.event()
+    cuda.synchronize()
+
+    # jit + set max dynamic smem size
+    set_max_dynamic_shared_size_bytes(kernel, shared_memory_size, *args)
+
+    # warmup
+    kernel[grid_dim, block_dim, stream, shared_memory_size](*args)
+    stream.synchronize()
+
+    if get_results is not None:
+        get_results()
+
+    # time
+    start.record(stream)
+    for _ in range(ncycles):
+        kernel[grid_dim, block_dim, stream, shared_memory_size](*args)
+    stop.record(stream)
+    stream.synchronize()
+
+    time_ms = cuda.event_elapsed_time(start, stop) / ncycles
+    return time_ms
+
+
+def time_simt_prep_args(kernel, grid_dim, block_dim, shared_memory_size, ncycles, prep_args):
+    stream = cuda.stream()
+    start, stop = cuda.event(), cuda.event()
+    cuda.synchronize()
+
+    # warmup + jit
+    kernel[grid_dim, block_dim, stream, shared_memory_size](*prep_args())
+    stream.synchronize()
+
+    # prepare args
+    args = []
+    for _ in range(ncycles):
+        args.append(prep_args())
+
+    # time
+    start.record(stream)
+    for prepared_args in args:
+        kernel[grid_dim, block_dim, stream, shared_memory_size](*prepared_args)
+    stop.record(stream)
+    stream.synchronize()
+
+    time_ms = cuda.event_elapsed_time(start, stop) / ncycles
+    return time_ms
+
+
+def get_active_blocks_per_multiprocessor(kernel, block_dim, dynamic_smem_size, *args):
+    argsty = tuple([cuda_typeof.typeof(a) for a in args])
+    compiled = kernel.compile(argsty)
+    ctx = cuda.current_context()
+    compiled._ensure_kernel_attrs()
+    cufunc = compiled._code_library.get_cufunc()
+    active_per_sm = ctx.get_active_blocks_per_multiprocessor(cufunc, math.prod(block_dim), dynamic_smem_size)
+
+    return active_per_sm
+
+
+def set_max_dynamic_shared_size_bytes(kernel, max_dynamic_smem_size, *args):
+    argsty = tuple([cuda_typeof.typeof(a) for a in args])
+    compiled = kernel.compile(argsty)
+    compiled._ensure_kernel_attrs()
+    cufunc = compiled._code_library.get_cufunc()
+    # Starting in numba-cuda 0.15, there are two bindings backends, we need to handle
+    # both. See docs about NUMBA_CUDA_USE_NVIDIA_BINDING environment variable.
+    if isinstance(cufunc.handle, ctypes.c_void_p):
+        handle = cufunc.handle.value
+    elif isinstance(cufunc.handle, cudadrv.CUkernel):
+        resp, func = cudadrv.cuKernelGetFunction(cufunc.handle)
+        if resp != cudadrv.CUresult.CUDA_SUCCESS:
+            raise RuntimeError(f"cuKernelGetFunction failed with error code {resp}")
+        handle = func
+    elif isinstance(cufunc.handle, cudadrv.CUfunction):
+        handle = cufunc.handle
+    else:
+        raise RuntimeError(f"Unsupported cufunc.handle type: {type(cufunc.handle)}")
+
+    resp = cudadrv.cuFuncSetAttribute(
+        handle,
+        cudadrv.CUfunction_attribute.CU_FUNC_ATTRIBUTE_MAX_DYNAMIC_SHARED_SIZE_BYTES,
+        max_dynamic_smem_size,
+    )
+    if resp[0] != cudadrv.CUresult.CUDA_SUCCESS:
+        raise RuntimeError(f"cuFuncSetAttribute failed with error code {resp}")
+
+
+# matrix is always in C-order (cupy/numpy) but smem should always be in F-order (expected by
+# cuBLASDx)
+@cuda.jit(device=True, forceinline=True)
+def load_to_shared_batched(matrix, smem, batch, dim, ld, row_major=False):
+    start = cuda.threadIdx.x
+    step = cuda.blockDim.x
+    stop = dim[0] * dim[1]
+    for index in range(start, stop, step):
+        col = index % dim[1]
+        row = index // dim[1]
+        if row_major:
+            smem[batch * dim[0] * ld + row * ld + col] = matrix[batch, row, col]
+        else:
+            smem[batch * dim[1] * ld + col * ld + row] = matrix[batch, row, col]
+
+
+@cuda.jit(device=True, forceinline=True)
+def load_to_shared(matrix, smem, dim, ld, row_major=False):
+    start = cuda.threadIdx.x + cuda.threadIdx.y * cuda.blockDim.x + cuda.threadIdx.z * (cuda.blockDim.x * cuda.blockDim.y)
+    step = cuda.blockDim.x * cuda.blockDim.y * cuda.blockDim.z
+    stop = dim[0] * dim[1]
+    for index in range(start, stop, step):
+        col = index % dim[1]
+        row = index // dim[1]
+        if row_major:
+            smem[row * ld + col] = matrix[row, col]
+        else:
+            smem[col * ld + row] = matrix[row, col]
+
+
+@cuda.jit(device=True, forceinline=True)
+def load_to_shared_2d(matrix, smem, dim, row_major=False):
+    start = cuda.threadIdx.x + cuda.threadIdx.y * cuda.blockDim.x + cuda.threadIdx.z * (cuda.blockDim.x * cuda.blockDim.y)
+    step = cuda.blockDim.x * cuda.blockDim.y * cuda.blockDim.z
+    stop = dim[0] * dim[1]
+    for index in range(start, stop, step):
+        col = index % dim[1]
+        row = index // dim[1]
+        if row_major:
+            smem[row, col] = matrix[row, col]
+        else:
+            smem[col, row] = matrix[row, col]
+
+
+@cuda.jit(device=True, forceinline=True)
+def load_to_shared_1d_complex32(matrix, smem, dim, ld, row_major=False):
+    start = cuda.threadIdx.x + cuda.threadIdx.y * cuda.blockDim.x + cuda.threadIdx.z * (cuda.blockDim.x * cuda.blockDim.y)
+    step = cuda.blockDim.x * cuda.blockDim.y * cuda.blockDim.z
+    stop = dim[0] * dim[1]
+    for index in range(start, stop, step):
+        col = index % dim[1]
+        row = index // dim[1]
+        r = matrix[row, 2 * col + 0]
+        i = matrix[row, 2 * col + 1]
+        if row_major:
+            smem[row * ld + col] = complex32(r, i)
+        else:
+            smem[col * ld + row] = complex32(r, i)
+
+
+@cuda.jit(device=True, forceinline=True)
+def store_from_shared_batched(smem, matrix, batch, dim, ld, row_major=False):
+    start = cuda.threadIdx.x
+    step = cuda.blockDim.x
+    stop = dim[0] * dim[1]
+    for index in range(start, stop, step):
+        col = index % dim[1]
+        row = index // dim[1]
+
+        if row_major:
+            matrix[batch, row, col] = smem[batch * dim[0] * ld + row * ld + col]
+        else:
+            matrix[batch, row, col] = smem[batch * dim[1] * ld + col * ld + row]
+
+
+@cuda.jit(device=True, forceinline=True)
+def store_from_shared(smem, matrix, dim, ld, row_major=False):
+    start = cuda.threadIdx.x + cuda.threadIdx.y * cuda.blockDim.x + cuda.threadIdx.z * (cuda.blockDim.x * cuda.blockDim.y)
+    step = cuda.blockDim.x * cuda.blockDim.y * cuda.blockDim.z
+    stop = dim[0] * dim[1]
+    for index in range(start, stop, step):
+        col = index % dim[1]
+        row = index // dim[1]
+        if row_major:
+            matrix[row, col] = smem[row * ld + col]
+        else:
+            matrix[row, col] = smem[col * ld + row]
+
+
+@cuda.jit(device=True, forceinline=True)
+def store_from_shared_2d(smem, matrix, dim):
+    start = cuda.threadIdx.x + cuda.threadIdx.y * cuda.blockDim.x + cuda.threadIdx.z * (cuda.blockDim.x * cuda.blockDim.y)
+    step = cuda.blockDim.x * cuda.blockDim.y * cuda.blockDim.z
+    stop = dim[0] * dim[1]
+    for index in range(start, stop, step):
+        col = index % dim[1]
+        row = index // dim[1]
+        matrix[row, col] = smem[col, row]
+
+
+@cuda.jit(device=True, forceinline=True)
+def store_from_shared_1d_complex32(smem, matrix, dim, ld):
+    start = cuda.threadIdx.x + cuda.threadIdx.y * cuda.blockDim.x + cuda.threadIdx.z * (cuda.blockDim.x * cuda.blockDim.y)
+    step = cuda.blockDim.x * cuda.blockDim.y * cuda.blockDim.z
+    stop = dim[0] * dim[1]
+    for index in range(start, stop, step):
+        col = index % dim[1]
+        row = index // dim[1]
+        ri = smem[col * ld + row]
+        matrix[row, 2 * col + 0] = ri.real
+        matrix[row, 2 * col + 1] = ri.imag
+
+
+# ======================================
+# Strided shared-memory transfers
+# ======================================
+
+# numba-cuda-mlir does not prune dead branches, so a single function branching on
+# matrix.ndim would also compile the unused path and fail. The 2d/3d bodies are
+# instead selected inside the overload (at typing time) and only the chosen one
+# is compiled. See:
+#    https://github.com/NVIDIA/numba-cuda-mlir/issues/108
+#    https://github.com/NVIDIA/numba-cuda-mlir/issues/109
+
+
+def load_to_shared_strided(matrix, smem, shape, strides) -> None:
+    raise RuntimeError("load_to_shared_strided must be called inside a cuda.jit kernel.")
+
+
+def store_from_shared_strided(smem, matrix, shape, strides) -> None:
+    raise RuntimeError("store_from_shared_strided must be called inside a cuda.jit kernel.")
+
+
+@overload(load_to_shared_strided, strict=False, inline="always", typing_registry=typing_registry)
+def _ol_load_to_shared_strided(matrix, smem, shape, strides):
+    if matrix.ndim == 2:
+
+        def impl(matrix, smem, shape, strides):
+            start = cuda.threadIdx.x
+            step = cuda.blockDim.x
+            stop = shape[0] * shape[1]
+            for index in range(start, stop, step):
+                col = index % shape[1]
+                row = index // shape[1]
+                smem[row * strides[0] + col * strides[1]] = matrix[row, col]
+    else:
+
+        def impl(matrix, smem, shape, strides):
+            start = cuda.threadIdx.x
+            step = cuda.blockDim.x
+            stop = shape[0] * shape[1] * shape[2]
+            for index in range(start, stop, step):
+                col = index % shape[2]
+                temp = index // shape[2]
+                row = temp % shape[1]
+                sample_idx = temp // shape[1]
+                smem[sample_idx * strides[0] + row * strides[1] + col * strides[2]] = matrix[sample_idx, row, col]
+
+    return impl
+
+
+@overload(store_from_shared_strided, strict=False, inline="always", typing_registry=typing_registry)
+def _ol_store_from_shared_strided(smem, matrix, shape, strides):
+    if matrix.ndim == 2:
+
+        def impl(smem, matrix, shape, strides):
+            start = cuda.threadIdx.x
+            step = cuda.blockDim.x
+            stop = shape[0] * shape[1]
+            for index in range(start, stop, step):
+                col = index % shape[1]
+                row = index // shape[1]
+                matrix[row, col] = smem[row * strides[0] + col * strides[1]]
+    else:
+
+        def impl(smem, matrix, shape, strides):
+            start = cuda.threadIdx.x
+            step = cuda.blockDim.x
+            stop = shape[0] * shape[1] * shape[2]
+            for index in range(start, stop, step):
+                col = index % shape[2]
+                temp = index // shape[2]
+                row = temp % shape[1]
+                sample_idx = temp // shape[1]
+                matrix[sample_idx, row, col] = smem[sample_idx * strides[0] + row * strides[1] + col * strides[2]]
+
+    return impl

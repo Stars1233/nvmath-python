@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 #
-# This code was automatically generated across versions from 12.0.1 to 13.2.0, generator version 0.3.1.dev1380+g2c74a7741. Do not modify it directly.
+# This code was automatically generated across versions from 12.0.1 to 13.2.0, generator version 0.3.1.dev1471+g7122059e9. Do not modify it directly.
 
 cimport cython  # NOQA
 
@@ -256,6 +256,79 @@ cpdef inline check_status(int status):
         raise cuSPARSEError(status)
 
 
+cpdef size_t sp_gemm_estimate_memory_buffersize3(
+    intptr_t handle,
+    int op_a,
+    int op_b,
+    intptr_t alpha,
+    intptr_t mat_a,
+    intptr_t mat_b,
+    intptr_t beta,
+    intptr_t mat_c,
+    int compute_type,
+    int alg,
+    intptr_t spgemm_descr,
+    float chunk_fraction,
+):
+    """See `cusparseSpGEMM_estimateMemory`.
+
+    First call this function to query ``buffer_size3``. Then allocate
+    ``buffer_size3`` bytes of device memory and pass that size and device
+    pointer to ``sp_gemm_estimate_memory_buffersize2()``.
+    """
+    cdef size_t buffer_size3 = 0
+
+    with nogil:
+        __status__ = cusparseSpGEMM_estimateMemory(
+            <Handle>handle, <_Operation>op_a, <_Operation>op_b,
+            <const void*>alpha, <ConstSpMatDescr>mat_a,
+            <ConstSpMatDescr>mat_b, <const void*>beta,
+            <SpMatDescr>mat_c, <DataType>compute_type,
+            <_SpGEMMAlg>alg, <SpGEMMDescr>spgemm_descr,
+            chunk_fraction, &buffer_size3, <void*>0, <size_t*>0)
+
+    check_status(__status__)
+    return buffer_size3
+
+
+cpdef size_t sp_gemm_estimate_memory_buffersize2(
+    intptr_t handle,
+    int op_a,
+    int op_b,
+    intptr_t alpha,
+    intptr_t mat_a,
+    intptr_t mat_b,
+    intptr_t beta,
+    intptr_t mat_c,
+    int compute_type,
+    int alg,
+    intptr_t spgemm_descr,
+    float chunk_fraction,
+    size_t buffer_size3,
+    intptr_t external_buffer3,
+):
+    """See `cusparseSpGEMM_estimateMemory`.
+
+    Call this function after allocating ``buffer_size3`` bytes of device memory
+    for ``external_buffer3``. The temporary ``external_buffer3`` allocation can
+    be freed after this call.
+    """
+    cdef size_t buffer_size2 = 0
+
+    with nogil:
+        __status__ = cusparseSpGEMM_estimateMemory(
+            <Handle>handle, <_Operation>op_a, <_Operation>op_b,
+            <const void*>alpha, <ConstSpMatDescr>mat_a,
+            <ConstSpMatDescr>mat_b, <const void*>beta,
+            <SpMatDescr>mat_c, <DataType>compute_type,
+            <_SpGEMMAlg>alg, <SpGEMMDescr>spgemm_descr,
+            chunk_fraction, &buffer_size3, <void*>external_buffer3,
+            &buffer_size2)
+
+    check_status(__status__)
+    return buffer_size2
+
+
 ###############################################################################
 # Wrapper functions
 ###############################################################################
@@ -436,6 +509,166 @@ cpdef int get_mat_index_base(intptr_t descr_a) except? -1:
     return <int>cusparseGetMatIndexBase(<const MatDescr>descr_a)
 
 
+cpdef intptr_t create_csric02_info() except? 0:
+    """See `cusparseCreateCsric02Info`."""
+    cdef csric02Info info
+    with nogil:
+        __status__ = cusparseCreateCsric02Info(&info)
+    check_status(__status__)
+    return <intptr_t>info
+
+
+cpdef destroy_csric02_info(intptr_t info):
+    """See `cusparseDestroyCsric02Info`."""
+    with nogil:
+        __status__ = cusparseDestroyCsric02Info(<csric02Info>info)
+    check_status(__status__)
+
+
+cpdef intptr_t create_bsric02_info() except? 0:
+    """See `cusparseCreateBsric02Info`."""
+    cdef bsric02Info info
+    with nogil:
+        __status__ = cusparseCreateBsric02Info(&info)
+    check_status(__status__)
+    return <intptr_t>info
+
+
+cpdef destroy_bsric02_info(intptr_t info):
+    """See `cusparseDestroyBsric02Info`."""
+    with nogil:
+        __status__ = cusparseDestroyBsric02Info(<bsric02Info>info)
+    check_status(__status__)
+
+
+cpdef intptr_t create_csrilu02_info() except? 0:
+    """See `cusparseCreateCsrilu02Info`."""
+    cdef csrilu02Info info
+    with nogil:
+        __status__ = cusparseCreateCsrilu02Info(&info)
+    check_status(__status__)
+    return <intptr_t>info
+
+
+cpdef destroy_csrilu02_info(intptr_t info):
+    """See `cusparseDestroyCsrilu02Info`."""
+    with nogil:
+        __status__ = cusparseDestroyCsrilu02Info(<csrilu02Info>info)
+    check_status(__status__)
+
+
+cpdef intptr_t create_bsrilu02_info() except? 0:
+    """See `cusparseCreateBsrilu02Info`."""
+    cdef bsrilu02Info info
+    with nogil:
+        __status__ = cusparseCreateBsrilu02Info(&info)
+    check_status(__status__)
+    return <intptr_t>info
+
+
+cpdef destroy_bsrilu02_info(intptr_t info):
+    """See `cusparseDestroyBsrilu02Info`."""
+    with nogil:
+        __status__ = cusparseDestroyBsrilu02Info(<bsrilu02Info>info)
+    check_status(__status__)
+
+
+cpdef intptr_t create_bsrsv2_info() except? 0:
+    """See `cusparseCreateBsrsv2Info`."""
+    cdef bsrsv2Info info
+    with nogil:
+        __status__ = cusparseCreateBsrsv2Info(&info)
+    check_status(__status__)
+    return <intptr_t>info
+
+
+cpdef destroy_bsrsv2_info(intptr_t info):
+    """See `cusparseDestroyBsrsv2Info`."""
+    with nogil:
+        __status__ = cusparseDestroyBsrsv2Info(<bsrsv2Info>info)
+    check_status(__status__)
+
+
+cpdef intptr_t create_bsrsm2_info() except? 0:
+    """See `cusparseCreateBsrsm2Info`."""
+    cdef bsrsm2Info info
+    with nogil:
+        __status__ = cusparseCreateBsrsm2Info(&info)
+    check_status(__status__)
+    return <intptr_t>info
+
+
+cpdef destroy_bsrsm2_info(intptr_t info):
+    """See `cusparseDestroyBsrsm2Info`."""
+    with nogil:
+        __status__ = cusparseDestroyBsrsm2Info(<bsrsm2Info>info)
+    check_status(__status__)
+
+
+cpdef intptr_t create_csru2csr_info() except? 0:
+    """See `cusparseCreateCsru2csrInfo`."""
+    cdef csru2csrInfo info
+    with nogil:
+        __status__ = cusparseCreateCsru2csrInfo(&info)
+    check_status(__status__)
+    return <intptr_t>info
+
+
+cpdef destroy_csru2csr_info(intptr_t info):
+    """See `cusparseDestroyCsru2csrInfo`."""
+    with nogil:
+        __status__ = cusparseDestroyCsru2csrInfo(<csru2csrInfo>info)
+    check_status(__status__)
+
+
+cpdef intptr_t create_color_info() except? 0:
+    """See `cusparseCreateColorInfo`."""
+    cdef cusparseColorInfo info
+    with nogil:
+        __status__ = cusparseCreateColorInfo(&info)
+    check_status(__status__)
+    return <intptr_t>info
+
+
+cpdef destroy_color_info(intptr_t info):
+    """See `cusparseDestroyColorInfo`."""
+    with nogil:
+        __status__ = cusparseDestroyColorInfo(<cusparseColorInfo>info)
+    check_status(__status__)
+
+
+cpdef set_color_algs(intptr_t info, int alg):
+    """See `cusparseSetColorAlgs`."""
+    with nogil:
+        __status__ = cusparseSetColorAlgs(<cusparseColorInfo>info, <_ColorAlg>alg)
+    check_status(__status__)
+
+
+cpdef int get_color_algs(intptr_t info) except? -1:
+    """See `cusparseGetColorAlgs`."""
+    cdef _ColorAlg alg
+    with nogil:
+        __status__ = cusparseGetColorAlgs(<cusparseColorInfo>info, &alg)
+    check_status(__status__)
+    return <int>alg
+
+
+cpdef intptr_t create_prune_info() except? 0:
+    """See `cusparseCreatePruneInfo`."""
+    cdef pruneInfo info
+    with nogil:
+        __status__ = cusparseCreatePruneInfo(&info)
+    check_status(__status__)
+    return <intptr_t>info
+
+
+cpdef destroy_prune_info(intptr_t info):
+    """See `cusparseDestroyPruneInfo`."""
+    with nogil:
+        __status__ = cusparseDestroyPruneInfo(<pruneInfo>info)
+    check_status(__status__)
+
+
 cpdef sgemvi(intptr_t handle, int trans_a, int m, int n, intptr_t alpha, intptr_t a, int lda, int nnz, intptr_t x_val, intptr_t x_ind, intptr_t beta, intptr_t y, int idx_base, intptr_t p_buffer):
     """See `cusparseSgemvi`."""
     with nogil:
@@ -528,6 +761,171 @@ cpdef zbsrmv(intptr_t handle, int dir_a, int trans_a, int mb, int nb, int nnzb, 
     check_status(__status__)
 
 
+cpdef sbsrxmv(intptr_t handle, int dir_a, int trans_a, int size_of_mask, int mb, int nb, int nnzb, intptr_t alpha, intptr_t descr_a, intptr_t bsr_sorted_val_a, intptr_t bsr_sorted_mask_ptr_a, intptr_t bsr_sorted_row_ptr_a, intptr_t bsr_sorted_end_ptr_a, intptr_t bsr_sorted_col_ind_a, int block_dim, intptr_t x, intptr_t beta, intptr_t y):
+    """See `cusparseSbsrxmv`."""
+    with nogil:
+        __status__ = cusparseSbsrxmv(<Handle>handle, <_Direction>dir_a, <_Operation>trans_a, size_of_mask, mb, nb, nnzb, <const float*>alpha, <const MatDescr>descr_a, <const float*>bsr_sorted_val_a, <const int*>bsr_sorted_mask_ptr_a, <const int*>bsr_sorted_row_ptr_a, <const int*>bsr_sorted_end_ptr_a, <const int*>bsr_sorted_col_ind_a, block_dim, <const float*>x, <const float*>beta, <float*>y)
+    check_status(__status__)
+
+
+cpdef dbsrxmv(intptr_t handle, int dir_a, int trans_a, int size_of_mask, int mb, int nb, int nnzb, intptr_t alpha, intptr_t descr_a, intptr_t bsr_sorted_val_a, intptr_t bsr_sorted_mask_ptr_a, intptr_t bsr_sorted_row_ptr_a, intptr_t bsr_sorted_end_ptr_a, intptr_t bsr_sorted_col_ind_a, int block_dim, intptr_t x, intptr_t beta, intptr_t y):
+    """See `cusparseDbsrxmv`."""
+    with nogil:
+        __status__ = cusparseDbsrxmv(<Handle>handle, <_Direction>dir_a, <_Operation>trans_a, size_of_mask, mb, nb, nnzb, <const double*>alpha, <const MatDescr>descr_a, <const double*>bsr_sorted_val_a, <const int*>bsr_sorted_mask_ptr_a, <const int*>bsr_sorted_row_ptr_a, <const int*>bsr_sorted_end_ptr_a, <const int*>bsr_sorted_col_ind_a, block_dim, <const double*>x, <const double*>beta, <double*>y)
+    check_status(__status__)
+
+
+cpdef cbsrxmv(intptr_t handle, int dir_a, int trans_a, int size_of_mask, int mb, int nb, int nnzb, intptr_t alpha, intptr_t descr_a, intptr_t bsr_sorted_val_a, intptr_t bsr_sorted_mask_ptr_a, intptr_t bsr_sorted_row_ptr_a, intptr_t bsr_sorted_end_ptr_a, intptr_t bsr_sorted_col_ind_a, int block_dim, intptr_t x, intptr_t beta, intptr_t y):
+    """See `cusparseCbsrxmv`."""
+    with nogil:
+        __status__ = cusparseCbsrxmv(<Handle>handle, <_Direction>dir_a, <_Operation>trans_a, size_of_mask, mb, nb, nnzb, <const cuComplex*>alpha, <const MatDescr>descr_a, <const cuComplex*>bsr_sorted_val_a, <const int*>bsr_sorted_mask_ptr_a, <const int*>bsr_sorted_row_ptr_a, <const int*>bsr_sorted_end_ptr_a, <const int*>bsr_sorted_col_ind_a, block_dim, <const cuComplex*>x, <const cuComplex*>beta, <cuComplex*>y)
+    check_status(__status__)
+
+
+cpdef zbsrxmv(intptr_t handle, int dir_a, int trans_a, int size_of_mask, int mb, int nb, int nnzb, intptr_t alpha, intptr_t descr_a, intptr_t bsr_sorted_val_a, intptr_t bsr_sorted_mask_ptr_a, intptr_t bsr_sorted_row_ptr_a, intptr_t bsr_sorted_end_ptr_a, intptr_t bsr_sorted_col_ind_a, int block_dim, intptr_t x, intptr_t beta, intptr_t y):
+    """See `cusparseZbsrxmv`."""
+    with nogil:
+        __status__ = cusparseZbsrxmv(<Handle>handle, <_Direction>dir_a, <_Operation>trans_a, size_of_mask, mb, nb, nnzb, <const cuDoubleComplex*>alpha, <const MatDescr>descr_a, <const cuDoubleComplex*>bsr_sorted_val_a, <const int*>bsr_sorted_mask_ptr_a, <const int*>bsr_sorted_row_ptr_a, <const int*>bsr_sorted_end_ptr_a, <const int*>bsr_sorted_col_ind_a, block_dim, <const cuDoubleComplex*>x, <const cuDoubleComplex*>beta, <cuDoubleComplex*>y)
+    check_status(__status__)
+
+
+cpdef int xbsrsv2_zero_pivot(intptr_t handle, intptr_t info) except? -1:
+    """See `cusparseXbsrsv2_zeroPivot`."""
+    cdef int position
+    with nogil:
+        __status__ = cusparseXbsrsv2_zeroPivot(<Handle>handle, <bsrsv2Info>info, &position)
+    check_status(__status__)
+    return position
+
+
+cpdef int sbsrsv2_buffer_size(intptr_t handle, int dir_a, int trans_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val_a, intptr_t bsr_sorted_row_ptr_a, intptr_t bsr_sorted_col_ind_a, int block_dim, intptr_t info) except? -1:
+    """See `cusparseSbsrsv2_bufferSize`."""
+    cdef int p_buffer_size_in_bytes
+    with nogil:
+        __status__ = cusparseSbsrsv2_bufferSize(<Handle>handle, <_Direction>dir_a, <_Operation>trans_a, mb, nnzb, <const MatDescr>descr_a, <float*>bsr_sorted_val_a, <const int*>bsr_sorted_row_ptr_a, <const int*>bsr_sorted_col_ind_a, block_dim, <bsrsv2Info>info, &p_buffer_size_in_bytes)
+    check_status(__status__)
+    return p_buffer_size_in_bytes
+
+
+cpdef int dbsrsv2_buffer_size(intptr_t handle, int dir_a, int trans_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val_a, intptr_t bsr_sorted_row_ptr_a, intptr_t bsr_sorted_col_ind_a, int block_dim, intptr_t info) except? -1:
+    """See `cusparseDbsrsv2_bufferSize`."""
+    cdef int p_buffer_size_in_bytes
+    with nogil:
+        __status__ = cusparseDbsrsv2_bufferSize(<Handle>handle, <_Direction>dir_a, <_Operation>trans_a, mb, nnzb, <const MatDescr>descr_a, <double*>bsr_sorted_val_a, <const int*>bsr_sorted_row_ptr_a, <const int*>bsr_sorted_col_ind_a, block_dim, <bsrsv2Info>info, &p_buffer_size_in_bytes)
+    check_status(__status__)
+    return p_buffer_size_in_bytes
+
+
+cpdef int cbsrsv2_buffer_size(intptr_t handle, int dir_a, int trans_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val_a, intptr_t bsr_sorted_row_ptr_a, intptr_t bsr_sorted_col_ind_a, int block_dim, intptr_t info) except? -1:
+    """See `cusparseCbsrsv2_bufferSize`."""
+    cdef int p_buffer_size_in_bytes
+    with nogil:
+        __status__ = cusparseCbsrsv2_bufferSize(<Handle>handle, <_Direction>dir_a, <_Operation>trans_a, mb, nnzb, <const MatDescr>descr_a, <cuComplex*>bsr_sorted_val_a, <const int*>bsr_sorted_row_ptr_a, <const int*>bsr_sorted_col_ind_a, block_dim, <bsrsv2Info>info, &p_buffer_size_in_bytes)
+    check_status(__status__)
+    return p_buffer_size_in_bytes
+
+
+cpdef int zbsrsv2_buffer_size(intptr_t handle, int dir_a, int trans_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val_a, intptr_t bsr_sorted_row_ptr_a, intptr_t bsr_sorted_col_ind_a, int block_dim, intptr_t info) except? -1:
+    """See `cusparseZbsrsv2_bufferSize`."""
+    cdef int p_buffer_size_in_bytes
+    with nogil:
+        __status__ = cusparseZbsrsv2_bufferSize(<Handle>handle, <_Direction>dir_a, <_Operation>trans_a, mb, nnzb, <const MatDescr>descr_a, <cuDoubleComplex*>bsr_sorted_val_a, <const int*>bsr_sorted_row_ptr_a, <const int*>bsr_sorted_col_ind_a, block_dim, <bsrsv2Info>info, &p_buffer_size_in_bytes)
+    check_status(__status__)
+    return p_buffer_size_in_bytes
+
+
+cpdef size_t sbsrsv2_buffer_size_ext(intptr_t handle, int dir_a, int trans_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val_a, intptr_t bsr_sorted_row_ptr_a, intptr_t bsr_sorted_col_ind_a, int block_size, intptr_t info) except? 0:
+    """See `cusparseSbsrsv2_bufferSizeExt`."""
+    cdef size_t p_buffer_size
+    with nogil:
+        __status__ = cusparseSbsrsv2_bufferSizeExt(<Handle>handle, <_Direction>dir_a, <_Operation>trans_a, mb, nnzb, <const MatDescr>descr_a, <float*>bsr_sorted_val_a, <const int*>bsr_sorted_row_ptr_a, <const int*>bsr_sorted_col_ind_a, block_size, <bsrsv2Info>info, &p_buffer_size)
+    check_status(__status__)
+    return p_buffer_size
+
+
+cpdef size_t dbsrsv2_buffer_size_ext(intptr_t handle, int dir_a, int trans_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val_a, intptr_t bsr_sorted_row_ptr_a, intptr_t bsr_sorted_col_ind_a, int block_size, intptr_t info) except? 0:
+    """See `cusparseDbsrsv2_bufferSizeExt`."""
+    cdef size_t p_buffer_size
+    with nogil:
+        __status__ = cusparseDbsrsv2_bufferSizeExt(<Handle>handle, <_Direction>dir_a, <_Operation>trans_a, mb, nnzb, <const MatDescr>descr_a, <double*>bsr_sorted_val_a, <const int*>bsr_sorted_row_ptr_a, <const int*>bsr_sorted_col_ind_a, block_size, <bsrsv2Info>info, &p_buffer_size)
+    check_status(__status__)
+    return p_buffer_size
+
+
+cpdef size_t cbsrsv2_buffer_size_ext(intptr_t handle, int dir_a, int trans_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val_a, intptr_t bsr_sorted_row_ptr_a, intptr_t bsr_sorted_col_ind_a, int block_size, intptr_t info) except? 0:
+    """See `cusparseCbsrsv2_bufferSizeExt`."""
+    cdef size_t p_buffer_size
+    with nogil:
+        __status__ = cusparseCbsrsv2_bufferSizeExt(<Handle>handle, <_Direction>dir_a, <_Operation>trans_a, mb, nnzb, <const MatDescr>descr_a, <cuComplex*>bsr_sorted_val_a, <const int*>bsr_sorted_row_ptr_a, <const int*>bsr_sorted_col_ind_a, block_size, <bsrsv2Info>info, &p_buffer_size)
+    check_status(__status__)
+    return p_buffer_size
+
+
+cpdef size_t zbsrsv2_buffer_size_ext(intptr_t handle, int dir_a, int trans_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val_a, intptr_t bsr_sorted_row_ptr_a, intptr_t bsr_sorted_col_ind_a, int block_size, intptr_t info) except? 0:
+    """See `cusparseZbsrsv2_bufferSizeExt`."""
+    cdef size_t p_buffer_size
+    with nogil:
+        __status__ = cusparseZbsrsv2_bufferSizeExt(<Handle>handle, <_Direction>dir_a, <_Operation>trans_a, mb, nnzb, <const MatDescr>descr_a, <cuDoubleComplex*>bsr_sorted_val_a, <const int*>bsr_sorted_row_ptr_a, <const int*>bsr_sorted_col_ind_a, block_size, <bsrsv2Info>info, &p_buffer_size)
+    check_status(__status__)
+    return p_buffer_size
+
+
+cpdef sbsrsv2_analysis(intptr_t handle, int dir_a, int trans_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val_a, intptr_t bsr_sorted_row_ptr_a, intptr_t bsr_sorted_col_ind_a, int block_dim, intptr_t info, int policy, intptr_t p_buffer):
+    """See `cusparseSbsrsv2_analysis`."""
+    with nogil:
+        __status__ = cusparseSbsrsv2_analysis(<Handle>handle, <_Direction>dir_a, <_Operation>trans_a, mb, nnzb, <const MatDescr>descr_a, <const float*>bsr_sorted_val_a, <const int*>bsr_sorted_row_ptr_a, <const int*>bsr_sorted_col_ind_a, block_dim, <bsrsv2Info>info, <_SolvePolicy>policy, <void*>p_buffer)
+    check_status(__status__)
+
+
+cpdef dbsrsv2_analysis(intptr_t handle, int dir_a, int trans_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val_a, intptr_t bsr_sorted_row_ptr_a, intptr_t bsr_sorted_col_ind_a, int block_dim, intptr_t info, int policy, intptr_t p_buffer):
+    """See `cusparseDbsrsv2_analysis`."""
+    with nogil:
+        __status__ = cusparseDbsrsv2_analysis(<Handle>handle, <_Direction>dir_a, <_Operation>trans_a, mb, nnzb, <const MatDescr>descr_a, <const double*>bsr_sorted_val_a, <const int*>bsr_sorted_row_ptr_a, <const int*>bsr_sorted_col_ind_a, block_dim, <bsrsv2Info>info, <_SolvePolicy>policy, <void*>p_buffer)
+    check_status(__status__)
+
+
+cpdef cbsrsv2_analysis(intptr_t handle, int dir_a, int trans_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val_a, intptr_t bsr_sorted_row_ptr_a, intptr_t bsr_sorted_col_ind_a, int block_dim, intptr_t info, int policy, intptr_t p_buffer):
+    """See `cusparseCbsrsv2_analysis`."""
+    with nogil:
+        __status__ = cusparseCbsrsv2_analysis(<Handle>handle, <_Direction>dir_a, <_Operation>trans_a, mb, nnzb, <const MatDescr>descr_a, <const cuComplex*>bsr_sorted_val_a, <const int*>bsr_sorted_row_ptr_a, <const int*>bsr_sorted_col_ind_a, block_dim, <bsrsv2Info>info, <_SolvePolicy>policy, <void*>p_buffer)
+    check_status(__status__)
+
+
+cpdef zbsrsv2_analysis(intptr_t handle, int dir_a, int trans_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val_a, intptr_t bsr_sorted_row_ptr_a, intptr_t bsr_sorted_col_ind_a, int block_dim, intptr_t info, int policy, intptr_t p_buffer):
+    """See `cusparseZbsrsv2_analysis`."""
+    with nogil:
+        __status__ = cusparseZbsrsv2_analysis(<Handle>handle, <_Direction>dir_a, <_Operation>trans_a, mb, nnzb, <const MatDescr>descr_a, <const cuDoubleComplex*>bsr_sorted_val_a, <const int*>bsr_sorted_row_ptr_a, <const int*>bsr_sorted_col_ind_a, block_dim, <bsrsv2Info>info, <_SolvePolicy>policy, <void*>p_buffer)
+    check_status(__status__)
+
+
+cpdef sbsrsv2_solve(intptr_t handle, int dir_a, int trans_a, int mb, int nnzb, intptr_t alpha, intptr_t descr_a, intptr_t bsr_sorted_val_a, intptr_t bsr_sorted_row_ptr_a, intptr_t bsr_sorted_col_ind_a, int block_dim, intptr_t info, intptr_t f, intptr_t x, int policy, intptr_t p_buffer):
+    """See `cusparseSbsrsv2_solve`."""
+    with nogil:
+        __status__ = cusparseSbsrsv2_solve(<Handle>handle, <_Direction>dir_a, <_Operation>trans_a, mb, nnzb, <const float*>alpha, <const MatDescr>descr_a, <const float*>bsr_sorted_val_a, <const int*>bsr_sorted_row_ptr_a, <const int*>bsr_sorted_col_ind_a, block_dim, <bsrsv2Info>info, <const float*>f, <float*>x, <_SolvePolicy>policy, <void*>p_buffer)
+    check_status(__status__)
+
+
+cpdef dbsrsv2_solve(intptr_t handle, int dir_a, int trans_a, int mb, int nnzb, intptr_t alpha, intptr_t descr_a, intptr_t bsr_sorted_val_a, intptr_t bsr_sorted_row_ptr_a, intptr_t bsr_sorted_col_ind_a, int block_dim, intptr_t info, intptr_t f, intptr_t x, int policy, intptr_t p_buffer):
+    """See `cusparseDbsrsv2_solve`."""
+    with nogil:
+        __status__ = cusparseDbsrsv2_solve(<Handle>handle, <_Direction>dir_a, <_Operation>trans_a, mb, nnzb, <const double*>alpha, <const MatDescr>descr_a, <const double*>bsr_sorted_val_a, <const int*>bsr_sorted_row_ptr_a, <const int*>bsr_sorted_col_ind_a, block_dim, <bsrsv2Info>info, <const double*>f, <double*>x, <_SolvePolicy>policy, <void*>p_buffer)
+    check_status(__status__)
+
+
+cpdef cbsrsv2_solve(intptr_t handle, int dir_a, int trans_a, int mb, int nnzb, intptr_t alpha, intptr_t descr_a, intptr_t bsr_sorted_val_a, intptr_t bsr_sorted_row_ptr_a, intptr_t bsr_sorted_col_ind_a, int block_dim, intptr_t info, intptr_t f, intptr_t x, int policy, intptr_t p_buffer):
+    """See `cusparseCbsrsv2_solve`."""
+    with nogil:
+        __status__ = cusparseCbsrsv2_solve(<Handle>handle, <_Direction>dir_a, <_Operation>trans_a, mb, nnzb, <const cuComplex*>alpha, <const MatDescr>descr_a, <const cuComplex*>bsr_sorted_val_a, <const int*>bsr_sorted_row_ptr_a, <const int*>bsr_sorted_col_ind_a, block_dim, <bsrsv2Info>info, <const cuComplex*>f, <cuComplex*>x, <_SolvePolicy>policy, <void*>p_buffer)
+    check_status(__status__)
+
+
+cpdef zbsrsv2_solve(intptr_t handle, int dir_a, int trans_a, int mb, int nnzb, intptr_t alpha, intptr_t descr_a, intptr_t bsr_sorted_val_a, intptr_t bsr_sorted_row_ptr_a, intptr_t bsr_sorted_col_ind_a, int block_dim, intptr_t info, intptr_t f, intptr_t x, int policy, intptr_t p_buffer):
+    """See `cusparseZbsrsv2_solve`."""
+    with nogil:
+        __status__ = cusparseZbsrsv2_solve(<Handle>handle, <_Direction>dir_a, <_Operation>trans_a, mb, nnzb, <const cuDoubleComplex*>alpha, <const MatDescr>descr_a, <const cuDoubleComplex*>bsr_sorted_val_a, <const int*>bsr_sorted_row_ptr_a, <const int*>bsr_sorted_col_ind_a, block_dim, <bsrsv2Info>info, <const cuDoubleComplex*>f, <cuDoubleComplex*>x, <_SolvePolicy>policy, <void*>p_buffer)
+    check_status(__status__)
+
+
 cpdef sbsrmm(intptr_t handle, int dir_a, int trans_a, int trans_b, int mb, int n, int kb, int nnzb, intptr_t alpha, intptr_t descr_a, intptr_t bsr_sorted_val_a, intptr_t bsr_sorted_row_ptr_a, intptr_t bsr_sorted_col_ind_a, int block_size, intptr_t b, int ldb, intptr_t beta, intptr_t c, int ldc):
     """See `cusparseSbsrmm`."""
     with nogil:
@@ -553,6 +951,747 @@ cpdef zbsrmm(intptr_t handle, int dir_a, int trans_a, int trans_b, int mb, int n
     """See `cusparseZbsrmm`."""
     with nogil:
         __status__ = cusparseZbsrmm(<Handle>handle, <_Direction>dir_a, <_Operation>trans_a, <_Operation>trans_b, mb, n, kb, nnzb, <const cuDoubleComplex*>alpha, <const MatDescr>descr_a, <const cuDoubleComplex*>bsr_sorted_val_a, <const int*>bsr_sorted_row_ptr_a, <const int*>bsr_sorted_col_ind_a, <const int>block_size, <const cuDoubleComplex*>b, <const int>ldb, <const cuDoubleComplex*>beta, <cuDoubleComplex*>c, ldc)
+    check_status(__status__)
+
+
+cpdef int xbsrsm2_zero_pivot(intptr_t handle, intptr_t info) except? -1:
+    """See `cusparseXbsrsm2_zeroPivot`."""
+    cdef int position
+    with nogil:
+        __status__ = cusparseXbsrsm2_zeroPivot(<Handle>handle, <bsrsm2Info>info, &position)
+    check_status(__status__)
+    return position
+
+
+cpdef int sbsrsm2_buffer_size(intptr_t handle, int dir_a, int trans_a, int trans_xy, int mb, int n, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_size, intptr_t info) except? -1:
+    """See `cusparseSbsrsm2_bufferSize`."""
+    cdef int p_buffer_size_in_bytes
+    with nogil:
+        __status__ = cusparseSbsrsm2_bufferSize(<Handle>handle, <_Direction>dir_a, <_Operation>trans_a, <_Operation>trans_xy, mb, n, nnzb, <const MatDescr>descr_a, <float*>bsr_sorted_val, <const int*>bsr_sorted_row_ptr, <const int*>bsr_sorted_col_ind, block_size, <bsrsm2Info>info, &p_buffer_size_in_bytes)
+    check_status(__status__)
+    return p_buffer_size_in_bytes
+
+
+cpdef int dbsrsm2_buffer_size(intptr_t handle, int dir_a, int trans_a, int trans_xy, int mb, int n, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_size, intptr_t info) except? -1:
+    """See `cusparseDbsrsm2_bufferSize`."""
+    cdef int p_buffer_size_in_bytes
+    with nogil:
+        __status__ = cusparseDbsrsm2_bufferSize(<Handle>handle, <_Direction>dir_a, <_Operation>trans_a, <_Operation>trans_xy, mb, n, nnzb, <const MatDescr>descr_a, <double*>bsr_sorted_val, <const int*>bsr_sorted_row_ptr, <const int*>bsr_sorted_col_ind, block_size, <bsrsm2Info>info, &p_buffer_size_in_bytes)
+    check_status(__status__)
+    return p_buffer_size_in_bytes
+
+
+cpdef int cbsrsm2_buffer_size(intptr_t handle, int dir_a, int trans_a, int trans_xy, int mb, int n, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_size, intptr_t info) except? -1:
+    """See `cusparseCbsrsm2_bufferSize`."""
+    cdef int p_buffer_size_in_bytes
+    with nogil:
+        __status__ = cusparseCbsrsm2_bufferSize(<Handle>handle, <_Direction>dir_a, <_Operation>trans_a, <_Operation>trans_xy, mb, n, nnzb, <const MatDescr>descr_a, <cuComplex*>bsr_sorted_val, <const int*>bsr_sorted_row_ptr, <const int*>bsr_sorted_col_ind, block_size, <bsrsm2Info>info, &p_buffer_size_in_bytes)
+    check_status(__status__)
+    return p_buffer_size_in_bytes
+
+
+cpdef int zbsrsm2_buffer_size(intptr_t handle, int dir_a, int trans_a, int trans_xy, int mb, int n, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_size, intptr_t info) except? -1:
+    """See `cusparseZbsrsm2_bufferSize`."""
+    cdef int p_buffer_size_in_bytes
+    with nogil:
+        __status__ = cusparseZbsrsm2_bufferSize(<Handle>handle, <_Direction>dir_a, <_Operation>trans_a, <_Operation>trans_xy, mb, n, nnzb, <const MatDescr>descr_a, <cuDoubleComplex*>bsr_sorted_val, <const int*>bsr_sorted_row_ptr, <const int*>bsr_sorted_col_ind, block_size, <bsrsm2Info>info, &p_buffer_size_in_bytes)
+    check_status(__status__)
+    return p_buffer_size_in_bytes
+
+
+cpdef size_t sbsrsm2_buffer_size_ext(intptr_t handle, int dir_a, int trans_a, int trans_b, int mb, int n, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_size, intptr_t info) except? 0:
+    """See `cusparseSbsrsm2_bufferSizeExt`."""
+    cdef size_t p_buffer_size
+    with nogil:
+        __status__ = cusparseSbsrsm2_bufferSizeExt(<Handle>handle, <_Direction>dir_a, <_Operation>trans_a, <_Operation>trans_b, mb, n, nnzb, <const MatDescr>descr_a, <float*>bsr_sorted_val, <const int*>bsr_sorted_row_ptr, <const int*>bsr_sorted_col_ind, block_size, <bsrsm2Info>info, &p_buffer_size)
+    check_status(__status__)
+    return p_buffer_size
+
+
+cpdef size_t dbsrsm2_buffer_size_ext(intptr_t handle, int dir_a, int trans_a, int trans_b, int mb, int n, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_size, intptr_t info) except? 0:
+    """See `cusparseDbsrsm2_bufferSizeExt`."""
+    cdef size_t p_buffer_size
+    with nogil:
+        __status__ = cusparseDbsrsm2_bufferSizeExt(<Handle>handle, <_Direction>dir_a, <_Operation>trans_a, <_Operation>trans_b, mb, n, nnzb, <const MatDescr>descr_a, <double*>bsr_sorted_val, <const int*>bsr_sorted_row_ptr, <const int*>bsr_sorted_col_ind, block_size, <bsrsm2Info>info, &p_buffer_size)
+    check_status(__status__)
+    return p_buffer_size
+
+
+cpdef size_t cbsrsm2_buffer_size_ext(intptr_t handle, int dir_a, int trans_a, int trans_b, int mb, int n, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_size, intptr_t info) except? 0:
+    """See `cusparseCbsrsm2_bufferSizeExt`."""
+    cdef size_t p_buffer_size
+    with nogil:
+        __status__ = cusparseCbsrsm2_bufferSizeExt(<Handle>handle, <_Direction>dir_a, <_Operation>trans_a, <_Operation>trans_b, mb, n, nnzb, <const MatDescr>descr_a, <cuComplex*>bsr_sorted_val, <const int*>bsr_sorted_row_ptr, <const int*>bsr_sorted_col_ind, block_size, <bsrsm2Info>info, &p_buffer_size)
+    check_status(__status__)
+    return p_buffer_size
+
+
+cpdef size_t zbsrsm2_buffer_size_ext(intptr_t handle, int dir_a, int trans_a, int trans_b, int mb, int n, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_size, intptr_t info) except? 0:
+    """See `cusparseZbsrsm2_bufferSizeExt`."""
+    cdef size_t p_buffer_size
+    with nogil:
+        __status__ = cusparseZbsrsm2_bufferSizeExt(<Handle>handle, <_Direction>dir_a, <_Operation>trans_a, <_Operation>trans_b, mb, n, nnzb, <const MatDescr>descr_a, <cuDoubleComplex*>bsr_sorted_val, <const int*>bsr_sorted_row_ptr, <const int*>bsr_sorted_col_ind, block_size, <bsrsm2Info>info, &p_buffer_size)
+    check_status(__status__)
+    return p_buffer_size
+
+
+cpdef sbsrsm2_analysis(intptr_t handle, int dir_a, int trans_a, int trans_xy, int mb, int n, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_size, intptr_t info, int policy, intptr_t p_buffer):
+    """See `cusparseSbsrsm2_analysis`."""
+    with nogil:
+        __status__ = cusparseSbsrsm2_analysis(<Handle>handle, <_Direction>dir_a, <_Operation>trans_a, <_Operation>trans_xy, mb, n, nnzb, <const MatDescr>descr_a, <const float*>bsr_sorted_val, <const int*>bsr_sorted_row_ptr, <const int*>bsr_sorted_col_ind, block_size, <bsrsm2Info>info, <_SolvePolicy>policy, <void*>p_buffer)
+    check_status(__status__)
+
+
+cpdef dbsrsm2_analysis(intptr_t handle, int dir_a, int trans_a, int trans_xy, int mb, int n, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_size, intptr_t info, int policy, intptr_t p_buffer):
+    """See `cusparseDbsrsm2_analysis`."""
+    with nogil:
+        __status__ = cusparseDbsrsm2_analysis(<Handle>handle, <_Direction>dir_a, <_Operation>trans_a, <_Operation>trans_xy, mb, n, nnzb, <const MatDescr>descr_a, <const double*>bsr_sorted_val, <const int*>bsr_sorted_row_ptr, <const int*>bsr_sorted_col_ind, block_size, <bsrsm2Info>info, <_SolvePolicy>policy, <void*>p_buffer)
+    check_status(__status__)
+
+
+cpdef cbsrsm2_analysis(intptr_t handle, int dir_a, int trans_a, int trans_xy, int mb, int n, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_size, intptr_t info, int policy, intptr_t p_buffer):
+    """See `cusparseCbsrsm2_analysis`."""
+    with nogil:
+        __status__ = cusparseCbsrsm2_analysis(<Handle>handle, <_Direction>dir_a, <_Operation>trans_a, <_Operation>trans_xy, mb, n, nnzb, <const MatDescr>descr_a, <const cuComplex*>bsr_sorted_val, <const int*>bsr_sorted_row_ptr, <const int*>bsr_sorted_col_ind, block_size, <bsrsm2Info>info, <_SolvePolicy>policy, <void*>p_buffer)
+    check_status(__status__)
+
+
+cpdef zbsrsm2_analysis(intptr_t handle, int dir_a, int trans_a, int trans_xy, int mb, int n, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_size, intptr_t info, int policy, intptr_t p_buffer):
+    """See `cusparseZbsrsm2_analysis`."""
+    with nogil:
+        __status__ = cusparseZbsrsm2_analysis(<Handle>handle, <_Direction>dir_a, <_Operation>trans_a, <_Operation>trans_xy, mb, n, nnzb, <const MatDescr>descr_a, <const cuDoubleComplex*>bsr_sorted_val, <const int*>bsr_sorted_row_ptr, <const int*>bsr_sorted_col_ind, block_size, <bsrsm2Info>info, <_SolvePolicy>policy, <void*>p_buffer)
+    check_status(__status__)
+
+
+cpdef sbsrsm2_solve(intptr_t handle, int dir_a, int trans_a, int trans_xy, int mb, int n, int nnzb, intptr_t alpha, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_size, intptr_t info, intptr_t b, int ldb, intptr_t x, int ldx, int policy, intptr_t p_buffer):
+    """See `cusparseSbsrsm2_solve`."""
+    with nogil:
+        __status__ = cusparseSbsrsm2_solve(<Handle>handle, <_Direction>dir_a, <_Operation>trans_a, <_Operation>trans_xy, mb, n, nnzb, <const float*>alpha, <const MatDescr>descr_a, <const float*>bsr_sorted_val, <const int*>bsr_sorted_row_ptr, <const int*>bsr_sorted_col_ind, block_size, <bsrsm2Info>info, <const float*>b, ldb, <float*>x, ldx, <_SolvePolicy>policy, <void*>p_buffer)
+    check_status(__status__)
+
+
+cpdef dbsrsm2_solve(intptr_t handle, int dir_a, int trans_a, int trans_xy, int mb, int n, int nnzb, intptr_t alpha, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_size, intptr_t info, intptr_t b, int ldb, intptr_t x, int ldx, int policy, intptr_t p_buffer):
+    """See `cusparseDbsrsm2_solve`."""
+    with nogil:
+        __status__ = cusparseDbsrsm2_solve(<Handle>handle, <_Direction>dir_a, <_Operation>trans_a, <_Operation>trans_xy, mb, n, nnzb, <const double*>alpha, <const MatDescr>descr_a, <const double*>bsr_sorted_val, <const int*>bsr_sorted_row_ptr, <const int*>bsr_sorted_col_ind, block_size, <bsrsm2Info>info, <const double*>b, ldb, <double*>x, ldx, <_SolvePolicy>policy, <void*>p_buffer)
+    check_status(__status__)
+
+
+cpdef cbsrsm2_solve(intptr_t handle, int dir_a, int trans_a, int trans_xy, int mb, int n, int nnzb, intptr_t alpha, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_size, intptr_t info, intptr_t b, int ldb, intptr_t x, int ldx, int policy, intptr_t p_buffer):
+    """See `cusparseCbsrsm2_solve`."""
+    with nogil:
+        __status__ = cusparseCbsrsm2_solve(<Handle>handle, <_Direction>dir_a, <_Operation>trans_a, <_Operation>trans_xy, mb, n, nnzb, <const cuComplex*>alpha, <const MatDescr>descr_a, <const cuComplex*>bsr_sorted_val, <const int*>bsr_sorted_row_ptr, <const int*>bsr_sorted_col_ind, block_size, <bsrsm2Info>info, <const cuComplex*>b, ldb, <cuComplex*>x, ldx, <_SolvePolicy>policy, <void*>p_buffer)
+    check_status(__status__)
+
+
+cpdef zbsrsm2_solve(intptr_t handle, int dir_a, int trans_a, int trans_xy, int mb, int n, int nnzb, intptr_t alpha, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_size, intptr_t info, intptr_t b, int ldb, intptr_t x, int ldx, int policy, intptr_t p_buffer):
+    """See `cusparseZbsrsm2_solve`."""
+    with nogil:
+        __status__ = cusparseZbsrsm2_solve(<Handle>handle, <_Direction>dir_a, <_Operation>trans_a, <_Operation>trans_xy, mb, n, nnzb, <const cuDoubleComplex*>alpha, <const MatDescr>descr_a, <const cuDoubleComplex*>bsr_sorted_val, <const int*>bsr_sorted_row_ptr, <const int*>bsr_sorted_col_ind, block_size, <bsrsm2Info>info, <const cuDoubleComplex*>b, ldb, <cuDoubleComplex*>x, ldx, <_SolvePolicy>policy, <void*>p_buffer)
+    check_status(__status__)
+
+
+cpdef scsrilu02_numeric_boost(intptr_t handle, intptr_t info, int enable_boost, intptr_t tol, intptr_t boost_val):
+    """See `cusparseScsrilu02_numericBoost`."""
+    with nogil:
+        __status__ = cusparseScsrilu02_numericBoost(<Handle>handle, <csrilu02Info>info, enable_boost, <double*>tol, <float*>boost_val)
+    check_status(__status__)
+
+
+cpdef dcsrilu02_numeric_boost(intptr_t handle, intptr_t info, int enable_boost, intptr_t tol, intptr_t boost_val):
+    """See `cusparseDcsrilu02_numericBoost`."""
+    with nogil:
+        __status__ = cusparseDcsrilu02_numericBoost(<Handle>handle, <csrilu02Info>info, enable_boost, <double*>tol, <double*>boost_val)
+    check_status(__status__)
+
+
+cpdef ccsrilu02_numeric_boost(intptr_t handle, intptr_t info, int enable_boost, intptr_t tol, intptr_t boost_val):
+    """See `cusparseCcsrilu02_numericBoost`."""
+    with nogil:
+        __status__ = cusparseCcsrilu02_numericBoost(<Handle>handle, <csrilu02Info>info, enable_boost, <double*>tol, <cuComplex*>boost_val)
+    check_status(__status__)
+
+
+cpdef zcsrilu02_numeric_boost(intptr_t handle, intptr_t info, int enable_boost, intptr_t tol, intptr_t boost_val):
+    """See `cusparseZcsrilu02_numericBoost`."""
+    with nogil:
+        __status__ = cusparseZcsrilu02_numericBoost(<Handle>handle, <csrilu02Info>info, enable_boost, <double*>tol, <cuDoubleComplex*>boost_val)
+    check_status(__status__)
+
+
+cpdef int xcsrilu02_zero_pivot(intptr_t handle, intptr_t info) except? -1:
+    """See `cusparseXcsrilu02_zeroPivot`."""
+    cdef int position
+    with nogil:
+        __status__ = cusparseXcsrilu02_zeroPivot(<Handle>handle, <csrilu02Info>info, &position)
+    check_status(__status__)
+    return position
+
+
+cpdef int scsrilu02_buffer_size(intptr_t handle, int m, int nnz, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, intptr_t info) except? -1:
+    """See `cusparseScsrilu02_bufferSize`."""
+    cdef int p_buffer_size_in_bytes
+    with nogil:
+        __status__ = cusparseScsrilu02_bufferSize(<Handle>handle, m, nnz, <const MatDescr>descr_a, <float*>csr_sorted_val_a, <const int*>csr_sorted_row_ptr_a, <const int*>csr_sorted_col_ind_a, <csrilu02Info>info, &p_buffer_size_in_bytes)
+    check_status(__status__)
+    return p_buffer_size_in_bytes
+
+
+cpdef int dcsrilu02_buffer_size(intptr_t handle, int m, int nnz, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, intptr_t info) except? -1:
+    """See `cusparseDcsrilu02_bufferSize`."""
+    cdef int p_buffer_size_in_bytes
+    with nogil:
+        __status__ = cusparseDcsrilu02_bufferSize(<Handle>handle, m, nnz, <const MatDescr>descr_a, <double*>csr_sorted_val_a, <const int*>csr_sorted_row_ptr_a, <const int*>csr_sorted_col_ind_a, <csrilu02Info>info, &p_buffer_size_in_bytes)
+    check_status(__status__)
+    return p_buffer_size_in_bytes
+
+
+cpdef int ccsrilu02_buffer_size(intptr_t handle, int m, int nnz, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, intptr_t info) except? -1:
+    """See `cusparseCcsrilu02_bufferSize`."""
+    cdef int p_buffer_size_in_bytes
+    with nogil:
+        __status__ = cusparseCcsrilu02_bufferSize(<Handle>handle, m, nnz, <const MatDescr>descr_a, <cuComplex*>csr_sorted_val_a, <const int*>csr_sorted_row_ptr_a, <const int*>csr_sorted_col_ind_a, <csrilu02Info>info, &p_buffer_size_in_bytes)
+    check_status(__status__)
+    return p_buffer_size_in_bytes
+
+
+cpdef int zcsrilu02_buffer_size(intptr_t handle, int m, int nnz, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, intptr_t info) except? -1:
+    """See `cusparseZcsrilu02_bufferSize`."""
+    cdef int p_buffer_size_in_bytes
+    with nogil:
+        __status__ = cusparseZcsrilu02_bufferSize(<Handle>handle, m, nnz, <const MatDescr>descr_a, <cuDoubleComplex*>csr_sorted_val_a, <const int*>csr_sorted_row_ptr_a, <const int*>csr_sorted_col_ind_a, <csrilu02Info>info, &p_buffer_size_in_bytes)
+    check_status(__status__)
+    return p_buffer_size_in_bytes
+
+
+cpdef size_t scsrilu02_buffer_size_ext(intptr_t handle, int m, int nnz, intptr_t descr_a, intptr_t csr_sorted_val, intptr_t csr_sorted_row_ptr, intptr_t csr_sorted_col_ind, intptr_t info) except? 0:
+    """See `cusparseScsrilu02_bufferSizeExt`."""
+    cdef size_t p_buffer_size
+    with nogil:
+        __status__ = cusparseScsrilu02_bufferSizeExt(<Handle>handle, m, nnz, <const MatDescr>descr_a, <float*>csr_sorted_val, <const int*>csr_sorted_row_ptr, <const int*>csr_sorted_col_ind, <csrilu02Info>info, &p_buffer_size)
+    check_status(__status__)
+    return p_buffer_size
+
+
+cpdef size_t dcsrilu02_buffer_size_ext(intptr_t handle, int m, int nnz, intptr_t descr_a, intptr_t csr_sorted_val, intptr_t csr_sorted_row_ptr, intptr_t csr_sorted_col_ind, intptr_t info) except? 0:
+    """See `cusparseDcsrilu02_bufferSizeExt`."""
+    cdef size_t p_buffer_size
+    with nogil:
+        __status__ = cusparseDcsrilu02_bufferSizeExt(<Handle>handle, m, nnz, <const MatDescr>descr_a, <double*>csr_sorted_val, <const int*>csr_sorted_row_ptr, <const int*>csr_sorted_col_ind, <csrilu02Info>info, &p_buffer_size)
+    check_status(__status__)
+    return p_buffer_size
+
+
+cpdef size_t ccsrilu02_buffer_size_ext(intptr_t handle, int m, int nnz, intptr_t descr_a, intptr_t csr_sorted_val, intptr_t csr_sorted_row_ptr, intptr_t csr_sorted_col_ind, intptr_t info) except? 0:
+    """See `cusparseCcsrilu02_bufferSizeExt`."""
+    cdef size_t p_buffer_size
+    with nogil:
+        __status__ = cusparseCcsrilu02_bufferSizeExt(<Handle>handle, m, nnz, <const MatDescr>descr_a, <cuComplex*>csr_sorted_val, <const int*>csr_sorted_row_ptr, <const int*>csr_sorted_col_ind, <csrilu02Info>info, &p_buffer_size)
+    check_status(__status__)
+    return p_buffer_size
+
+
+cpdef size_t zcsrilu02_buffer_size_ext(intptr_t handle, int m, int nnz, intptr_t descr_a, intptr_t csr_sorted_val, intptr_t csr_sorted_row_ptr, intptr_t csr_sorted_col_ind, intptr_t info) except? 0:
+    """See `cusparseZcsrilu02_bufferSizeExt`."""
+    cdef size_t p_buffer_size
+    with nogil:
+        __status__ = cusparseZcsrilu02_bufferSizeExt(<Handle>handle, m, nnz, <const MatDescr>descr_a, <cuDoubleComplex*>csr_sorted_val, <const int*>csr_sorted_row_ptr, <const int*>csr_sorted_col_ind, <csrilu02Info>info, &p_buffer_size)
+    check_status(__status__)
+    return p_buffer_size
+
+
+cpdef scsrilu02_analysis(intptr_t handle, int m, int nnz, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, intptr_t info, int policy, intptr_t p_buffer):
+    """See `cusparseScsrilu02_analysis`."""
+    with nogil:
+        __status__ = cusparseScsrilu02_analysis(<Handle>handle, m, nnz, <const MatDescr>descr_a, <const float*>csr_sorted_val_a, <const int*>csr_sorted_row_ptr_a, <const int*>csr_sorted_col_ind_a, <csrilu02Info>info, <_SolvePolicy>policy, <void*>p_buffer)
+    check_status(__status__)
+
+
+cpdef dcsrilu02_analysis(intptr_t handle, int m, int nnz, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, intptr_t info, int policy, intptr_t p_buffer):
+    """See `cusparseDcsrilu02_analysis`."""
+    with nogil:
+        __status__ = cusparseDcsrilu02_analysis(<Handle>handle, m, nnz, <const MatDescr>descr_a, <const double*>csr_sorted_val_a, <const int*>csr_sorted_row_ptr_a, <const int*>csr_sorted_col_ind_a, <csrilu02Info>info, <_SolvePolicy>policy, <void*>p_buffer)
+    check_status(__status__)
+
+
+cpdef ccsrilu02_analysis(intptr_t handle, int m, int nnz, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, intptr_t info, int policy, intptr_t p_buffer):
+    """See `cusparseCcsrilu02_analysis`."""
+    with nogil:
+        __status__ = cusparseCcsrilu02_analysis(<Handle>handle, m, nnz, <const MatDescr>descr_a, <const cuComplex*>csr_sorted_val_a, <const int*>csr_sorted_row_ptr_a, <const int*>csr_sorted_col_ind_a, <csrilu02Info>info, <_SolvePolicy>policy, <void*>p_buffer)
+    check_status(__status__)
+
+
+cpdef zcsrilu02_analysis(intptr_t handle, int m, int nnz, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, intptr_t info, int policy, intptr_t p_buffer):
+    """See `cusparseZcsrilu02_analysis`."""
+    with nogil:
+        __status__ = cusparseZcsrilu02_analysis(<Handle>handle, m, nnz, <const MatDescr>descr_a, <const cuDoubleComplex*>csr_sorted_val_a, <const int*>csr_sorted_row_ptr_a, <const int*>csr_sorted_col_ind_a, <csrilu02Info>info, <_SolvePolicy>policy, <void*>p_buffer)
+    check_status(__status__)
+
+
+cpdef scsrilu02(intptr_t handle, int m, int nnz, intptr_t descr_a, intptr_t csr_sorted_val_a_val_m, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, intptr_t info, int policy, intptr_t p_buffer):
+    """See `cusparseScsrilu02`."""
+    with nogil:
+        __status__ = cusparseScsrilu02(<Handle>handle, m, nnz, <const MatDescr>descr_a, <float*>csr_sorted_val_a_val_m, <const int*>csr_sorted_row_ptr_a, <const int*>csr_sorted_col_ind_a, <csrilu02Info>info, <_SolvePolicy>policy, <void*>p_buffer)
+    check_status(__status__)
+
+
+cpdef dcsrilu02(intptr_t handle, int m, int nnz, intptr_t descr_a, intptr_t csr_sorted_val_a_val_m, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, intptr_t info, int policy, intptr_t p_buffer):
+    """See `cusparseDcsrilu02`."""
+    with nogil:
+        __status__ = cusparseDcsrilu02(<Handle>handle, m, nnz, <const MatDescr>descr_a, <double*>csr_sorted_val_a_val_m, <const int*>csr_sorted_row_ptr_a, <const int*>csr_sorted_col_ind_a, <csrilu02Info>info, <_SolvePolicy>policy, <void*>p_buffer)
+    check_status(__status__)
+
+
+cpdef ccsrilu02(intptr_t handle, int m, int nnz, intptr_t descr_a, intptr_t csr_sorted_val_a_val_m, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, intptr_t info, int policy, intptr_t p_buffer):
+    """See `cusparseCcsrilu02`."""
+    with nogil:
+        __status__ = cusparseCcsrilu02(<Handle>handle, m, nnz, <const MatDescr>descr_a, <cuComplex*>csr_sorted_val_a_val_m, <const int*>csr_sorted_row_ptr_a, <const int*>csr_sorted_col_ind_a, <csrilu02Info>info, <_SolvePolicy>policy, <void*>p_buffer)
+    check_status(__status__)
+
+
+cpdef zcsrilu02(intptr_t handle, int m, int nnz, intptr_t descr_a, intptr_t csr_sorted_val_a_val_m, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, intptr_t info, int policy, intptr_t p_buffer):
+    """See `cusparseZcsrilu02`."""
+    with nogil:
+        __status__ = cusparseZcsrilu02(<Handle>handle, m, nnz, <const MatDescr>descr_a, <cuDoubleComplex*>csr_sorted_val_a_val_m, <const int*>csr_sorted_row_ptr_a, <const int*>csr_sorted_col_ind_a, <csrilu02Info>info, <_SolvePolicy>policy, <void*>p_buffer)
+    check_status(__status__)
+
+
+cpdef sbsrilu02_numeric_boost(intptr_t handle, intptr_t info, int enable_boost, intptr_t tol, intptr_t boost_val):
+    """See `cusparseSbsrilu02_numericBoost`."""
+    with nogil:
+        __status__ = cusparseSbsrilu02_numericBoost(<Handle>handle, <bsrilu02Info>info, enable_boost, <double*>tol, <float*>boost_val)
+    check_status(__status__)
+
+
+cpdef dbsrilu02_numeric_boost(intptr_t handle, intptr_t info, int enable_boost, intptr_t tol, intptr_t boost_val):
+    """See `cusparseDbsrilu02_numericBoost`."""
+    with nogil:
+        __status__ = cusparseDbsrilu02_numericBoost(<Handle>handle, <bsrilu02Info>info, enable_boost, <double*>tol, <double*>boost_val)
+    check_status(__status__)
+
+
+cpdef cbsrilu02_numeric_boost(intptr_t handle, intptr_t info, int enable_boost, intptr_t tol, intptr_t boost_val):
+    """See `cusparseCbsrilu02_numericBoost`."""
+    with nogil:
+        __status__ = cusparseCbsrilu02_numericBoost(<Handle>handle, <bsrilu02Info>info, enable_boost, <double*>tol, <cuComplex*>boost_val)
+    check_status(__status__)
+
+
+cpdef zbsrilu02_numeric_boost(intptr_t handle, intptr_t info, int enable_boost, intptr_t tol, intptr_t boost_val):
+    """See `cusparseZbsrilu02_numericBoost`."""
+    with nogil:
+        __status__ = cusparseZbsrilu02_numericBoost(<Handle>handle, <bsrilu02Info>info, enable_boost, <double*>tol, <cuDoubleComplex*>boost_val)
+    check_status(__status__)
+
+
+cpdef int xbsrilu02_zero_pivot(intptr_t handle, intptr_t info) except? -1:
+    """See `cusparseXbsrilu02_zeroPivot`."""
+    cdef int position
+    with nogil:
+        __status__ = cusparseXbsrilu02_zeroPivot(<Handle>handle, <bsrilu02Info>info, &position)
+    check_status(__status__)
+    return position
+
+
+cpdef int sbsrilu02_buffer_size(intptr_t handle, int dir_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_dim, intptr_t info) except? -1:
+    """See `cusparseSbsrilu02_bufferSize`."""
+    cdef int p_buffer_size_in_bytes
+    with nogil:
+        __status__ = cusparseSbsrilu02_bufferSize(<Handle>handle, <_Direction>dir_a, mb, nnzb, <const MatDescr>descr_a, <float*>bsr_sorted_val, <const int*>bsr_sorted_row_ptr, <const int*>bsr_sorted_col_ind, block_dim, <bsrilu02Info>info, &p_buffer_size_in_bytes)
+    check_status(__status__)
+    return p_buffer_size_in_bytes
+
+
+cpdef int dbsrilu02_buffer_size(intptr_t handle, int dir_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_dim, intptr_t info) except? -1:
+    """See `cusparseDbsrilu02_bufferSize`."""
+    cdef int p_buffer_size_in_bytes
+    with nogil:
+        __status__ = cusparseDbsrilu02_bufferSize(<Handle>handle, <_Direction>dir_a, mb, nnzb, <const MatDescr>descr_a, <double*>bsr_sorted_val, <const int*>bsr_sorted_row_ptr, <const int*>bsr_sorted_col_ind, block_dim, <bsrilu02Info>info, &p_buffer_size_in_bytes)
+    check_status(__status__)
+    return p_buffer_size_in_bytes
+
+
+cpdef int cbsrilu02_buffer_size(intptr_t handle, int dir_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_dim, intptr_t info) except? -1:
+    """See `cusparseCbsrilu02_bufferSize`."""
+    cdef int p_buffer_size_in_bytes
+    with nogil:
+        __status__ = cusparseCbsrilu02_bufferSize(<Handle>handle, <_Direction>dir_a, mb, nnzb, <const MatDescr>descr_a, <cuComplex*>bsr_sorted_val, <const int*>bsr_sorted_row_ptr, <const int*>bsr_sorted_col_ind, block_dim, <bsrilu02Info>info, &p_buffer_size_in_bytes)
+    check_status(__status__)
+    return p_buffer_size_in_bytes
+
+
+cpdef int zbsrilu02_buffer_size(intptr_t handle, int dir_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_dim, intptr_t info) except? -1:
+    """See `cusparseZbsrilu02_bufferSize`."""
+    cdef int p_buffer_size_in_bytes
+    with nogil:
+        __status__ = cusparseZbsrilu02_bufferSize(<Handle>handle, <_Direction>dir_a, mb, nnzb, <const MatDescr>descr_a, <cuDoubleComplex*>bsr_sorted_val, <const int*>bsr_sorted_row_ptr, <const int*>bsr_sorted_col_ind, block_dim, <bsrilu02Info>info, &p_buffer_size_in_bytes)
+    check_status(__status__)
+    return p_buffer_size_in_bytes
+
+
+cpdef size_t sbsrilu02_buffer_size_ext(intptr_t handle, int dir_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_size, intptr_t info) except? 0:
+    """See `cusparseSbsrilu02_bufferSizeExt`."""
+    cdef size_t p_buffer_size
+    with nogil:
+        __status__ = cusparseSbsrilu02_bufferSizeExt(<Handle>handle, <_Direction>dir_a, mb, nnzb, <const MatDescr>descr_a, <float*>bsr_sorted_val, <const int*>bsr_sorted_row_ptr, <const int*>bsr_sorted_col_ind, block_size, <bsrilu02Info>info, &p_buffer_size)
+    check_status(__status__)
+    return p_buffer_size
+
+
+cpdef size_t dbsrilu02_buffer_size_ext(intptr_t handle, int dir_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_size, intptr_t info) except? 0:
+    """See `cusparseDbsrilu02_bufferSizeExt`."""
+    cdef size_t p_buffer_size
+    with nogil:
+        __status__ = cusparseDbsrilu02_bufferSizeExt(<Handle>handle, <_Direction>dir_a, mb, nnzb, <const MatDescr>descr_a, <double*>bsr_sorted_val, <const int*>bsr_sorted_row_ptr, <const int*>bsr_sorted_col_ind, block_size, <bsrilu02Info>info, &p_buffer_size)
+    check_status(__status__)
+    return p_buffer_size
+
+
+cpdef size_t cbsrilu02_buffer_size_ext(intptr_t handle, int dir_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_size, intptr_t info) except? 0:
+    """See `cusparseCbsrilu02_bufferSizeExt`."""
+    cdef size_t p_buffer_size
+    with nogil:
+        __status__ = cusparseCbsrilu02_bufferSizeExt(<Handle>handle, <_Direction>dir_a, mb, nnzb, <const MatDescr>descr_a, <cuComplex*>bsr_sorted_val, <const int*>bsr_sorted_row_ptr, <const int*>bsr_sorted_col_ind, block_size, <bsrilu02Info>info, &p_buffer_size)
+    check_status(__status__)
+    return p_buffer_size
+
+
+cpdef size_t zbsrilu02_buffer_size_ext(intptr_t handle, int dir_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_size, intptr_t info) except? 0:
+    """See `cusparseZbsrilu02_bufferSizeExt`."""
+    cdef size_t p_buffer_size
+    with nogil:
+        __status__ = cusparseZbsrilu02_bufferSizeExt(<Handle>handle, <_Direction>dir_a, mb, nnzb, <const MatDescr>descr_a, <cuDoubleComplex*>bsr_sorted_val, <const int*>bsr_sorted_row_ptr, <const int*>bsr_sorted_col_ind, block_size, <bsrilu02Info>info, &p_buffer_size)
+    check_status(__status__)
+    return p_buffer_size
+
+
+cpdef sbsrilu02_analysis(intptr_t handle, int dir_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_dim, intptr_t info, int policy, intptr_t p_buffer):
+    """See `cusparseSbsrilu02_analysis`."""
+    with nogil:
+        __status__ = cusparseSbsrilu02_analysis(<Handle>handle, <_Direction>dir_a, mb, nnzb, <const MatDescr>descr_a, <float*>bsr_sorted_val, <const int*>bsr_sorted_row_ptr, <const int*>bsr_sorted_col_ind, block_dim, <bsrilu02Info>info, <_SolvePolicy>policy, <void*>p_buffer)
+    check_status(__status__)
+
+
+cpdef dbsrilu02_analysis(intptr_t handle, int dir_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_dim, intptr_t info, int policy, intptr_t p_buffer):
+    """See `cusparseDbsrilu02_analysis`."""
+    with nogil:
+        __status__ = cusparseDbsrilu02_analysis(<Handle>handle, <_Direction>dir_a, mb, nnzb, <const MatDescr>descr_a, <double*>bsr_sorted_val, <const int*>bsr_sorted_row_ptr, <const int*>bsr_sorted_col_ind, block_dim, <bsrilu02Info>info, <_SolvePolicy>policy, <void*>p_buffer)
+    check_status(__status__)
+
+
+cpdef cbsrilu02_analysis(intptr_t handle, int dir_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_dim, intptr_t info, int policy, intptr_t p_buffer):
+    """See `cusparseCbsrilu02_analysis`."""
+    with nogil:
+        __status__ = cusparseCbsrilu02_analysis(<Handle>handle, <_Direction>dir_a, mb, nnzb, <const MatDescr>descr_a, <cuComplex*>bsr_sorted_val, <const int*>bsr_sorted_row_ptr, <const int*>bsr_sorted_col_ind, block_dim, <bsrilu02Info>info, <_SolvePolicy>policy, <void*>p_buffer)
+    check_status(__status__)
+
+
+cpdef zbsrilu02_analysis(intptr_t handle, int dir_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_dim, intptr_t info, int policy, intptr_t p_buffer):
+    """See `cusparseZbsrilu02_analysis`."""
+    with nogil:
+        __status__ = cusparseZbsrilu02_analysis(<Handle>handle, <_Direction>dir_a, mb, nnzb, <const MatDescr>descr_a, <cuDoubleComplex*>bsr_sorted_val, <const int*>bsr_sorted_row_ptr, <const int*>bsr_sorted_col_ind, block_dim, <bsrilu02Info>info, <_SolvePolicy>policy, <void*>p_buffer)
+    check_status(__status__)
+
+
+cpdef sbsrilu02(intptr_t handle, int dir_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_dim, intptr_t info, int policy, intptr_t p_buffer):
+    """See `cusparseSbsrilu02`."""
+    with nogil:
+        __status__ = cusparseSbsrilu02(<Handle>handle, <_Direction>dir_a, mb, nnzb, <const MatDescr>descr_a, <float*>bsr_sorted_val, <const int*>bsr_sorted_row_ptr, <const int*>bsr_sorted_col_ind, block_dim, <bsrilu02Info>info, <_SolvePolicy>policy, <void*>p_buffer)
+    check_status(__status__)
+
+
+cpdef dbsrilu02(intptr_t handle, int dir_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_dim, intptr_t info, int policy, intptr_t p_buffer):
+    """See `cusparseDbsrilu02`."""
+    with nogil:
+        __status__ = cusparseDbsrilu02(<Handle>handle, <_Direction>dir_a, mb, nnzb, <const MatDescr>descr_a, <double*>bsr_sorted_val, <const int*>bsr_sorted_row_ptr, <const int*>bsr_sorted_col_ind, block_dim, <bsrilu02Info>info, <_SolvePolicy>policy, <void*>p_buffer)
+    check_status(__status__)
+
+
+cpdef cbsrilu02(intptr_t handle, int dir_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_dim, intptr_t info, int policy, intptr_t p_buffer):
+    """See `cusparseCbsrilu02`."""
+    with nogil:
+        __status__ = cusparseCbsrilu02(<Handle>handle, <_Direction>dir_a, mb, nnzb, <const MatDescr>descr_a, <cuComplex*>bsr_sorted_val, <const int*>bsr_sorted_row_ptr, <const int*>bsr_sorted_col_ind, block_dim, <bsrilu02Info>info, <_SolvePolicy>policy, <void*>p_buffer)
+    check_status(__status__)
+
+
+cpdef zbsrilu02(intptr_t handle, int dir_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_dim, intptr_t info, int policy, intptr_t p_buffer):
+    """See `cusparseZbsrilu02`."""
+    with nogil:
+        __status__ = cusparseZbsrilu02(<Handle>handle, <_Direction>dir_a, mb, nnzb, <const MatDescr>descr_a, <cuDoubleComplex*>bsr_sorted_val, <const int*>bsr_sorted_row_ptr, <const int*>bsr_sorted_col_ind, block_dim, <bsrilu02Info>info, <_SolvePolicy>policy, <void*>p_buffer)
+    check_status(__status__)
+
+
+cpdef int xcsric02_zero_pivot(intptr_t handle, intptr_t info) except? -1:
+    """See `cusparseXcsric02_zeroPivot`."""
+    cdef int position
+    with nogil:
+        __status__ = cusparseXcsric02_zeroPivot(<Handle>handle, <csric02Info>info, &position)
+    check_status(__status__)
+    return position
+
+
+cpdef int scsric02_buffer_size(intptr_t handle, int m, int nnz, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, intptr_t info) except? -1:
+    """See `cusparseScsric02_bufferSize`."""
+    cdef int p_buffer_size_in_bytes
+    with nogil:
+        __status__ = cusparseScsric02_bufferSize(<Handle>handle, m, nnz, <const MatDescr>descr_a, <float*>csr_sorted_val_a, <const int*>csr_sorted_row_ptr_a, <const int*>csr_sorted_col_ind_a, <csric02Info>info, &p_buffer_size_in_bytes)
+    check_status(__status__)
+    return p_buffer_size_in_bytes
+
+
+cpdef int dcsric02_buffer_size(intptr_t handle, int m, int nnz, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, intptr_t info) except? -1:
+    """See `cusparseDcsric02_bufferSize`."""
+    cdef int p_buffer_size_in_bytes
+    with nogil:
+        __status__ = cusparseDcsric02_bufferSize(<Handle>handle, m, nnz, <const MatDescr>descr_a, <double*>csr_sorted_val_a, <const int*>csr_sorted_row_ptr_a, <const int*>csr_sorted_col_ind_a, <csric02Info>info, &p_buffer_size_in_bytes)
+    check_status(__status__)
+    return p_buffer_size_in_bytes
+
+
+cpdef int ccsric02_buffer_size(intptr_t handle, int m, int nnz, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, intptr_t info) except? -1:
+    """See `cusparseCcsric02_bufferSize`."""
+    cdef int p_buffer_size_in_bytes
+    with nogil:
+        __status__ = cusparseCcsric02_bufferSize(<Handle>handle, m, nnz, <const MatDescr>descr_a, <cuComplex*>csr_sorted_val_a, <const int*>csr_sorted_row_ptr_a, <const int*>csr_sorted_col_ind_a, <csric02Info>info, &p_buffer_size_in_bytes)
+    check_status(__status__)
+    return p_buffer_size_in_bytes
+
+
+cpdef int zcsric02_buffer_size(intptr_t handle, int m, int nnz, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, intptr_t info) except? -1:
+    """See `cusparseZcsric02_bufferSize`."""
+    cdef int p_buffer_size_in_bytes
+    with nogil:
+        __status__ = cusparseZcsric02_bufferSize(<Handle>handle, m, nnz, <const MatDescr>descr_a, <cuDoubleComplex*>csr_sorted_val_a, <const int*>csr_sorted_row_ptr_a, <const int*>csr_sorted_col_ind_a, <csric02Info>info, &p_buffer_size_in_bytes)
+    check_status(__status__)
+    return p_buffer_size_in_bytes
+
+
+cpdef size_t scsric02_buffer_size_ext(intptr_t handle, int m, int nnz, intptr_t descr_a, intptr_t csr_sorted_val, intptr_t csr_sorted_row_ptr, intptr_t csr_sorted_col_ind, intptr_t info) except? 0:
+    """See `cusparseScsric02_bufferSizeExt`."""
+    cdef size_t p_buffer_size
+    with nogil:
+        __status__ = cusparseScsric02_bufferSizeExt(<Handle>handle, m, nnz, <const MatDescr>descr_a, <float*>csr_sorted_val, <const int*>csr_sorted_row_ptr, <const int*>csr_sorted_col_ind, <csric02Info>info, &p_buffer_size)
+    check_status(__status__)
+    return p_buffer_size
+
+
+cpdef size_t dcsric02_buffer_size_ext(intptr_t handle, int m, int nnz, intptr_t descr_a, intptr_t csr_sorted_val, intptr_t csr_sorted_row_ptr, intptr_t csr_sorted_col_ind, intptr_t info) except? 0:
+    """See `cusparseDcsric02_bufferSizeExt`."""
+    cdef size_t p_buffer_size
+    with nogil:
+        __status__ = cusparseDcsric02_bufferSizeExt(<Handle>handle, m, nnz, <const MatDescr>descr_a, <double*>csr_sorted_val, <const int*>csr_sorted_row_ptr, <const int*>csr_sorted_col_ind, <csric02Info>info, &p_buffer_size)
+    check_status(__status__)
+    return p_buffer_size
+
+
+cpdef size_t ccsric02_buffer_size_ext(intptr_t handle, int m, int nnz, intptr_t descr_a, intptr_t csr_sorted_val, intptr_t csr_sorted_row_ptr, intptr_t csr_sorted_col_ind, intptr_t info) except? 0:
+    """See `cusparseCcsric02_bufferSizeExt`."""
+    cdef size_t p_buffer_size
+    with nogil:
+        __status__ = cusparseCcsric02_bufferSizeExt(<Handle>handle, m, nnz, <const MatDescr>descr_a, <cuComplex*>csr_sorted_val, <const int*>csr_sorted_row_ptr, <const int*>csr_sorted_col_ind, <csric02Info>info, &p_buffer_size)
+    check_status(__status__)
+    return p_buffer_size
+
+
+cpdef size_t zcsric02_buffer_size_ext(intptr_t handle, int m, int nnz, intptr_t descr_a, intptr_t csr_sorted_val, intptr_t csr_sorted_row_ptr, intptr_t csr_sorted_col_ind, intptr_t info) except? 0:
+    """See `cusparseZcsric02_bufferSizeExt`."""
+    cdef size_t p_buffer_size
+    with nogil:
+        __status__ = cusparseZcsric02_bufferSizeExt(<Handle>handle, m, nnz, <const MatDescr>descr_a, <cuDoubleComplex*>csr_sorted_val, <const int*>csr_sorted_row_ptr, <const int*>csr_sorted_col_ind, <csric02Info>info, &p_buffer_size)
+    check_status(__status__)
+    return p_buffer_size
+
+
+cpdef scsric02_analysis(intptr_t handle, int m, int nnz, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, intptr_t info, int policy, intptr_t p_buffer):
+    """See `cusparseScsric02_analysis`."""
+    with nogil:
+        __status__ = cusparseScsric02_analysis(<Handle>handle, m, nnz, <const MatDescr>descr_a, <const float*>csr_sorted_val_a, <const int*>csr_sorted_row_ptr_a, <const int*>csr_sorted_col_ind_a, <csric02Info>info, <_SolvePolicy>policy, <void*>p_buffer)
+    check_status(__status__)
+
+
+cpdef dcsric02_analysis(intptr_t handle, int m, int nnz, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, intptr_t info, int policy, intptr_t p_buffer):
+    """See `cusparseDcsric02_analysis`."""
+    with nogil:
+        __status__ = cusparseDcsric02_analysis(<Handle>handle, m, nnz, <const MatDescr>descr_a, <const double*>csr_sorted_val_a, <const int*>csr_sorted_row_ptr_a, <const int*>csr_sorted_col_ind_a, <csric02Info>info, <_SolvePolicy>policy, <void*>p_buffer)
+    check_status(__status__)
+
+
+cpdef ccsric02_analysis(intptr_t handle, int m, int nnz, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, intptr_t info, int policy, intptr_t p_buffer):
+    """See `cusparseCcsric02_analysis`."""
+    with nogil:
+        __status__ = cusparseCcsric02_analysis(<Handle>handle, m, nnz, <const MatDescr>descr_a, <const cuComplex*>csr_sorted_val_a, <const int*>csr_sorted_row_ptr_a, <const int*>csr_sorted_col_ind_a, <csric02Info>info, <_SolvePolicy>policy, <void*>p_buffer)
+    check_status(__status__)
+
+
+cpdef zcsric02_analysis(intptr_t handle, int m, int nnz, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, intptr_t info, int policy, intptr_t p_buffer):
+    """See `cusparseZcsric02_analysis`."""
+    with nogil:
+        __status__ = cusparseZcsric02_analysis(<Handle>handle, m, nnz, <const MatDescr>descr_a, <const cuDoubleComplex*>csr_sorted_val_a, <const int*>csr_sorted_row_ptr_a, <const int*>csr_sorted_col_ind_a, <csric02Info>info, <_SolvePolicy>policy, <void*>p_buffer)
+    check_status(__status__)
+
+
+cpdef scsric02(intptr_t handle, int m, int nnz, intptr_t descr_a, intptr_t csr_sorted_val_a_val_m, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, intptr_t info, int policy, intptr_t p_buffer):
+    """See `cusparseScsric02`."""
+    with nogil:
+        __status__ = cusparseScsric02(<Handle>handle, m, nnz, <const MatDescr>descr_a, <float*>csr_sorted_val_a_val_m, <const int*>csr_sorted_row_ptr_a, <const int*>csr_sorted_col_ind_a, <csric02Info>info, <_SolvePolicy>policy, <void*>p_buffer)
+    check_status(__status__)
+
+
+cpdef dcsric02(intptr_t handle, int m, int nnz, intptr_t descr_a, intptr_t csr_sorted_val_a_val_m, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, intptr_t info, int policy, intptr_t p_buffer):
+    """See `cusparseDcsric02`."""
+    with nogil:
+        __status__ = cusparseDcsric02(<Handle>handle, m, nnz, <const MatDescr>descr_a, <double*>csr_sorted_val_a_val_m, <const int*>csr_sorted_row_ptr_a, <const int*>csr_sorted_col_ind_a, <csric02Info>info, <_SolvePolicy>policy, <void*>p_buffer)
+    check_status(__status__)
+
+
+cpdef ccsric02(intptr_t handle, int m, int nnz, intptr_t descr_a, intptr_t csr_sorted_val_a_val_m, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, intptr_t info, int policy, intptr_t p_buffer):
+    """See `cusparseCcsric02`."""
+    with nogil:
+        __status__ = cusparseCcsric02(<Handle>handle, m, nnz, <const MatDescr>descr_a, <cuComplex*>csr_sorted_val_a_val_m, <const int*>csr_sorted_row_ptr_a, <const int*>csr_sorted_col_ind_a, <csric02Info>info, <_SolvePolicy>policy, <void*>p_buffer)
+    check_status(__status__)
+
+
+cpdef zcsric02(intptr_t handle, int m, int nnz, intptr_t descr_a, intptr_t csr_sorted_val_a_val_m, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, intptr_t info, int policy, intptr_t p_buffer):
+    """See `cusparseZcsric02`."""
+    with nogil:
+        __status__ = cusparseZcsric02(<Handle>handle, m, nnz, <const MatDescr>descr_a, <cuDoubleComplex*>csr_sorted_val_a_val_m, <const int*>csr_sorted_row_ptr_a, <const int*>csr_sorted_col_ind_a, <csric02Info>info, <_SolvePolicy>policy, <void*>p_buffer)
+    check_status(__status__)
+
+
+cpdef int xbsric02_zero_pivot(intptr_t handle, intptr_t info) except? -1:
+    """See `cusparseXbsric02_zeroPivot`."""
+    cdef int position
+    with nogil:
+        __status__ = cusparseXbsric02_zeroPivot(<Handle>handle, <bsric02Info>info, &position)
+    check_status(__status__)
+    return position
+
+
+cpdef int sbsric02_buffer_size(intptr_t handle, int dir_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_dim, intptr_t info) except? -1:
+    """See `cusparseSbsric02_bufferSize`."""
+    cdef int p_buffer_size_in_bytes
+    with nogil:
+        __status__ = cusparseSbsric02_bufferSize(<Handle>handle, <_Direction>dir_a, mb, nnzb, <const MatDescr>descr_a, <float*>bsr_sorted_val, <const int*>bsr_sorted_row_ptr, <const int*>bsr_sorted_col_ind, block_dim, <bsric02Info>info, &p_buffer_size_in_bytes)
+    check_status(__status__)
+    return p_buffer_size_in_bytes
+
+
+cpdef int dbsric02_buffer_size(intptr_t handle, int dir_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_dim, intptr_t info) except? -1:
+    """See `cusparseDbsric02_bufferSize`."""
+    cdef int p_buffer_size_in_bytes
+    with nogil:
+        __status__ = cusparseDbsric02_bufferSize(<Handle>handle, <_Direction>dir_a, mb, nnzb, <const MatDescr>descr_a, <double*>bsr_sorted_val, <const int*>bsr_sorted_row_ptr, <const int*>bsr_sorted_col_ind, block_dim, <bsric02Info>info, &p_buffer_size_in_bytes)
+    check_status(__status__)
+    return p_buffer_size_in_bytes
+
+
+cpdef int cbsric02_buffer_size(intptr_t handle, int dir_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_dim, intptr_t info) except? -1:
+    """See `cusparseCbsric02_bufferSize`."""
+    cdef int p_buffer_size_in_bytes
+    with nogil:
+        __status__ = cusparseCbsric02_bufferSize(<Handle>handle, <_Direction>dir_a, mb, nnzb, <const MatDescr>descr_a, <cuComplex*>bsr_sorted_val, <const int*>bsr_sorted_row_ptr, <const int*>bsr_sorted_col_ind, block_dim, <bsric02Info>info, &p_buffer_size_in_bytes)
+    check_status(__status__)
+    return p_buffer_size_in_bytes
+
+
+cpdef int zbsric02_buffer_size(intptr_t handle, int dir_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_dim, intptr_t info) except? -1:
+    """See `cusparseZbsric02_bufferSize`."""
+    cdef int p_buffer_size_in_bytes
+    with nogil:
+        __status__ = cusparseZbsric02_bufferSize(<Handle>handle, <_Direction>dir_a, mb, nnzb, <const MatDescr>descr_a, <cuDoubleComplex*>bsr_sorted_val, <const int*>bsr_sorted_row_ptr, <const int*>bsr_sorted_col_ind, block_dim, <bsric02Info>info, &p_buffer_size_in_bytes)
+    check_status(__status__)
+    return p_buffer_size_in_bytes
+
+
+cpdef size_t sbsric02_buffer_size_ext(intptr_t handle, int dir_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_size, intptr_t info) except? 0:
+    """See `cusparseSbsric02_bufferSizeExt`."""
+    cdef size_t p_buffer_size
+    with nogil:
+        __status__ = cusparseSbsric02_bufferSizeExt(<Handle>handle, <_Direction>dir_a, mb, nnzb, <const MatDescr>descr_a, <float*>bsr_sorted_val, <const int*>bsr_sorted_row_ptr, <const int*>bsr_sorted_col_ind, block_size, <bsric02Info>info, &p_buffer_size)
+    check_status(__status__)
+    return p_buffer_size
+
+
+cpdef size_t dbsric02_buffer_size_ext(intptr_t handle, int dir_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_size, intptr_t info) except? 0:
+    """See `cusparseDbsric02_bufferSizeExt`."""
+    cdef size_t p_buffer_size
+    with nogil:
+        __status__ = cusparseDbsric02_bufferSizeExt(<Handle>handle, <_Direction>dir_a, mb, nnzb, <const MatDescr>descr_a, <double*>bsr_sorted_val, <const int*>bsr_sorted_row_ptr, <const int*>bsr_sorted_col_ind, block_size, <bsric02Info>info, &p_buffer_size)
+    check_status(__status__)
+    return p_buffer_size
+
+
+cpdef size_t cbsric02_buffer_size_ext(intptr_t handle, int dir_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_size, intptr_t info) except? 0:
+    """See `cusparseCbsric02_bufferSizeExt`."""
+    cdef size_t p_buffer_size
+    with nogil:
+        __status__ = cusparseCbsric02_bufferSizeExt(<Handle>handle, <_Direction>dir_a, mb, nnzb, <const MatDescr>descr_a, <cuComplex*>bsr_sorted_val, <const int*>bsr_sorted_row_ptr, <const int*>bsr_sorted_col_ind, block_size, <bsric02Info>info, &p_buffer_size)
+    check_status(__status__)
+    return p_buffer_size
+
+
+cpdef size_t zbsric02_buffer_size_ext(intptr_t handle, int dir_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_size, intptr_t info) except? 0:
+    """See `cusparseZbsric02_bufferSizeExt`."""
+    cdef size_t p_buffer_size
+    with nogil:
+        __status__ = cusparseZbsric02_bufferSizeExt(<Handle>handle, <_Direction>dir_a, mb, nnzb, <const MatDescr>descr_a, <cuDoubleComplex*>bsr_sorted_val, <const int*>bsr_sorted_row_ptr, <const int*>bsr_sorted_col_ind, block_size, <bsric02Info>info, &p_buffer_size)
+    check_status(__status__)
+    return p_buffer_size
+
+
+cpdef sbsric02_analysis(intptr_t handle, int dir_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_dim, intptr_t info, int policy, intptr_t p_input_buffer):
+    """See `cusparseSbsric02_analysis`."""
+    with nogil:
+        __status__ = cusparseSbsric02_analysis(<Handle>handle, <_Direction>dir_a, mb, nnzb, <const MatDescr>descr_a, <const float*>bsr_sorted_val, <const int*>bsr_sorted_row_ptr, <const int*>bsr_sorted_col_ind, block_dim, <bsric02Info>info, <_SolvePolicy>policy, <void*>p_input_buffer)
+    check_status(__status__)
+
+
+cpdef dbsric02_analysis(intptr_t handle, int dir_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_dim, intptr_t info, int policy, intptr_t p_input_buffer):
+    """See `cusparseDbsric02_analysis`."""
+    with nogil:
+        __status__ = cusparseDbsric02_analysis(<Handle>handle, <_Direction>dir_a, mb, nnzb, <const MatDescr>descr_a, <const double*>bsr_sorted_val, <const int*>bsr_sorted_row_ptr, <const int*>bsr_sorted_col_ind, block_dim, <bsric02Info>info, <_SolvePolicy>policy, <void*>p_input_buffer)
+    check_status(__status__)
+
+
+cpdef cbsric02_analysis(intptr_t handle, int dir_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_dim, intptr_t info, int policy, intptr_t p_input_buffer):
+    """See `cusparseCbsric02_analysis`."""
+    with nogil:
+        __status__ = cusparseCbsric02_analysis(<Handle>handle, <_Direction>dir_a, mb, nnzb, <const MatDescr>descr_a, <const cuComplex*>bsr_sorted_val, <const int*>bsr_sorted_row_ptr, <const int*>bsr_sorted_col_ind, block_dim, <bsric02Info>info, <_SolvePolicy>policy, <void*>p_input_buffer)
+    check_status(__status__)
+
+
+cpdef zbsric02_analysis(intptr_t handle, int dir_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_dim, intptr_t info, int policy, intptr_t p_input_buffer):
+    """See `cusparseZbsric02_analysis`."""
+    with nogil:
+        __status__ = cusparseZbsric02_analysis(<Handle>handle, <_Direction>dir_a, mb, nnzb, <const MatDescr>descr_a, <const cuDoubleComplex*>bsr_sorted_val, <const int*>bsr_sorted_row_ptr, <const int*>bsr_sorted_col_ind, block_dim, <bsric02Info>info, <_SolvePolicy>policy, <void*>p_input_buffer)
+    check_status(__status__)
+
+
+cpdef sbsric02(intptr_t handle, int dir_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_dim, intptr_t info, int policy, intptr_t p_buffer):
+    """See `cusparseSbsric02`."""
+    with nogil:
+        __status__ = cusparseSbsric02(<Handle>handle, <_Direction>dir_a, mb, nnzb, <const MatDescr>descr_a, <float*>bsr_sorted_val, <const int*>bsr_sorted_row_ptr, <const int*>bsr_sorted_col_ind, block_dim, <bsric02Info>info, <_SolvePolicy>policy, <void*>p_buffer)
+    check_status(__status__)
+
+
+cpdef dbsric02(intptr_t handle, int dir_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_dim, intptr_t info, int policy, intptr_t p_buffer):
+    """See `cusparseDbsric02`."""
+    with nogil:
+        __status__ = cusparseDbsric02(<Handle>handle, <_Direction>dir_a, mb, nnzb, <const MatDescr>descr_a, <double*>bsr_sorted_val, <const int*>bsr_sorted_row_ptr, <const int*>bsr_sorted_col_ind, block_dim, <bsric02Info>info, <_SolvePolicy>policy, <void*>p_buffer)
+    check_status(__status__)
+
+
+cpdef cbsric02(intptr_t handle, int dir_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_dim, intptr_t info, int policy, intptr_t p_buffer):
+    """See `cusparseCbsric02`."""
+    with nogil:
+        __status__ = cusparseCbsric02(<Handle>handle, <_Direction>dir_a, mb, nnzb, <const MatDescr>descr_a, <cuComplex*>bsr_sorted_val, <const int*>bsr_sorted_row_ptr, <const int*>bsr_sorted_col_ind, block_dim, <bsric02Info>info, <_SolvePolicy>policy, <void*>p_buffer)
+    check_status(__status__)
+
+
+cpdef zbsric02(intptr_t handle, int dir_a, int mb, int nnzb, intptr_t descr_a, intptr_t bsr_sorted_val, intptr_t bsr_sorted_row_ptr, intptr_t bsr_sorted_col_ind, int block_dim, intptr_t info, int policy, intptr_t p_buffer):
+    """See `cusparseZbsric02`."""
+    with nogil:
+        __status__ = cusparseZbsric02(<Handle>handle, <_Direction>dir_a, mb, nnzb, <const MatDescr>descr_a, <cuDoubleComplex*>bsr_sorted_val, <const int*>bsr_sorted_row_ptr, <const int*>bsr_sorted_col_ind, block_dim, <bsric02Info>info, <_SolvePolicy>policy, <void*>p_buffer)
     check_status(__status__)
 
 
@@ -947,6 +2086,34 @@ cpdef zcsrgeam2(intptr_t handle, int m, int n, intptr_t alpha, intptr_t descr_a,
     check_status(__status__)
 
 
+cpdef scsrcolor(intptr_t handle, int m, int nnz, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, intptr_t fraction_to_color, intptr_t ncolors, intptr_t coloring, intptr_t reordering, intptr_t info):
+    """See `cusparseScsrcolor`."""
+    with nogil:
+        __status__ = cusparseScsrcolor(<Handle>handle, m, nnz, <const MatDescr>descr_a, <const float*>csr_sorted_val_a, <const int*>csr_sorted_row_ptr_a, <const int*>csr_sorted_col_ind_a, <const float*>fraction_to_color, <int*>ncolors, <int*>coloring, <int*>reordering, <const cusparseColorInfo>info)
+    check_status(__status__)
+
+
+cpdef dcsrcolor(intptr_t handle, int m, int nnz, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, intptr_t fraction_to_color, intptr_t ncolors, intptr_t coloring, intptr_t reordering, intptr_t info):
+    """See `cusparseDcsrcolor`."""
+    with nogil:
+        __status__ = cusparseDcsrcolor(<Handle>handle, m, nnz, <const MatDescr>descr_a, <const double*>csr_sorted_val_a, <const int*>csr_sorted_row_ptr_a, <const int*>csr_sorted_col_ind_a, <const double*>fraction_to_color, <int*>ncolors, <int*>coloring, <int*>reordering, <const cusparseColorInfo>info)
+    check_status(__status__)
+
+
+cpdef ccsrcolor(intptr_t handle, int m, int nnz, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, intptr_t fraction_to_color, intptr_t ncolors, intptr_t coloring, intptr_t reordering, intptr_t info):
+    """See `cusparseCcsrcolor`."""
+    with nogil:
+        __status__ = cusparseCcsrcolor(<Handle>handle, m, nnz, <const MatDescr>descr_a, <const cuComplex*>csr_sorted_val_a, <const int*>csr_sorted_row_ptr_a, <const int*>csr_sorted_col_ind_a, <const float*>fraction_to_color, <int*>ncolors, <int*>coloring, <int*>reordering, <const cusparseColorInfo>info)
+    check_status(__status__)
+
+
+cpdef zcsrcolor(intptr_t handle, int m, int nnz, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, intptr_t fraction_to_color, intptr_t ncolors, intptr_t coloring, intptr_t reordering, intptr_t info):
+    """See `cusparseZcsrcolor`."""
+    with nogil:
+        __status__ = cusparseZcsrcolor(<Handle>handle, m, nnz, <const MatDescr>descr_a, <const cuDoubleComplex*>csr_sorted_val_a, <const int*>csr_sorted_row_ptr_a, <const int*>csr_sorted_col_ind_a, <const double*>fraction_to_color, <int*>ncolors, <int*>coloring, <int*>reordering, <const cusparseColorInfo>info)
+    check_status(__status__)
+
+
 cpdef snnz(intptr_t handle, int dir_a, int m, int n, intptr_t descr_a, intptr_t a, int lda, intptr_t nnz_per_row_col, intptr_t nnz_total_dev_host_ptr):
     """See `cusparseSnnz`."""
     with nogil:
@@ -975,6 +2142,66 @@ cpdef znnz(intptr_t handle, int dir_a, int m, int n, intptr_t descr_a, intptr_t 
     check_status(__status__)
 
 
+cpdef snnz_compress(intptr_t handle, int m, intptr_t descr, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t nnz_per_row, intptr_t nnz_c, float tol):
+    """See `cusparseSnnz_compress`."""
+    with nogil:
+        __status__ = cusparseSnnz_compress(<Handle>handle, m, <const MatDescr>descr, <const float*>csr_sorted_val_a, <const int*>csr_sorted_row_ptr_a, <int*>nnz_per_row, <int*>nnz_c, tol)
+    check_status(__status__)
+
+
+cpdef dnnz_compress(intptr_t handle, int m, intptr_t descr, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t nnz_per_row, intptr_t nnz_c, double tol):
+    """See `cusparseDnnz_compress`."""
+    with nogil:
+        __status__ = cusparseDnnz_compress(<Handle>handle, m, <const MatDescr>descr, <const double*>csr_sorted_val_a, <const int*>csr_sorted_row_ptr_a, <int*>nnz_per_row, <int*>nnz_c, tol)
+    check_status(__status__)
+
+
+cpdef cnnz_compress(intptr_t handle, int m, intptr_t descr, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t nnz_per_row, intptr_t nnz_c, complex tol):
+    """See `cusparseCnnz_compress`."""
+    cdef cuComplex _tol_ = cuComplex(tol.real, tol.imag)
+    with nogil:
+        __status__ = cusparseCnnz_compress(<Handle>handle, m, <const MatDescr>descr, <const cuComplex*>csr_sorted_val_a, <const int*>csr_sorted_row_ptr_a, <int*>nnz_per_row, <int*>nnz_c, <cuComplex>_tol_)
+    check_status(__status__)
+
+
+cpdef znnz_compress(intptr_t handle, int m, intptr_t descr, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t nnz_per_row, intptr_t nnz_c, complex tol):
+    """See `cusparseZnnz_compress`."""
+    cdef cuDoubleComplex _tol_ = cuDoubleComplex(tol.real, tol.imag)
+    with nogil:
+        __status__ = cusparseZnnz_compress(<Handle>handle, m, <const MatDescr>descr, <const cuDoubleComplex*>csr_sorted_val_a, <const int*>csr_sorted_row_ptr_a, <int*>nnz_per_row, <int*>nnz_c, <cuDoubleComplex>_tol_)
+    check_status(__status__)
+
+
+cpdef scsr2csr_compress(intptr_t handle, int m, int n, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_col_ind_a, intptr_t csr_sorted_row_ptr_a, int nnz_a, intptr_t nnz_per_row, intptr_t csr_sorted_val_c, intptr_t csr_sorted_col_ind_c, intptr_t csr_sorted_row_ptr_c, float tol):
+    """See `cusparseScsr2csr_compress`."""
+    with nogil:
+        __status__ = cusparseScsr2csr_compress(<Handle>handle, m, n, <const MatDescr>descr_a, <const float*>csr_sorted_val_a, <const int*>csr_sorted_col_ind_a, <const int*>csr_sorted_row_ptr_a, nnz_a, <const int*>nnz_per_row, <float*>csr_sorted_val_c, <int*>csr_sorted_col_ind_c, <int*>csr_sorted_row_ptr_c, tol)
+    check_status(__status__)
+
+
+cpdef dcsr2csr_compress(intptr_t handle, int m, int n, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_col_ind_a, intptr_t csr_sorted_row_ptr_a, int nnz_a, intptr_t nnz_per_row, intptr_t csr_sorted_val_c, intptr_t csr_sorted_col_ind_c, intptr_t csr_sorted_row_ptr_c, double tol):
+    """See `cusparseDcsr2csr_compress`."""
+    with nogil:
+        __status__ = cusparseDcsr2csr_compress(<Handle>handle, m, n, <const MatDescr>descr_a, <const double*>csr_sorted_val_a, <const int*>csr_sorted_col_ind_a, <const int*>csr_sorted_row_ptr_a, nnz_a, <const int*>nnz_per_row, <double*>csr_sorted_val_c, <int*>csr_sorted_col_ind_c, <int*>csr_sorted_row_ptr_c, tol)
+    check_status(__status__)
+
+
+cpdef ccsr2csr_compress(intptr_t handle, int m, int n, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_col_ind_a, intptr_t csr_sorted_row_ptr_a, int nnz_a, intptr_t nnz_per_row, intptr_t csr_sorted_val_c, intptr_t csr_sorted_col_ind_c, intptr_t csr_sorted_row_ptr_c, complex tol):
+    """See `cusparseCcsr2csr_compress`."""
+    cdef cuComplex _tol_ = cuComplex(tol.real, tol.imag)
+    with nogil:
+        __status__ = cusparseCcsr2csr_compress(<Handle>handle, m, n, <const MatDescr>descr_a, <const cuComplex*>csr_sorted_val_a, <const int*>csr_sorted_col_ind_a, <const int*>csr_sorted_row_ptr_a, nnz_a, <const int*>nnz_per_row, <cuComplex*>csr_sorted_val_c, <int*>csr_sorted_col_ind_c, <int*>csr_sorted_row_ptr_c, <cuComplex>_tol_)
+    check_status(__status__)
+
+
+cpdef zcsr2csr_compress(intptr_t handle, int m, int n, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_col_ind_a, intptr_t csr_sorted_row_ptr_a, int nnz_a, intptr_t nnz_per_row, intptr_t csr_sorted_val_c, intptr_t csr_sorted_col_ind_c, intptr_t csr_sorted_row_ptr_c, complex tol):
+    """See `cusparseZcsr2csr_compress`."""
+    cdef cuDoubleComplex _tol_ = cuDoubleComplex(tol.real, tol.imag)
+    with nogil:
+        __status__ = cusparseZcsr2csr_compress(<Handle>handle, m, n, <const MatDescr>descr_a, <const cuDoubleComplex*>csr_sorted_val_a, <const int*>csr_sorted_col_ind_a, <const int*>csr_sorted_row_ptr_a, nnz_a, <const int*>nnz_per_row, <cuDoubleComplex*>csr_sorted_val_c, <int*>csr_sorted_col_ind_c, <int*>csr_sorted_row_ptr_c, <cuDoubleComplex>_tol_)
+    check_status(__status__)
+
+
 cpdef xcoo2csr(intptr_t handle, intptr_t coo_row_ind, int nnz, int m, intptr_t csr_sorted_row_ptr, int idx_base):
     """See `cusparseXcoo2csr`."""
     with nogil:
@@ -986,6 +2213,41 @@ cpdef xcsr2coo(intptr_t handle, intptr_t csr_sorted_row_ptr, int nnz, int m, int
     """See `cusparseXcsr2coo`."""
     with nogil:
         __status__ = cusparseXcsr2coo(<Handle>handle, <const int*>csr_sorted_row_ptr, nnz, m, <int*>coo_row_ind, <_IndexBase>idx_base)
+    check_status(__status__)
+
+
+cpdef xcsr2bsr_nnz(intptr_t handle, int dir_a, int m, int n, intptr_t descr_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, int block_dim, intptr_t descr_c, intptr_t bsr_sorted_row_ptr_c, intptr_t nnz_total_dev_host_ptr):
+    """See `cusparseXcsr2bsrNnz`."""
+    with nogil:
+        __status__ = cusparseXcsr2bsrNnz(<Handle>handle, <_Direction>dir_a, m, n, <const MatDescr>descr_a, <const int*>csr_sorted_row_ptr_a, <const int*>csr_sorted_col_ind_a, block_dim, <const MatDescr>descr_c, <int*>bsr_sorted_row_ptr_c, <int*>nnz_total_dev_host_ptr)
+    check_status(__status__)
+
+
+cpdef scsr2bsr(intptr_t handle, int dir_a, int m, int n, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, int block_dim, intptr_t descr_c, intptr_t bsr_sorted_val_c, intptr_t bsr_sorted_row_ptr_c, intptr_t bsr_sorted_col_ind_c):
+    """See `cusparseScsr2bsr`."""
+    with nogil:
+        __status__ = cusparseScsr2bsr(<Handle>handle, <_Direction>dir_a, m, n, <const MatDescr>descr_a, <const float*>csr_sorted_val_a, <const int*>csr_sorted_row_ptr_a, <const int*>csr_sorted_col_ind_a, block_dim, <const MatDescr>descr_c, <float*>bsr_sorted_val_c, <int*>bsr_sorted_row_ptr_c, <int*>bsr_sorted_col_ind_c)
+    check_status(__status__)
+
+
+cpdef dcsr2bsr(intptr_t handle, int dir_a, int m, int n, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, int block_dim, intptr_t descr_c, intptr_t bsr_sorted_val_c, intptr_t bsr_sorted_row_ptr_c, intptr_t bsr_sorted_col_ind_c):
+    """See `cusparseDcsr2bsr`."""
+    with nogil:
+        __status__ = cusparseDcsr2bsr(<Handle>handle, <_Direction>dir_a, m, n, <const MatDescr>descr_a, <const double*>csr_sorted_val_a, <const int*>csr_sorted_row_ptr_a, <const int*>csr_sorted_col_ind_a, block_dim, <const MatDescr>descr_c, <double*>bsr_sorted_val_c, <int*>bsr_sorted_row_ptr_c, <int*>bsr_sorted_col_ind_c)
+    check_status(__status__)
+
+
+cpdef ccsr2bsr(intptr_t handle, int dir_a, int m, int n, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, int block_dim, intptr_t descr_c, intptr_t bsr_sorted_val_c, intptr_t bsr_sorted_row_ptr_c, intptr_t bsr_sorted_col_ind_c):
+    """See `cusparseCcsr2bsr`."""
+    with nogil:
+        __status__ = cusparseCcsr2bsr(<Handle>handle, <_Direction>dir_a, m, n, <const MatDescr>descr_a, <const cuComplex*>csr_sorted_val_a, <const int*>csr_sorted_row_ptr_a, <const int*>csr_sorted_col_ind_a, block_dim, <const MatDescr>descr_c, <cuComplex*>bsr_sorted_val_c, <int*>bsr_sorted_row_ptr_c, <int*>bsr_sorted_col_ind_c)
+    check_status(__status__)
+
+
+cpdef zcsr2bsr(intptr_t handle, int dir_a, int m, int n, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, int block_dim, intptr_t descr_c, intptr_t bsr_sorted_val_c, intptr_t bsr_sorted_row_ptr_c, intptr_t bsr_sorted_col_ind_c):
+    """See `cusparseZcsr2bsr`."""
+    with nogil:
+        __status__ = cusparseZcsr2bsr(<Handle>handle, <_Direction>dir_a, m, n, <const MatDescr>descr_a, <const cuDoubleComplex*>csr_sorted_val_a, <const int*>csr_sorted_row_ptr_a, <const int*>csr_sorted_col_ind_a, block_dim, <const MatDescr>descr_c, <cuDoubleComplex*>bsr_sorted_val_c, <int*>bsr_sorted_row_ptr_c, <int*>bsr_sorted_col_ind_c)
     check_status(__status__)
 
 
@@ -1114,6 +2376,41 @@ cpdef zgebsr2gebsc(intptr_t handle, int mb, int nb, int nnzb, intptr_t bsr_sorte
     """See `cusparseZgebsr2gebsc`."""
     with nogil:
         __status__ = cusparseZgebsr2gebsc(<Handle>handle, mb, nb, nnzb, <const cuDoubleComplex*>bsr_sorted_val, <const int*>bsr_sorted_row_ptr, <const int*>bsr_sorted_col_ind, row_block_dim, col_block_dim, <cuDoubleComplex*>bsc_val, <int*>bsc_row_ind, <int*>bsc_col_ptr, <_Action>copy_values, <_IndexBase>idx_base, <void*>p_buffer)
+    check_status(__status__)
+
+
+cpdef xgebsr2csr(intptr_t handle, int dir_a, int mb, int nb, intptr_t descr_a, intptr_t bsr_sorted_row_ptr_a, intptr_t bsr_sorted_col_ind_a, int row_block_dim, int col_block_dim, intptr_t descr_c, intptr_t csr_sorted_row_ptr_c, intptr_t csr_sorted_col_ind_c):
+    """See `cusparseXgebsr2csr`."""
+    with nogil:
+        __status__ = cusparseXgebsr2csr(<Handle>handle, <_Direction>dir_a, mb, nb, <const MatDescr>descr_a, <const int*>bsr_sorted_row_ptr_a, <const int*>bsr_sorted_col_ind_a, row_block_dim, col_block_dim, <const MatDescr>descr_c, <int*>csr_sorted_row_ptr_c, <int*>csr_sorted_col_ind_c)
+    check_status(__status__)
+
+
+cpdef sgebsr2csr(intptr_t handle, int dir_a, int mb, int nb, intptr_t descr_a, intptr_t bsr_sorted_val_a, intptr_t bsr_sorted_row_ptr_a, intptr_t bsr_sorted_col_ind_a, int row_block_dim, int col_block_dim, intptr_t descr_c, intptr_t csr_sorted_val_c, intptr_t csr_sorted_row_ptr_c, intptr_t csr_sorted_col_ind_c):
+    """See `cusparseSgebsr2csr`."""
+    with nogil:
+        __status__ = cusparseSgebsr2csr(<Handle>handle, <_Direction>dir_a, mb, nb, <const MatDescr>descr_a, <const float*>bsr_sorted_val_a, <const int*>bsr_sorted_row_ptr_a, <const int*>bsr_sorted_col_ind_a, row_block_dim, col_block_dim, <const MatDescr>descr_c, <float*>csr_sorted_val_c, <int*>csr_sorted_row_ptr_c, <int*>csr_sorted_col_ind_c)
+    check_status(__status__)
+
+
+cpdef dgebsr2csr(intptr_t handle, int dir_a, int mb, int nb, intptr_t descr_a, intptr_t bsr_sorted_val_a, intptr_t bsr_sorted_row_ptr_a, intptr_t bsr_sorted_col_ind_a, int row_block_dim, int col_block_dim, intptr_t descr_c, intptr_t csr_sorted_val_c, intptr_t csr_sorted_row_ptr_c, intptr_t csr_sorted_col_ind_c):
+    """See `cusparseDgebsr2csr`."""
+    with nogil:
+        __status__ = cusparseDgebsr2csr(<Handle>handle, <_Direction>dir_a, mb, nb, <const MatDescr>descr_a, <const double*>bsr_sorted_val_a, <const int*>bsr_sorted_row_ptr_a, <const int*>bsr_sorted_col_ind_a, row_block_dim, col_block_dim, <const MatDescr>descr_c, <double*>csr_sorted_val_c, <int*>csr_sorted_row_ptr_c, <int*>csr_sorted_col_ind_c)
+    check_status(__status__)
+
+
+cpdef cgebsr2csr(intptr_t handle, int dir_a, int mb, int nb, intptr_t descr_a, intptr_t bsr_sorted_val_a, intptr_t bsr_sorted_row_ptr_a, intptr_t bsr_sorted_col_ind_a, int row_block_dim, int col_block_dim, intptr_t descr_c, intptr_t csr_sorted_val_c, intptr_t csr_sorted_row_ptr_c, intptr_t csr_sorted_col_ind_c):
+    """See `cusparseCgebsr2csr`."""
+    with nogil:
+        __status__ = cusparseCgebsr2csr(<Handle>handle, <_Direction>dir_a, mb, nb, <const MatDescr>descr_a, <const cuComplex*>bsr_sorted_val_a, <const int*>bsr_sorted_row_ptr_a, <const int*>bsr_sorted_col_ind_a, row_block_dim, col_block_dim, <const MatDescr>descr_c, <cuComplex*>csr_sorted_val_c, <int*>csr_sorted_row_ptr_c, <int*>csr_sorted_col_ind_c)
+    check_status(__status__)
+
+
+cpdef zgebsr2csr(intptr_t handle, int dir_a, int mb, int nb, intptr_t descr_a, intptr_t bsr_sorted_val_a, intptr_t bsr_sorted_row_ptr_a, intptr_t bsr_sorted_col_ind_a, int row_block_dim, int col_block_dim, intptr_t descr_c, intptr_t csr_sorted_val_c, intptr_t csr_sorted_row_ptr_c, intptr_t csr_sorted_col_ind_c):
+    """See `cusparseZgebsr2csr`."""
+    with nogil:
+        __status__ = cusparseZgebsr2csr(<Handle>handle, <_Direction>dir_a, mb, nb, <const MatDescr>descr_a, <const cuDoubleComplex*>bsr_sorted_val_a, <const int*>bsr_sorted_row_ptr_a, <const int*>bsr_sorted_col_ind_a, row_block_dim, col_block_dim, <const MatDescr>descr_c, <cuDoubleComplex*>csr_sorted_val_c, <int*>csr_sorted_row_ptr_c, <int*>csr_sorted_col_ind_c)
     check_status(__status__)
 
 
@@ -1331,6 +2628,13 @@ cpdef zgebsr2gebsr(intptr_t handle, int dir_a, int mb, int nb, int nnzb, intptr_
     check_status(__status__)
 
 
+cpdef create_identity_permutation(intptr_t handle, int n, intptr_t p):
+    """See `cusparseCreateIdentityPermutation`."""
+    with nogil:
+        __status__ = cusparseCreateIdentityPermutation(<Handle>handle, n, <int*>p)
+    check_status(__status__)
+
+
 cpdef size_t xcoosort_buffer_size_ext(intptr_t handle, int m, int n, int nnz, intptr_t coo_rows_a, intptr_t coo_cols_a) except? 0:
     """See `cusparseXcoosort_bufferSizeExt`."""
     cdef size_t p_buffer_size_in_bytes
@@ -1383,6 +2687,282 @@ cpdef xcscsort(intptr_t handle, int m, int n, int nnz, intptr_t descr_a, intptr_
     """See `cusparseXcscsort`."""
     with nogil:
         __status__ = cusparseXcscsort(<Handle>handle, m, n, nnz, <const MatDescr>descr_a, <const int*>csc_col_ptr_a, <int*>csc_row_ind_a, <int*>p, <void*>p_buffer)
+    check_status(__status__)
+
+
+cpdef size_t scsru2csr_buffer_size_ext(intptr_t handle, int m, int n, int nnz, intptr_t csr_val, intptr_t csr_row_ptr, intptr_t csr_col_ind, intptr_t info) except? 0:
+    """See `cusparseScsru2csr_bufferSizeExt`."""
+    cdef size_t p_buffer_size_in_bytes
+    with nogil:
+        __status__ = cusparseScsru2csr_bufferSizeExt(<Handle>handle, m, n, nnz, <float*>csr_val, <const int*>csr_row_ptr, <int*>csr_col_ind, <csru2csrInfo>info, &p_buffer_size_in_bytes)
+    check_status(__status__)
+    return p_buffer_size_in_bytes
+
+
+cpdef size_t dcsru2csr_buffer_size_ext(intptr_t handle, int m, int n, int nnz, intptr_t csr_val, intptr_t csr_row_ptr, intptr_t csr_col_ind, intptr_t info) except? 0:
+    """See `cusparseDcsru2csr_bufferSizeExt`."""
+    cdef size_t p_buffer_size_in_bytes
+    with nogil:
+        __status__ = cusparseDcsru2csr_bufferSizeExt(<Handle>handle, m, n, nnz, <double*>csr_val, <const int*>csr_row_ptr, <int*>csr_col_ind, <csru2csrInfo>info, &p_buffer_size_in_bytes)
+    check_status(__status__)
+    return p_buffer_size_in_bytes
+
+
+cpdef size_t ccsru2csr_buffer_size_ext(intptr_t handle, int m, int n, int nnz, intptr_t csr_val, intptr_t csr_row_ptr, intptr_t csr_col_ind, intptr_t info) except? 0:
+    """See `cusparseCcsru2csr_bufferSizeExt`."""
+    cdef size_t p_buffer_size_in_bytes
+    with nogil:
+        __status__ = cusparseCcsru2csr_bufferSizeExt(<Handle>handle, m, n, nnz, <cuComplex*>csr_val, <const int*>csr_row_ptr, <int*>csr_col_ind, <csru2csrInfo>info, &p_buffer_size_in_bytes)
+    check_status(__status__)
+    return p_buffer_size_in_bytes
+
+
+cpdef size_t zcsru2csr_buffer_size_ext(intptr_t handle, int m, int n, int nnz, intptr_t csr_val, intptr_t csr_row_ptr, intptr_t csr_col_ind, intptr_t info) except? 0:
+    """See `cusparseZcsru2csr_bufferSizeExt`."""
+    cdef size_t p_buffer_size_in_bytes
+    with nogil:
+        __status__ = cusparseZcsru2csr_bufferSizeExt(<Handle>handle, m, n, nnz, <cuDoubleComplex*>csr_val, <const int*>csr_row_ptr, <int*>csr_col_ind, <csru2csrInfo>info, &p_buffer_size_in_bytes)
+    check_status(__status__)
+    return p_buffer_size_in_bytes
+
+
+cpdef scsru2csr(intptr_t handle, int m, int n, int nnz, intptr_t descr_a, intptr_t csr_val, intptr_t csr_row_ptr, intptr_t csr_col_ind, intptr_t info, intptr_t p_buffer):
+    """See `cusparseScsru2csr`."""
+    with nogil:
+        __status__ = cusparseScsru2csr(<Handle>handle, m, n, nnz, <const MatDescr>descr_a, <float*>csr_val, <const int*>csr_row_ptr, <int*>csr_col_ind, <csru2csrInfo>info, <void*>p_buffer)
+    check_status(__status__)
+
+
+cpdef dcsru2csr(intptr_t handle, int m, int n, int nnz, intptr_t descr_a, intptr_t csr_val, intptr_t csr_row_ptr, intptr_t csr_col_ind, intptr_t info, intptr_t p_buffer):
+    """See `cusparseDcsru2csr`."""
+    with nogil:
+        __status__ = cusparseDcsru2csr(<Handle>handle, m, n, nnz, <const MatDescr>descr_a, <double*>csr_val, <const int*>csr_row_ptr, <int*>csr_col_ind, <csru2csrInfo>info, <void*>p_buffer)
+    check_status(__status__)
+
+
+cpdef ccsru2csr(intptr_t handle, int m, int n, int nnz, intptr_t descr_a, intptr_t csr_val, intptr_t csr_row_ptr, intptr_t csr_col_ind, intptr_t info, intptr_t p_buffer):
+    """See `cusparseCcsru2csr`."""
+    with nogil:
+        __status__ = cusparseCcsru2csr(<Handle>handle, m, n, nnz, <const MatDescr>descr_a, <cuComplex*>csr_val, <const int*>csr_row_ptr, <int*>csr_col_ind, <csru2csrInfo>info, <void*>p_buffer)
+    check_status(__status__)
+
+
+cpdef zcsru2csr(intptr_t handle, int m, int n, int nnz, intptr_t descr_a, intptr_t csr_val, intptr_t csr_row_ptr, intptr_t csr_col_ind, intptr_t info, intptr_t p_buffer):
+    """See `cusparseZcsru2csr`."""
+    with nogil:
+        __status__ = cusparseZcsru2csr(<Handle>handle, m, n, nnz, <const MatDescr>descr_a, <cuDoubleComplex*>csr_val, <const int*>csr_row_ptr, <int*>csr_col_ind, <csru2csrInfo>info, <void*>p_buffer)
+    check_status(__status__)
+
+
+cpdef scsr2csru(intptr_t handle, int m, int n, int nnz, intptr_t descr_a, intptr_t csr_val, intptr_t csr_row_ptr, intptr_t csr_col_ind, intptr_t info, intptr_t p_buffer):
+    """See `cusparseScsr2csru`."""
+    with nogil:
+        __status__ = cusparseScsr2csru(<Handle>handle, m, n, nnz, <const MatDescr>descr_a, <float*>csr_val, <const int*>csr_row_ptr, <int*>csr_col_ind, <csru2csrInfo>info, <void*>p_buffer)
+    check_status(__status__)
+
+
+cpdef dcsr2csru(intptr_t handle, int m, int n, int nnz, intptr_t descr_a, intptr_t csr_val, intptr_t csr_row_ptr, intptr_t csr_col_ind, intptr_t info, intptr_t p_buffer):
+    """See `cusparseDcsr2csru`."""
+    with nogil:
+        __status__ = cusparseDcsr2csru(<Handle>handle, m, n, nnz, <const MatDescr>descr_a, <double*>csr_val, <const int*>csr_row_ptr, <int*>csr_col_ind, <csru2csrInfo>info, <void*>p_buffer)
+    check_status(__status__)
+
+
+cpdef ccsr2csru(intptr_t handle, int m, int n, int nnz, intptr_t descr_a, intptr_t csr_val, intptr_t csr_row_ptr, intptr_t csr_col_ind, intptr_t info, intptr_t p_buffer):
+    """See `cusparseCcsr2csru`."""
+    with nogil:
+        __status__ = cusparseCcsr2csru(<Handle>handle, m, n, nnz, <const MatDescr>descr_a, <cuComplex*>csr_val, <const int*>csr_row_ptr, <int*>csr_col_ind, <csru2csrInfo>info, <void*>p_buffer)
+    check_status(__status__)
+
+
+cpdef zcsr2csru(intptr_t handle, int m, int n, int nnz, intptr_t descr_a, intptr_t csr_val, intptr_t csr_row_ptr, intptr_t csr_col_ind, intptr_t info, intptr_t p_buffer):
+    """See `cusparseZcsr2csru`."""
+    with nogil:
+        __status__ = cusparseZcsr2csru(<Handle>handle, m, n, nnz, <const MatDescr>descr_a, <cuDoubleComplex*>csr_val, <const int*>csr_row_ptr, <int*>csr_col_ind, <csru2csrInfo>info, <void*>p_buffer)
+    check_status(__status__)
+
+
+cpdef size_t sprune_dense2csr_buffer_size_ext(intptr_t handle, int m, int n, intptr_t a, int lda, intptr_t threshold, intptr_t descr_c, intptr_t csr_sorted_val_c, intptr_t csr_sorted_row_ptr_c, intptr_t csr_sorted_col_ind_c) except? 0:
+    """See `cusparseSpruneDense2csr_bufferSizeExt`."""
+    cdef size_t p_buffer_size_in_bytes
+    with nogil:
+        __status__ = cusparseSpruneDense2csr_bufferSizeExt(<Handle>handle, m, n, <const float*>a, lda, <const float*>threshold, <const MatDescr>descr_c, <const float*>csr_sorted_val_c, <const int*>csr_sorted_row_ptr_c, <const int*>csr_sorted_col_ind_c, &p_buffer_size_in_bytes)
+    check_status(__status__)
+    return p_buffer_size_in_bytes
+
+
+cpdef size_t dprune_dense2csr_buffer_size_ext(intptr_t handle, int m, int n, intptr_t a, int lda, intptr_t threshold, intptr_t descr_c, intptr_t csr_sorted_val_c, intptr_t csr_sorted_row_ptr_c, intptr_t csr_sorted_col_ind_c) except? 0:
+    """See `cusparseDpruneDense2csr_bufferSizeExt`."""
+    cdef size_t p_buffer_size_in_bytes
+    with nogil:
+        __status__ = cusparseDpruneDense2csr_bufferSizeExt(<Handle>handle, m, n, <const double*>a, lda, <const double*>threshold, <const MatDescr>descr_c, <const double*>csr_sorted_val_c, <const int*>csr_sorted_row_ptr_c, <const int*>csr_sorted_col_ind_c, &p_buffer_size_in_bytes)
+    check_status(__status__)
+    return p_buffer_size_in_bytes
+
+
+cpdef sprune_dense2csr_nnz(intptr_t handle, int m, int n, intptr_t a, int lda, intptr_t threshold, intptr_t descr_c, intptr_t csr_row_ptr_c, intptr_t nnz_total_dev_host_ptr, intptr_t p_buffer):
+    """See `cusparseSpruneDense2csrNnz`."""
+    with nogil:
+        __status__ = cusparseSpruneDense2csrNnz(<Handle>handle, m, n, <const float*>a, lda, <const float*>threshold, <const MatDescr>descr_c, <int*>csr_row_ptr_c, <int*>nnz_total_dev_host_ptr, <void*>p_buffer)
+    check_status(__status__)
+
+
+cpdef dprune_dense2csr_nnz(intptr_t handle, int m, int n, intptr_t a, int lda, intptr_t threshold, intptr_t descr_c, intptr_t csr_sorted_row_ptr_c, intptr_t nnz_total_dev_host_ptr, intptr_t p_buffer):
+    """See `cusparseDpruneDense2csrNnz`."""
+    with nogil:
+        __status__ = cusparseDpruneDense2csrNnz(<Handle>handle, m, n, <const double*>a, lda, <const double*>threshold, <const MatDescr>descr_c, <int*>csr_sorted_row_ptr_c, <int*>nnz_total_dev_host_ptr, <void*>p_buffer)
+    check_status(__status__)
+
+
+cpdef sprune_dense2csr(intptr_t handle, int m, int n, intptr_t a, int lda, intptr_t threshold, intptr_t descr_c, intptr_t csr_sorted_val_c, intptr_t csr_sorted_row_ptr_c, intptr_t csr_sorted_col_ind_c, intptr_t p_buffer):
+    """See `cusparseSpruneDense2csr`."""
+    with nogil:
+        __status__ = cusparseSpruneDense2csr(<Handle>handle, m, n, <const float*>a, lda, <const float*>threshold, <const MatDescr>descr_c, <float*>csr_sorted_val_c, <const int*>csr_sorted_row_ptr_c, <int*>csr_sorted_col_ind_c, <void*>p_buffer)
+    check_status(__status__)
+
+
+cpdef dprune_dense2csr(intptr_t handle, int m, int n, intptr_t a, int lda, intptr_t threshold, intptr_t descr_c, intptr_t csr_sorted_val_c, intptr_t csr_sorted_row_ptr_c, intptr_t csr_sorted_col_ind_c, intptr_t p_buffer):
+    """See `cusparseDpruneDense2csr`."""
+    with nogil:
+        __status__ = cusparseDpruneDense2csr(<Handle>handle, m, n, <const double*>a, lda, <const double*>threshold, <const MatDescr>descr_c, <double*>csr_sorted_val_c, <const int*>csr_sorted_row_ptr_c, <int*>csr_sorted_col_ind_c, <void*>p_buffer)
+    check_status(__status__)
+
+
+cpdef size_t sprune_csr2csr_buffer_size_ext(intptr_t handle, int m, int n, int nnz_a, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, intptr_t threshold, intptr_t descr_c, intptr_t csr_sorted_val_c, intptr_t csr_sorted_row_ptr_c, intptr_t csr_sorted_col_ind_c) except? 0:
+    """See `cusparseSpruneCsr2csr_bufferSizeExt`."""
+    cdef size_t p_buffer_size_in_bytes
+    with nogil:
+        __status__ = cusparseSpruneCsr2csr_bufferSizeExt(<Handle>handle, m, n, nnz_a, <const MatDescr>descr_a, <const float*>csr_sorted_val_a, <const int*>csr_sorted_row_ptr_a, <const int*>csr_sorted_col_ind_a, <const float*>threshold, <const MatDescr>descr_c, <const float*>csr_sorted_val_c, <const int*>csr_sorted_row_ptr_c, <const int*>csr_sorted_col_ind_c, &p_buffer_size_in_bytes)
+    check_status(__status__)
+    return p_buffer_size_in_bytes
+
+
+cpdef size_t dprune_csr2csr_buffer_size_ext(intptr_t handle, int m, int n, int nnz_a, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, intptr_t threshold, intptr_t descr_c, intptr_t csr_sorted_val_c, intptr_t csr_sorted_row_ptr_c, intptr_t csr_sorted_col_ind_c) except? 0:
+    """See `cusparseDpruneCsr2csr_bufferSizeExt`."""
+    cdef size_t p_buffer_size_in_bytes
+    with nogil:
+        __status__ = cusparseDpruneCsr2csr_bufferSizeExt(<Handle>handle, m, n, nnz_a, <const MatDescr>descr_a, <const double*>csr_sorted_val_a, <const int*>csr_sorted_row_ptr_a, <const int*>csr_sorted_col_ind_a, <const double*>threshold, <const MatDescr>descr_c, <const double*>csr_sorted_val_c, <const int*>csr_sorted_row_ptr_c, <const int*>csr_sorted_col_ind_c, &p_buffer_size_in_bytes)
+    check_status(__status__)
+    return p_buffer_size_in_bytes
+
+
+cpdef sprune_csr2csr_nnz(intptr_t handle, int m, int n, int nnz_a, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, intptr_t threshold, intptr_t descr_c, intptr_t csr_sorted_row_ptr_c, intptr_t nnz_total_dev_host_ptr, intptr_t p_buffer):
+    """See `cusparseSpruneCsr2csrNnz`."""
+    with nogil:
+        __status__ = cusparseSpruneCsr2csrNnz(<Handle>handle, m, n, nnz_a, <const MatDescr>descr_a, <const float*>csr_sorted_val_a, <const int*>csr_sorted_row_ptr_a, <const int*>csr_sorted_col_ind_a, <const float*>threshold, <const MatDescr>descr_c, <int*>csr_sorted_row_ptr_c, <int*>nnz_total_dev_host_ptr, <void*>p_buffer)
+    check_status(__status__)
+
+
+cpdef dprune_csr2csr_nnz(intptr_t handle, int m, int n, int nnz_a, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, intptr_t threshold, intptr_t descr_c, intptr_t csr_sorted_row_ptr_c, intptr_t nnz_total_dev_host_ptr, intptr_t p_buffer):
+    """See `cusparseDpruneCsr2csrNnz`."""
+    with nogil:
+        __status__ = cusparseDpruneCsr2csrNnz(<Handle>handle, m, n, nnz_a, <const MatDescr>descr_a, <const double*>csr_sorted_val_a, <const int*>csr_sorted_row_ptr_a, <const int*>csr_sorted_col_ind_a, <const double*>threshold, <const MatDescr>descr_c, <int*>csr_sorted_row_ptr_c, <int*>nnz_total_dev_host_ptr, <void*>p_buffer)
+    check_status(__status__)
+
+
+cpdef sprune_csr2csr(intptr_t handle, int m, int n, int nnz_a, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, intptr_t threshold, intptr_t descr_c, intptr_t csr_sorted_val_c, intptr_t csr_sorted_row_ptr_c, intptr_t csr_sorted_col_ind_c, intptr_t p_buffer):
+    """See `cusparseSpruneCsr2csr`."""
+    with nogil:
+        __status__ = cusparseSpruneCsr2csr(<Handle>handle, m, n, nnz_a, <const MatDescr>descr_a, <const float*>csr_sorted_val_a, <const int*>csr_sorted_row_ptr_a, <const int*>csr_sorted_col_ind_a, <const float*>threshold, <const MatDescr>descr_c, <float*>csr_sorted_val_c, <const int*>csr_sorted_row_ptr_c, <int*>csr_sorted_col_ind_c, <void*>p_buffer)
+    check_status(__status__)
+
+
+cpdef dprune_csr2csr(intptr_t handle, int m, int n, int nnz_a, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, intptr_t threshold, intptr_t descr_c, intptr_t csr_sorted_val_c, intptr_t csr_sorted_row_ptr_c, intptr_t csr_sorted_col_ind_c, intptr_t p_buffer):
+    """See `cusparseDpruneCsr2csr`."""
+    with nogil:
+        __status__ = cusparseDpruneCsr2csr(<Handle>handle, m, n, nnz_a, <const MatDescr>descr_a, <const double*>csr_sorted_val_a, <const int*>csr_sorted_row_ptr_a, <const int*>csr_sorted_col_ind_a, <const double*>threshold, <const MatDescr>descr_c, <double*>csr_sorted_val_c, <const int*>csr_sorted_row_ptr_c, <int*>csr_sorted_col_ind_c, <void*>p_buffer)
+    check_status(__status__)
+
+
+cpdef size_t sprune_dense2csr_by_percentage_buffer_size_ext(intptr_t handle, int m, int n, intptr_t a, int lda, float percentage, intptr_t descr_c, intptr_t csr_sorted_val_c, intptr_t csr_sorted_row_ptr_c, intptr_t csr_sorted_col_ind_c, intptr_t info) except? 0:
+    """See `cusparseSpruneDense2csrByPercentage_bufferSizeExt`."""
+    cdef size_t p_buffer_size_in_bytes
+    with nogil:
+        __status__ = cusparseSpruneDense2csrByPercentage_bufferSizeExt(<Handle>handle, m, n, <const float*>a, lda, percentage, <const MatDescr>descr_c, <const float*>csr_sorted_val_c, <const int*>csr_sorted_row_ptr_c, <const int*>csr_sorted_col_ind_c, <pruneInfo>info, &p_buffer_size_in_bytes)
+    check_status(__status__)
+    return p_buffer_size_in_bytes
+
+
+cpdef size_t dprune_dense2csr_by_percentage_buffer_size_ext(intptr_t handle, int m, int n, intptr_t a, int lda, float percentage, intptr_t descr_c, intptr_t csr_sorted_val_c, intptr_t csr_sorted_row_ptr_c, intptr_t csr_sorted_col_ind_c, intptr_t info) except? 0:
+    """See `cusparseDpruneDense2csrByPercentage_bufferSizeExt`."""
+    cdef size_t p_buffer_size_in_bytes
+    with nogil:
+        __status__ = cusparseDpruneDense2csrByPercentage_bufferSizeExt(<Handle>handle, m, n, <const double*>a, lda, percentage, <const MatDescr>descr_c, <const double*>csr_sorted_val_c, <const int*>csr_sorted_row_ptr_c, <const int*>csr_sorted_col_ind_c, <pruneInfo>info, &p_buffer_size_in_bytes)
+    check_status(__status__)
+    return p_buffer_size_in_bytes
+
+
+cpdef sprune_dense2csr_nnz_by_percentage(intptr_t handle, int m, int n, intptr_t a, int lda, float percentage, intptr_t descr_c, intptr_t csr_row_ptr_c, intptr_t nnz_total_dev_host_ptr, intptr_t info, intptr_t p_buffer):
+    """See `cusparseSpruneDense2csrNnzByPercentage`."""
+    with nogil:
+        __status__ = cusparseSpruneDense2csrNnzByPercentage(<Handle>handle, m, n, <const float*>a, lda, percentage, <const MatDescr>descr_c, <int*>csr_row_ptr_c, <int*>nnz_total_dev_host_ptr, <pruneInfo>info, <void*>p_buffer)
+    check_status(__status__)
+
+
+cpdef dprune_dense2csr_nnz_by_percentage(intptr_t handle, int m, int n, intptr_t a, int lda, float percentage, intptr_t descr_c, intptr_t csr_row_ptr_c, intptr_t nnz_total_dev_host_ptr, intptr_t info, intptr_t p_buffer):
+    """See `cusparseDpruneDense2csrNnzByPercentage`."""
+    with nogil:
+        __status__ = cusparseDpruneDense2csrNnzByPercentage(<Handle>handle, m, n, <const double*>a, lda, percentage, <const MatDescr>descr_c, <int*>csr_row_ptr_c, <int*>nnz_total_dev_host_ptr, <pruneInfo>info, <void*>p_buffer)
+    check_status(__status__)
+
+
+cpdef sprune_dense2csr_by_percentage(intptr_t handle, int m, int n, intptr_t a, int lda, float percentage, intptr_t descr_c, intptr_t csr_sorted_val_c, intptr_t csr_sorted_row_ptr_c, intptr_t csr_sorted_col_ind_c, intptr_t info, intptr_t p_buffer):
+    """See `cusparseSpruneDense2csrByPercentage`."""
+    with nogil:
+        __status__ = cusparseSpruneDense2csrByPercentage(<Handle>handle, m, n, <const float*>a, lda, percentage, <const MatDescr>descr_c, <float*>csr_sorted_val_c, <const int*>csr_sorted_row_ptr_c, <int*>csr_sorted_col_ind_c, <pruneInfo>info, <void*>p_buffer)
+    check_status(__status__)
+
+
+cpdef dprune_dense2csr_by_percentage(intptr_t handle, int m, int n, intptr_t a, int lda, float percentage, intptr_t descr_c, intptr_t csr_sorted_val_c, intptr_t csr_sorted_row_ptr_c, intptr_t csr_sorted_col_ind_c, intptr_t info, intptr_t p_buffer):
+    """See `cusparseDpruneDense2csrByPercentage`."""
+    with nogil:
+        __status__ = cusparseDpruneDense2csrByPercentage(<Handle>handle, m, n, <const double*>a, lda, percentage, <const MatDescr>descr_c, <double*>csr_sorted_val_c, <const int*>csr_sorted_row_ptr_c, <int*>csr_sorted_col_ind_c, <pruneInfo>info, <void*>p_buffer)
+    check_status(__status__)
+
+
+cpdef size_t sprune_csr2csr_by_percentage_buffer_size_ext(intptr_t handle, int m, int n, int nnz_a, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, float percentage, intptr_t descr_c, intptr_t csr_sorted_val_c, intptr_t csr_sorted_row_ptr_c, intptr_t csr_sorted_col_ind_c, intptr_t info) except? 0:
+    """See `cusparseSpruneCsr2csrByPercentage_bufferSizeExt`."""
+    cdef size_t p_buffer_size_in_bytes
+    with nogil:
+        __status__ = cusparseSpruneCsr2csrByPercentage_bufferSizeExt(<Handle>handle, m, n, nnz_a, <const MatDescr>descr_a, <const float*>csr_sorted_val_a, <const int*>csr_sorted_row_ptr_a, <const int*>csr_sorted_col_ind_a, percentage, <const MatDescr>descr_c, <const float*>csr_sorted_val_c, <const int*>csr_sorted_row_ptr_c, <const int*>csr_sorted_col_ind_c, <pruneInfo>info, &p_buffer_size_in_bytes)
+    check_status(__status__)
+    return p_buffer_size_in_bytes
+
+
+cpdef size_t dprune_csr2csr_by_percentage_buffer_size_ext(intptr_t handle, int m, int n, int nnz_a, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, float percentage, intptr_t descr_c, intptr_t csr_sorted_val_c, intptr_t csr_sorted_row_ptr_c, intptr_t csr_sorted_col_ind_c, intptr_t info) except? 0:
+    """See `cusparseDpruneCsr2csrByPercentage_bufferSizeExt`."""
+    cdef size_t p_buffer_size_in_bytes
+    with nogil:
+        __status__ = cusparseDpruneCsr2csrByPercentage_bufferSizeExt(<Handle>handle, m, n, nnz_a, <const MatDescr>descr_a, <const double*>csr_sorted_val_a, <const int*>csr_sorted_row_ptr_a, <const int*>csr_sorted_col_ind_a, percentage, <const MatDescr>descr_c, <const double*>csr_sorted_val_c, <const int*>csr_sorted_row_ptr_c, <const int*>csr_sorted_col_ind_c, <pruneInfo>info, &p_buffer_size_in_bytes)
+    check_status(__status__)
+    return p_buffer_size_in_bytes
+
+
+cpdef sprune_csr2csr_nnz_by_percentage(intptr_t handle, int m, int n, int nnz_a, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, float percentage, intptr_t descr_c, intptr_t csr_sorted_row_ptr_c, intptr_t nnz_total_dev_host_ptr, intptr_t info, intptr_t p_buffer):
+    """See `cusparseSpruneCsr2csrNnzByPercentage`."""
+    with nogil:
+        __status__ = cusparseSpruneCsr2csrNnzByPercentage(<Handle>handle, m, n, nnz_a, <const MatDescr>descr_a, <const float*>csr_sorted_val_a, <const int*>csr_sorted_row_ptr_a, <const int*>csr_sorted_col_ind_a, percentage, <const MatDescr>descr_c, <int*>csr_sorted_row_ptr_c, <int*>nnz_total_dev_host_ptr, <pruneInfo>info, <void*>p_buffer)
+    check_status(__status__)
+
+
+cpdef dprune_csr2csr_nnz_by_percentage(intptr_t handle, int m, int n, int nnz_a, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, float percentage, intptr_t descr_c, intptr_t csr_sorted_row_ptr_c, intptr_t nnz_total_dev_host_ptr, intptr_t info, intptr_t p_buffer):
+    """See `cusparseDpruneCsr2csrNnzByPercentage`."""
+    with nogil:
+        __status__ = cusparseDpruneCsr2csrNnzByPercentage(<Handle>handle, m, n, nnz_a, <const MatDescr>descr_a, <const double*>csr_sorted_val_a, <const int*>csr_sorted_row_ptr_a, <const int*>csr_sorted_col_ind_a, percentage, <const MatDescr>descr_c, <int*>csr_sorted_row_ptr_c, <int*>nnz_total_dev_host_ptr, <pruneInfo>info, <void*>p_buffer)
+    check_status(__status__)
+
+
+cpdef sprune_csr2csr_by_percentage(intptr_t handle, int m, int n, int nnz_a, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, float percentage, intptr_t descr_c, intptr_t csr_sorted_val_c, intptr_t csr_sorted_row_ptr_c, intptr_t csr_sorted_col_ind_c, intptr_t info, intptr_t p_buffer):
+    """See `cusparseSpruneCsr2csrByPercentage`."""
+    with nogil:
+        __status__ = cusparseSpruneCsr2csrByPercentage(<Handle>handle, m, n, nnz_a, <const MatDescr>descr_a, <const float*>csr_sorted_val_a, <const int*>csr_sorted_row_ptr_a, <const int*>csr_sorted_col_ind_a, percentage, <const MatDescr>descr_c, <float*>csr_sorted_val_c, <const int*>csr_sorted_row_ptr_c, <int*>csr_sorted_col_ind_c, <pruneInfo>info, <void*>p_buffer)
+    check_status(__status__)
+
+
+cpdef dprune_csr2csr_by_percentage(intptr_t handle, int m, int n, int nnz_a, intptr_t descr_a, intptr_t csr_sorted_val_a, intptr_t csr_sorted_row_ptr_a, intptr_t csr_sorted_col_ind_a, float percentage, intptr_t descr_c, intptr_t csr_sorted_val_c, intptr_t csr_sorted_row_ptr_c, intptr_t csr_sorted_col_ind_c, intptr_t info, intptr_t p_buffer):
+    """See `cusparseDpruneCsr2csrByPercentage`."""
+    with nogil:
+        __status__ = cusparseDpruneCsr2csrByPercentage(<Handle>handle, m, n, nnz_a, <const MatDescr>descr_a, <const double*>csr_sorted_val_a, <const int*>csr_sorted_row_ptr_a, <const int*>csr_sorted_col_ind_a, percentage, <const MatDescr>descr_c, <double*>csr_sorted_val_c, <const int*>csr_sorted_row_ptr_c, <int*>csr_sorted_col_ind_c, <pruneInfo>info, <void*>p_buffer)
     check_status(__status__)
 
 
@@ -1669,7 +3249,6 @@ cpdef get_sp_mat_attribute_dtype(int attr):
     return sp_mat_attribute_sizes[attr]
 
 ###########################################################################
-
 
 cpdef sp_mat_get_attribute(intptr_t sp_mat_descr, int attribute, intptr_t data, size_t data_size):
     """See `cusparseSpMatGetAttribute`."""
@@ -2031,6 +3610,13 @@ cpdef scatter(intptr_t handle, intptr_t vec_x, intptr_t vec_y):
     """See `cusparseScatter`."""
     with nogil:
         __status__ = cusparseScatter(<Handle>handle, <ConstSpVecDescr>vec_x, <DnVecDescr>vec_y)
+    check_status(__status__)
+
+
+cpdef rot(intptr_t handle, intptr_t c_coeff, intptr_t s_coeff, intptr_t vec_x, intptr_t vec_y):
+    """See `cusparseRot`."""
+    with nogil:
+        __status__ = cusparseRot(<Handle>handle, <const void*>c_coeff, <const void*>s_coeff, <SpVecDescr>vec_x, <DnVecDescr>vec_y)
     check_status(__status__)
 
 

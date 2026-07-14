@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 #
-# This code was automatically generated across versions from 12.0.1 to 13.2.0, generator version 0.3.1.dev1301+g7215ac36e. Do not modify it directly.
+# This code was automatically generated across versions from 12.0.1 to 13.2.0, generator version 0.3.1.dev1471+g7122059e9. Do not modify it directly.
 
 cimport cython  # NOQA
 cimport cpython
@@ -98,6 +98,7 @@ class Method(_IntEnum):
     METHOD_3RD = CURAND_3RD
     METHOD_DEFINITION = CURAND_DEFINITION
     METHOD_POISSON = CURAND_POISSON
+
 
 
 ###############################################################################
@@ -478,6 +479,8 @@ cpdef generate_seeds(intptr_t generator):
     with nogil:
         __status__ = curandGenerateSeeds(<Generator>generator)
     check_status(__status__)
+
+
 
 
 cpdef get_scramble_constants32(size_t size):

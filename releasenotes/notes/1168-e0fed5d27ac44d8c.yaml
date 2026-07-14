@@ -1,0 +1,11 @@
+---
+# Uncomment a section header and replace with your own note.
+#release_summary:
+features:
+#api:
+#deprecations:
+#fixes:
+#issues:
+#security:
+#doc:
+ - Added :mod:`nvmath.bindings.cusolverMp` bindings for cuSOLVERMp 0.7.2 through 0.8.0.

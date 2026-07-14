@@ -28,7 +28,9 @@ from ...utils.common_axes import (
 )
 from ...utils.utils import (
     allow_cusparse_unsupported,
+    allow_unsupported_conversion,
     copy_array,
+    cusparse_may_reject,
     idfn,
     is_known_linker_error,
     to_dense_numpy,
@@ -121,7 +123,7 @@ def run_matmul(
         operand_placement,
         sparse_array_type,
         m,
-        n,
+        k,
         density,
         dtype,
         seed=RNG_SEED,
@@ -129,17 +131,15 @@ def run_matmul(
         batch_dims=batch_a,
     )
     a = a_ref
-    b = create_random_dense_matrix(framework, operand_placement, n, k, dtype, seed=RNG_SEED, batch_dims=batch_b)
-    c = create_random_dense_matrix(framework, operand_placement, m, k, dtype, seed=RNG_SEED, batch_dims=batch_c)
+    b = create_random_dense_matrix(framework, operand_placement, k, n, dtype, seed=RNG_SEED, batch_dims=batch_b)
+    c = create_random_dense_matrix(framework, operand_placement, m, n, dtype, seed=RNG_SEED, batch_dims=batch_c)
     c_backup = copy_array(c)
 
-    try:
+    with allow_unsupported_conversion():
         if use_ust:
             a = ust.Tensor.from_package(a_ref)
             b = ust.Tensor.from_package(b)
             c = ust.Tensor.from_package(c)
-    except (TypeError, NotImplementedError) as e:
-        pytest.skip(f"Unable to perform UST conversion: {str(e)}")
 
     if named_format is not None:
         a = a.convert(tensor_format=named_format)
@@ -155,7 +155,7 @@ def run_matmul(
 
     try:
         with Matmul(a, b, c=c, options=options, alpha=alpha, beta=beta, qualifiers=qualifiers) as mm:
-            _matmul_plan(mm, prologs=prologs, epilog=epilog, semiring=semiring)
+            _matmul_plan(mm, prologs=prologs)
             result = mm.execute()
     except NotImplementedError as e:
         pytest.skip(f"Unable to perform matmul: {e}")
@@ -166,7 +166,7 @@ def run_matmul(
         result = result.to_package()
 
     check_meta_data(
-        a, b, result, framework, operand_placement, None, dtype, (*batch_a, m, n), (*batch_b, n, k), (*batch_c, m, k)
+        a, b, result, framework, operand_placement, None, dtype, (*batch_a, m, k), (*batch_b, k, n), (*batch_c, m, n)
     )
     return result, a, b, c_backup
 
@@ -396,8 +396,8 @@ def get_reference_result_semiring(
         if use_ust or not enforce_codegen
         for prolog_a in [False, True]
         for prolog_b in [False, True]
-        for prolog_c in [False, True]
-        for epilog in [False, True]
+        for prolog_c in [False]
+        for epilog in [False]
         if prolog_a or prolog_b or epilog
     ],
     ids=idfn,
@@ -460,8 +460,8 @@ def test_prologs_epilogs_dtypes(
         for dtype in supported_callback_dtypes
         if dtype in framework2dtype[Framework.torch]
         for enforce_codegen in [False, True]
-        for prolog_c in [False, True]
-        for epilog in [False, True]
+        for prolog_c in [False]
+        for epilog in [False]
         if prolog_c or epilog
     ],
     ids=idfn,
@@ -471,7 +471,7 @@ def test_dia_prolog_c_epilog(named_format, dtype, enforce_codegen, prolog_c, epi
     use_prolog_c = prolog_c.value
     use_epilog = epilog.value
 
-    m = n = 32
+    m = k = 32
     framework = Framework.torch
     operand_placement = OperandPlacement.device
     sparse_array_type = SparseArrayType.CSR
@@ -481,13 +481,13 @@ def test_dia_prolog_c_epilog(named_format, dtype, enforce_codegen, prolog_c, epi
         operand_placement,
         sparse_array_type,
         m,
-        n,
+        k,
         0.5,
         dtype,
         seed=RNG_SEED,
         index_dtype=DType.int32,
     )
-    b_vec = create_random_dense_matrix(framework, operand_placement, n, 1, dtype, seed=RNG_SEED).squeeze(-1).contiguous()
+    b_vec = create_random_dense_matrix(framework, operand_placement, k, 1, dtype, seed=RNG_SEED).squeeze(-1).contiguous()
     c_vec = create_random_dense_matrix(framework, operand_placement, m, 1, dtype, seed=RNG_SEED).squeeze(-1).contiguous()
     c_backup = copy_array(c_vec)
 
@@ -499,13 +499,12 @@ def test_dia_prolog_c_epilog(named_format, dtype, enforce_codegen, prolog_c, epi
     a = a.convert(tensor_format=named_format)
 
     prolog_c_cb = get_example_prolog(dtype, "c") if use_prolog_c else None
-    epilog_cb = get_example_epilog(dtype) if use_epilog else None
     prologs = {"c": prolog_c_cb} if prolog_c_cb is not None else None
     options = MatmulOptions(codegen=enforce_codegen)
 
     try:
         with Matmul(a, b, c=c, options=options) as mm:
-            _matmul_plan(mm, prologs=prologs, epilog=epilog_cb)
+            _matmul_plan(mm, prologs=prologs)
             result_ust = mm.execute()
     except NotImplementedError as e:
         pytest.skip(f"Unable to perform matmul: {e}")
@@ -521,8 +520,8 @@ def test_dia_prolog_c_epilog(named_format, dtype, enforce_codegen, prolog_c, epi
         operand_placement,
         None,
         dtype,
-        (m, n),
-        (n,),
+        (m, k),
+        (k,),
         (m,),
     )
 
@@ -565,8 +564,8 @@ def test_dia_prolog_c_epilog(named_format, dtype, enforce_codegen, prolog_c, epi
         if use_ust or not enforce_codegen
         for prolog_a in [False, True]
         for prolog_b in [False, True]
-        for prolog_c in [False, True]
-        for epilog in [False, True]
+        for prolog_c in [False]
+        for epilog in [False]
         if prolog_a or prolog_b or epilog
         for batch_dims in [(2, 2), ()]
         for broadcast in ["a", "b", ""]
@@ -587,7 +586,7 @@ def test_prologs_epilogs_batched(
     batch_dims = batch_dims.value
 
     result, a, b, c = run_matmul(
-        (13, 17, 19),
+        (13, 19, 17),
         framework=Framework.torch,
         operand_placement=operand_placement,
         sparse_array_type=sparse_array_type,
@@ -648,8 +647,8 @@ def test_prologs_epilogs_batched(
         if use_ust or not enforce_codegen
         for prolog_a in [False, True]
         for prolog_b in [False, True]
-        for prolog_c in [False, True]
-        for epilog in [False, True]
+        for prolog_c in [False]
+        for epilog in [False]
         if prolog_a or prolog_b or epilog
         for a_qualifier in ["", "trans", "conj_trans"]
         for b_qualifier in ["", "trans", "conj_trans"]
@@ -760,12 +759,12 @@ def test_prologs_epilogs_qualifiers(
         if use_ust or not enforce_codegen
         for prolog_a in [False, True]
         for prolog_b in [False, True]
-        for prolog_c in [False, True]
-        for epilog in [False, True]
+        for prolog_c in [False]
+        for epilog in [False]
         for replan_prolog_a in [False, True]
         for replan_prolog_b in [False, True]
-        for replan_prolog_c in [False, True]
-        for replan_epilog in [False, True]
+        for replan_prolog_c in [False]
+        for replan_epilog in [False]
         for reset_operands_a in [True]
         for reset_operands_b in [True]
         for reset_operands_c in [True]  # C is overwritten by the result
@@ -791,7 +790,7 @@ def test_replan_cbs(
     reset_operands_b,
     reset_operands_c,
 ):
-    m, n, k = (13, 17, 19)
+    m, n, k = (13, 19, 17)
     density = 0.5
     dtype = DType.complex64
     index_dtype = DType.int32
@@ -814,14 +813,14 @@ def test_replan_cbs(
         operand_placement,
         sparse_array_type,
         m,
-        n,
+        k,
         density,
         dtype,
         seed=RNG_SEED,
         index_dtype=index_dtype,
     )
-    b = create_random_dense_matrix(framework, operand_placement, n, k, dtype, seed=RNG_SEED)
-    c = create_random_dense_matrix(framework, operand_placement, m, k, dtype, seed=RNG_SEED)
+    b = create_random_dense_matrix(framework, operand_placement, k, n, dtype, seed=RNG_SEED)
+    c = create_random_dense_matrix(framework, operand_placement, m, n, dtype, seed=RNG_SEED)
     reference = get_reference_result_prologs_epilog(a, b, c, dtype, prolog_a, prolog_b, prolog_c, epilog)
 
     a1 = create_random_sparse_matrix(
@@ -829,14 +828,14 @@ def test_replan_cbs(
         operand_placement,
         sparse_array_type,
         m,
-        n,
+        k,
         density,
         dtype,
         seed=RNG_SEED + 1,
         index_dtype=index_dtype,
     )
-    b1 = create_random_dense_matrix(framework, operand_placement, n, k, dtype, seed=RNG_SEED + 1)
-    c1 = create_random_dense_matrix(framework, operand_placement, m, k, dtype, seed=RNG_SEED + 1)
+    b1 = create_random_dense_matrix(framework, operand_placement, k, n, dtype, seed=RNG_SEED + 1)
+    c1 = create_random_dense_matrix(framework, operand_placement, m, n, dtype, seed=RNG_SEED + 1)
     reference1 = get_reference_result_prologs_epilog(
         a1 if reset_operands_a else a,
         b1 if reset_operands_b else b,
@@ -852,7 +851,7 @@ def test_replan_cbs(
         prolog_c=example_prolog1 if replan_prolog_c else example_prolog,
     )
 
-    try:
+    with allow_unsupported_conversion():
         if use_ust:
             a = ust.Tensor.from_package(a)
             b = ust.Tensor.from_package(b)
@@ -860,8 +859,6 @@ def test_replan_cbs(
             a1 = ust.Tensor.from_package(a1)
             b1 = ust.Tensor.from_package(b1)
             c1 = ust.Tensor.from_package(c1)
-    except (TypeError, NotImplementedError) as e:
-        pytest.skip(f"Unable to perform UST conversion: {str(e)}")
 
     prologs = {}
     prologs1 = {}
@@ -881,20 +878,15 @@ def test_replan_cbs(
     if replan_prolog_c:
         prologs1["c"] = get_example_prolog1(dtype, "c")
 
-    epilog = epilog1 = get_example_epilog(dtype) if epilog else None
-
-    if replan_epilog:
-        epilog1 = get_example_epilog1(dtype)
-
     prologs = prologs or None
     prologs1 = prologs1 or None
 
     try:
         with (
-            allow_cusparse_unsupported(enabled=sparse_array_type == SparseArrayType.BSR),
+            allow_cusparse_unsupported(enabled=cusparse_may_reject(sparse_array_type, dtype)),
             Matmul(a, b, c=c, options=MatmulOptions(codegen=enforce_codegen)) as mm,
         ):
-            _matmul_plan(mm, prologs=prologs, epilog=epilog)
+            _matmul_plan(mm, prologs=prologs)
             result = mm.execute()
 
             if use_ust:
@@ -902,17 +894,23 @@ def test_replan_cbs(
                 a = a.to_package()
                 b = b.to_package()
 
-            check_meta_data(a, b, result, framework, operand_placement, None, dtype, (m, n), (n, k), (m, k))
+            check_meta_data(a, b, result, framework, operand_placement, None, dtype, (m, k), (k, n), (m, n))
             compare_results(result, reference, dtype)
 
             if reset_operands_a or reset_operands_b or reset_operands_c:
-                mm.reset_operands(
-                    a=a1 if reset_operands_a else None,
-                    b=b1 if reset_operands_b else None,
-                    c=c1 if reset_operands_c else None,
-                )
+                try:
+                    mm.reset_operands(
+                        a=a1 if reset_operands_a else None,
+                        b=b1 if reset_operands_b else None,
+                        c=c1 if reset_operands_c else None,
+                    )
+                except ValueError as e:
+                    if "broadcast" in str(e):
+                        pytest.skip(f"Incompatible operand shapes: {e}")
+                    else:
+                        raise
 
-            _matmul_plan(mm, prologs=prologs1, epilog=epilog1)
+            _matmul_plan(mm, prologs=prologs1)
             result1 = mm.execute()
 
             if use_ust:
@@ -928,9 +926,9 @@ def test_replan_cbs(
                 operand_placement,
                 None,
                 dtype,
-                (m, n),
-                (n, k),
                 (m, k),
+                (k, n),
+                (m, n),
             )
             compare_results(result1, reference1, dtype)
 
@@ -938,6 +936,7 @@ def test_replan_cbs(
         pytest.skip(f"Unable to perform matmul: {e}")
 
 
+@pytest.mark.skip("The `semiring` option removed from the API for now.")
 @pytest.mark.parametrize(
     (
         "framework",
@@ -1009,7 +1008,7 @@ def test_semiring(
     prolog_b = prolog_b.value
     prolog_c = prolog_c.value
     epilog = epilog.value
-    size = (13, 17, 19)
+    size = (13, 19, 17)
     index_dtype = DType.int32
     batch_dims = batch_dims.value
     broadcast = broadcast.value

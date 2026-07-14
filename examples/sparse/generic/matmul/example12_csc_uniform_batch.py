@@ -39,9 +39,8 @@ print(f"The shape of c = {c.shape}.")
 # Use the codegen option since cuSPARSE doesn't currently support
 # batched CSC matrices.
 with nvmath.sparse.Matmul(a, b, c, options={"codegen": True}) as mm:
-    # Plan the SpMM operation. As we will see in later examples, planning
-    # can be customized by providing prologs, epilog, and semiring operations.
-    # The planning needs to be done only once for each problem specification.
+    # Plan the SpMM operation. The planning needs to be done only
+    # once for each problem specification.
     mm.plan()
 
     # Execute the operation.

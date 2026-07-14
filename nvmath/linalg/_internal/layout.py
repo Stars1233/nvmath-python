@@ -15,13 +15,13 @@ that is compatible with the BLAS API.
 from __future__ import annotations
 
 import itertools
-import logging
 import typing
 from collections.abc import Sequence
 from dataclasses import dataclass
 
 import nvmath.bindings.cublas as cublas
 import nvmath.bindings.cublasLt as cublaslt
+from nvmath._internal.utils import LoggerLike
 from nvmath.internal import typemaps
 
 
@@ -184,7 +184,7 @@ class BLASMatrixTraits:
         """
         return 1 in self.shape or 0 in self.shape
 
-    def transpose_and_reorder(self, logger: logging.Logger) -> BLASMatrixTraits:
+    def transpose_and_reorder(self, logger: LoggerLike) -> BLASMatrixTraits:
         """Return a new :class:`BLASMatrixTraits` that has been transposed, reordered,
         and the transpose flag flipped.
 
@@ -204,7 +204,7 @@ class BLASMatrixTraits:
         logger.debug("The matrix was transposed and reordered from %s to %s.", self.order.name, new.order.name)
         return new
 
-    def flip_transpose_flag(self, logger: logging.Logger) -> BLASMatrixTraits:
+    def flip_transpose_flag(self, logger: LoggerLike) -> BLASMatrixTraits:
         """Return a new :class:`BLASMatrixTraits` with the transpose flag flipped."""
         new = BLASMatrixTraits(
             dtype=self.dtype,
@@ -217,7 +217,7 @@ class BLASMatrixTraits:
         logger.debug("The matrix was transposed.")
         return new
 
-    def promote_left(self, logger: logging.Logger, ndim: int = 2) -> BLASMatrixTraits:
+    def promote_left(self, logger: LoggerLike, ndim: int = 2) -> BLASMatrixTraits:
         """Return a new :class:`BLASMatrixTraits` with new singleton dimensions added to
         the left side of `shape` until the matrix has at least `ndim` dimensions."""
         add = max(ndim - len(self.shape), 0)
@@ -233,7 +233,7 @@ class BLASMatrixTraits:
             logger.debug("The matrix was promoted from shape %s to shape %s", self.shape, promoted.shape)
         return promoted
 
-    def promote_right(self, logger: logging.Logger, ndim: int = 2) -> BLASMatrixTraits:
+    def promote_right(self, logger: LoggerLike, ndim: int = 2) -> BLASMatrixTraits:
         """Return a new :class:`BLASMatrixTraits` with new singleton dimensions added to
         the right side of `shape` until the matrix has at least `ndim` dimensions."""
         add = max(ndim - len(self.shape), 0)
@@ -305,7 +305,7 @@ class InputMMTraits:
         b_layout: BLASMatrixTraits,
         c_layout: BLASMatrixTraits | None,
         inplace: bool,
-        logger: logging.Logger,
+        logger: LoggerLike,
     ):
         """Create a `InputMMTraits` from 2 or 3 `BLASMatrixTraits`.
 
@@ -460,7 +460,7 @@ class BLASMMTraitsView:
     def from_input_traits(
         input_traits: InputMMTraits,
         layout_checker: MMLayoutChecker,
-        logger: logging.Logger,
+        logger: LoggerLike,
         lookup_table_table: dict[MMLayoutChecker, MMLayoutCheckerLookupTable] | None = None,
     ) -> BLASMMTraitsView:
         logger.debug("Creating a BLAS compatible view of Matmul operands.")
@@ -490,7 +490,7 @@ class BLASMMTraitsView:
         logger.debug("A BLAS compatible view of the operands was created.")
         return supported_layout  # type: ignore[return-value]
 
-    def swap_AB_and_transpose_ABC(self, logger: logging.Logger) -> BLASMMTraitsView:
+    def swap_AB_and_transpose_ABC(self, logger: LoggerLike) -> BLASMMTraitsView:
         """Return a new :class:`BLASMMTraits` with operands A and B swapped."""
         logger.debug("Operands A, B will be swapped and transposed in order to transpose C.")
         return BLASMMTraitsView(
@@ -503,7 +503,7 @@ class BLASMMTraitsView:
             is_swapped_AB=not self.is_swapped_AB,
         )
 
-    def transpose_and_reorder_A(self, logger: logging.Logger) -> BLASMMTraitsView:
+    def transpose_and_reorder_A(self, logger: LoggerLike) -> BLASMMTraitsView:
         """Return a new :class:`BLASMMTraits` with operand A transposed and reordered."""
         logger.debug("Operand A was transposed and reordered.")
         return BLASMMTraitsView(
@@ -516,7 +516,7 @@ class BLASMMTraitsView:
             is_swapped_AB=self.is_swapped_AB,
         )
 
-    def transpose_and_reorder_B(self, logger: logging.Logger) -> BLASMMTraitsView:
+    def transpose_and_reorder_B(self, logger: LoggerLike) -> BLASMMTraitsView:
         """Return a new :class:`BLASMMTraits` with operand B transposed and reordered."""
         logger.debug("Operand B was transposed and reordered.")
         return BLASMMTraitsView(
@@ -529,7 +529,7 @@ class BLASMMTraitsView:
             is_swapped_AB=self.is_swapped_AB,
         )
 
-    def transpose_and_reorder_C(self, logger: logging.Logger) -> BLASMMTraitsView:
+    def transpose_and_reorder_C(self, logger: LoggerLike) -> BLASMMTraitsView:
         """Return a new :class:`BLASMMTraits` with operand C transposed and reordered."""
         logger.debug("Operand C was transposed and reordered.")
         return BLASMMTraitsView(
@@ -542,7 +542,7 @@ class BLASMMTraitsView:
             is_swapped_AB=self.is_swapped_AB,
         )
 
-    def find_supported_layout(self, layout_checker: MMLayoutChecker, logger: logging.Logger) -> BLASMMTraitsView:
+    def find_supported_layout(self, layout_checker: MMLayoutChecker, logger: LoggerLike) -> BLASMMTraitsView:
         # If we assume that A, B, C are all non-transposed, but may be conjugate and may be
         # either ROW or COL, then the input space for the matmul is 2 * 2 = 4 for EACH
         # operand (two layouts and either conjugate or not). That makes the total input
@@ -583,7 +583,7 @@ class BLASMMTraitsView:
         self,
         layout_checker: MMLayoutChecker,
         lookup_table_table: dict[MMLayoutChecker, MMLayoutCheckerLookupTable] | None,
-        logger: logging.Logger,
+        logger: LoggerLike,
     ) -> BLASMMTraitsView:
         if lookup_table_table is None or layout_checker not in lookup_table_table:
             logger.debug("No cached layout lookup table found for layout checker; performing exhaustive search.")

@@ -18,6 +18,7 @@ from .utils.common_axes import (
     CacheModeOption,
     DType,
     Framework,
+    GpuArchOption,
     IncrementalCountOption,
     JitOption,
     KernelRankOption,
@@ -503,6 +504,7 @@ class TestContractionPlanPreferenceGetterSetter:
             "algo",
             "kernel_rank",
             "jit",
+            "gpu_arch",
         ],
     )
     def test_plan_preference_getter_setter(self, attr):
@@ -513,6 +515,7 @@ class TestContractionPlanPreferenceGetterSetter:
             "algo": AlgoOption,
             "kernel_rank": KernelRankOption,
             "jit": JitOption,
+            "gpu_arch": GpuArchOption,
         }[attr]
 
         for contraction in self.contractions:

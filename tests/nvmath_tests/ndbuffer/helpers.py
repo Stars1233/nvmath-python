@@ -2,15 +2,16 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-import ctypes
+import contextlib
+import itertools
 
 import numpy as np
 
-import nvmath.internal.ndbuffer.package_utils as package_utils
-import nvmath.internal.tensor_wrapper as tw
 from nvmath.internal.memory import free_reserved_memory
+from nvmath.internal.ndbuffer import NDBuffer
 from nvmath.internal.tensor_wrapper import maybe_register_package
-from nvmath.internal.utils import device_ctx, get_or_create_stream
+from nvmath.internal.utils import device_ctx as _device_ctx
+from nvmath.internal.utils import get_or_create_stream
 
 try:
     import cupy as cp
@@ -18,12 +19,8 @@ except ImportError:
     cp = None
 
 
-try:
-    from cuda.core import Buffer, MemoryResource
-except ImportError:
-    from cuda.core.experimental import Buffer, MemoryResource
-
 import cuda.bindings.driver as driver
+from cuda.core import Buffer, MemoryResource
 
 
 class Param:
@@ -35,9 +32,7 @@ class Param:
         return bool(self.value)
 
     def pretty_name(self):
-        if isinstance(self.value, tuple):
-            return "x".join(str(arg) for arg in self.value)
-        elif hasattr(self.value, "name"):
+        if hasattr(self.value, "name"):
             value_str = self.value.name
         else:
             value_str = str(self.value)
@@ -122,57 +117,28 @@ def package(a):
 
 def as_ndbuffer(a):
     if isinstance(a, np.ndarray):
-        return package_utils.wrap_numpy_array(a)
+        return NDBuffer.from_numpy(a)
     if isinstance(a, cp.ndarray):
-        return package_utils.wrap_cupy_array(a)
+        return NDBuffer.from_cupy(a)
     raise ValueError(f"Invalid array: {type(a)}")
 
 
-def wrap_operand(a):
+def array_ptr(a):
     if isinstance(a, np.ndarray):
-        wrapped = tw.wrap_operand(a)
-        assert isinstance(wrapped, tw.NumpyTensor)
-        return wrapped
+        return a.ctypes.data
     if isinstance(a, cp.ndarray):
-        wrapped = tw.wrap_operand(a)
-        import nvmath.internal.tensor_ifc_cupy as tcupy
-
-        assert isinstance(wrapped, tcupy.CupyTensor)
-        return wrapped
+        return a.data.ptr
     raise ValueError(f"Invalid array: {type(a)}")
-
-
-def stride_tricks(a, shape, stride, itemsize):
-    p = package(a)
-    stride_in_bytes = tuple(s * itemsize for s in stride)
-    return p.lib.stride_tricks.as_strided(a, shape=shape, strides=stride_in_bytes)
 
 
 def assert_equal(a, b):
     ap = package(a)
     bp = package(b)
-    if ap is bp:
-        ap.testing.assert_array_equal(a, b)
-    else:
-        anp = cp.asnumpy(a)
-        bnp = cp.asnumpy(b)
-        np.testing.assert_array_equal(anp, bnp)
+    assert ap is bp, f"package of a ({ap}) and b ({bp}) differ"
+    ap.testing.assert_array_equal(a, b)
 
 
-def sliced_or_broadcast_1d(device_id, stream_holder, volume, stride, dtype):
-    if stride == 0:
-        a_base = arange(device_id, stream_holder, 1, dtype)
-        return stride_tricks(a_base, (volume,), (stride,), np.dtype(dtype).itemsize)
-    else:
-        a_base = arange(device_id, stream_holder, volume, dtype)
-        if stride != 1:
-            return a_base[::stride]
-        else:
-            return a_base
-
-
-def random_non_empty_slice(rng, a):
-    shape = a.shape
+def random_non_empty_slice(rng, shape):
     ndim = len(shape)
     slicable_indicies = [i for i in range(ndim) if shape[i] > 1]
     sliced_ndim = rng.randint(1, len(slicable_indicies))
@@ -183,17 +149,17 @@ def random_non_empty_slice(rng, a):
         slice_start = rng.randint(0, shape[i] - slice_size)
         slice_end = slice_start + slice_size
         slices[i] = slice(slice_start, slice_end)
-    return a[tuple(slices)]
+    return tuple(slices)
 
 
-def random_negated_strides(rng, a):
-    ndim = len(a.shape)
+def random_negated_strides(rng, shape):
+    ndim = len(shape)
     negated_ndim = rng.randint(1, ndim)
     negated_indicies = rng.sample(range(ndim), negated_ndim)
     slices = [slice(None)] * ndim
     for i in negated_indicies:
         slices[i] = slice(None, None, -1)
-    return a[tuple(slices)]
+    return tuple(slices)
 
 
 def inv(p):
@@ -205,6 +171,27 @@ def inv(p):
 
 def permuted(strides, permutation):
     return tuple(strides[i] for i in permutation)
+
+
+def random_permutations(rng, perm_len, cutoff_len=3, sample_size=6):
+    if perm_len <= cutoff_len:
+        return list(itertools.permutations(range(perm_len)))
+    perms = []
+    for _ in range(sample_size):
+        perm = list(range(perm_len))
+        rng.shuffle(perm)
+        # in principle, we could end up with a duplicate random perm
+        # but chances decrease exponentially with the length of the
+        # perm and it's not very harmful anyway
+        perms.append(tuple(perm))
+    return perms
+
+
+def long_shape(rng, ndim, num_non_unit_dims=5, max_dim_size=6):
+    dims = [min(i + 2, max_dim_size) for i in range(num_non_unit_dims)]
+    dims.extend(1 for i in range(ndim - num_non_unit_dims))
+    rng.shuffle(dims)
+    return tuple(dims)
 
 
 def dense_c_strides(shape, itemsize):
@@ -220,29 +207,35 @@ def abs_strides(strides):
     return tuple(abs(s) for s in strides)
 
 
+def almost_equal_strides(shape, strides, strides_ref):
+    for extent, stride, stride_ref in zip(shape, strides, strides_ref, strict=True):
+        if extent != 1 and stride != stride_ref:
+            return False
+    return True
+
+
+def as_cp_array(ndbuffer, device_id: int | None = None):
+    base_ptr, size_in_bytes, offset_in_bytes = ndbuffer.raw_memory_range_info
+    mem = cp.cuda.UnownedMemory(
+        base_ptr,
+        size_in_bytes,
+        owner=ndbuffer.data,
+        device_id=device_id if device_id is not None else ndbuffer.device_id,
+    )
+    memptr = cp.cuda.MemoryPointer(mem, offset=offset_in_bytes)
+    return cp.ndarray(
+        shape=ndbuffer.shape,
+        strides=ndbuffer.strides_in_bytes,
+        dtype=ndbuffer.dtype_name,
+        memptr=memptr,
+    )
+
+
 def as_array(ndbuffer):
     if ndbuffer.device_id == "cpu":
-        buffer = (ctypes.c_char * ndbuffer.size_in_bytes).from_address(ndbuffer.data_ptr)
-        return np.ndarray(
-            shape=ndbuffer.shape,
-            strides=ndbuffer.strides_in_bytes,
-            dtype=ndbuffer.dtype_name,
-            buffer=buffer,
-        )
+        return ndbuffer.as_numpy()
     else:
-        mem = cp.cuda.UnownedMemory(
-            ndbuffer.data_ptr,
-            ndbuffer.size_in_bytes,
-            owner=ndbuffer.data,
-            device_id=ndbuffer.device_id,
-        )
-        memptr = cp.cuda.MemoryPointer(mem, offset=0)
-        return cp.ndarray(
-            shape=ndbuffer.shape,
-            strides=ndbuffer.strides_in_bytes,
-            dtype=ndbuffer.dtype_name,
-            memptr=memptr,
-        )
+        return as_cp_array(ndbuffer)
 
 
 # Cuda.core dummy memory resources
@@ -263,8 +256,11 @@ class DummyDeviceMemoryResource(MemoryResource):
     def __init__(self, device_id):
         self._device_id = device_id
         self.active_allocs = {}
+        self.seen_streams = set()
 
-    def allocate(self, size, stream=None) -> Buffer:
+    def allocate(self, size, *, stream=None) -> Buffer:
+        if stream is not None:
+            self.seen_streams.add(int(stream.handle))
         with device_ctx(self.device_id):
             ptr = handle_return(driver.cuMemAlloc(size))
             ptr = int(ptr)
@@ -292,8 +288,11 @@ class DummyDeviceMemoryResource(MemoryResource):
 class DummyHostMemoryResource(MemoryResource):
     def __init__(self):
         self.active_allocs = {}
+        self.seen_streams = set()
 
-    def allocate(self, size, stream=None) -> Buffer:
+    def allocate(self, size, *, stream=None) -> Buffer:
+        if stream is not None:
+            self.seen_streams.add(int(stream.handle))
         a = np.zeros(size, dtype=np.uint8)
         ptr = int(a.ctypes.data)
         self.active_allocs[ptr] = a
@@ -318,8 +317,11 @@ class DummyHostMemoryResource(MemoryResource):
 class DummyPinnedMemoryResource(MemoryResource):
     def __init__(self):
         self.active_allocs = {}
+        self.seen_streams = set()
 
-    def allocate(self, size, stream=None) -> Buffer:
+    def allocate(self, size, *, stream=None) -> Buffer:
+        if stream is not None:
+            self.seen_streams.add(int(stream.handle))
         ptr = handle_return(driver.cuMemAllocHost(size))
         ptr = int(ptr)
         buffer = Buffer.from_handle(ptr=ptr, size=size, mr=self)
@@ -341,3 +343,23 @@ class DummyPinnedMemoryResource(MemoryResource):
     @property
     def device_id(self) -> int:
         return -1
+
+
+def device_ctx(device_id):
+    return _device_ctx(device_id) if isinstance(device_id, int) else contextlib.nullcontext()
+
+
+def stream_ctx(stream):
+    return stream.ctx if stream is not None else contextlib.nullcontext()
+
+
+def mem_locations_from_direction(device_id: int, direction):
+    if direction == "h2d":
+        return "cpu", device_id
+    elif direction == "d2h":
+        return device_id, "cpu"
+    elif direction == "d2d":
+        return device_id, device_id
+    else:
+        assert direction == "h2h"
+        return "cpu", "cpu"

@@ -1,0 +1,22 @@
+---
+# Uncomment a section header and replace with your own note.
+#release_summary:
+#api:
+#  - Backward incompatible changes
+features:
+#  - Non-breaking additions or performance improvements
+#dependencies:
+#  - Dependency change announcements
+#deprecations:
+#  - Announcements of deprecations
+#fixes:
+#  - Bug fixes only
+#issues:
+#  - Known issues that are not yet fixed
+#security:
+#  - Non-breaking fixes of security issues
+#doc:
+#  - Notable documentation changes
+ - >
+  Calling ``release_operand(s)`` more than once is now safe
+  across all stateful APIs; extra calls are a no-op and log an info-level message.

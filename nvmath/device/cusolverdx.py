@@ -65,7 +65,7 @@ SOLVER_DOCSTRING_SIZE_BASE = """Problem size specified as a sequence of 1 to 3 e
 ``(M,)`` (treated as ``(M, M, 1)``), ``(M, N)`` (treated as ``(M, N, 1)``), or ``(M, N, K)``.""".replace("\n", " ")
 
 SOLVER_DOCSTRING = {
-    "function": f"""Solver function to be executed on execute() method. List of available options:
+    "function": f"""Solver function to be executed by the execute() method. List of available options:
 {", ".join(f"``'{k}'`` ({v})" for k, v in ALLOWED_CUSOLVERDX_FUNCTIONS.items())}.
 Functions {", ".join(f"``'{k}'``" for k in CUSOLVERDX_0_3_ALLOWED_FUNCTIONS)} require libmathdx 0.3.2 or later.""".replace(
         "\n", " "
@@ -74,7 +74,7 @@ Functions {", ".join(f"``'{k}'``" for k in CUSOLVERDX_0_3_ALLOWED_FUNCTIONS)} re
     "size": f"""{SOLVER_DOCSTRING_SIZE_BASE} Please refer to cuSOLVERDx functionalities for detailed meaning.
 """.replace("\n", " "),
     #
-    "arrangement": f"""Storage layout for matrices A and B, specified as a sequence of 2 elements ``(arr_A, arr_B)``.
+    "arrangement": f"""Storage layout for matrices A and B, specified as a sequence of 1 or 2 elements ``(arr_A, arr_B)``.
 Each element can be one of: {", ".join(f"``'{v}'``" for v in ALLOWED_ARRANGEMENT)}.
 Defaults to ``("col_major", "col_major")``.""".replace("\n", " "),
     #
@@ -102,7 +102,7 @@ For ``'heev'``: {", ".join(f"``'{v}'``" for v in JOB_SUPPORT_MAP["heev"])}.
 Requires libmathdx 0.3.2 or later.""".replace("\n", " "),
     #
     "batches_per_block": """Number of batches to compute in parallel in a single CUDA block.
-Can be a non-zero integer or the string ``'suggested'`` for automatic selection of an optimal value.
+Can be a positive integer or the string ``'suggested'`` for automatic selection of an optimal value.
 We recommend using 1 for matrix A size larger than or equal to 16 x 16,
 and using ``'suggested'`` for smaller sizes to achieve optimal performance.
 Defaults to 1.""".replace("\n", " "),
@@ -112,7 +112,7 @@ can be one of: {", ".join(f"``'{v}'``" for v in ALLOWED_DATA_TYPE)}.
 Defaults to ``'real'``.""".replace("\n", " "),
     #
     "leading_dimensions": """The leading dimensions for input matrices A and B,
-specified as a sequence of 2 elements (``lda``, ``ldb``) or ``None``.
+specified as a sequence of 1 or 2 elements (``lda``, ``ldb``) or ``None``.
 If not provided, it will be automatically deduced from ``size`` and ``arrangement``.
 """.replace("\n", " "),
     #
@@ -405,8 +405,9 @@ class Solver:
 
     @property
     def workspace_size(self) -> int:
+        """Workspace size in elements of :attr:`value_type`, not in bytes."""
         if not _ENABLE_CUSOLVERDX_0_3:
-            raise RuntimeError("workspace size requires libmathdx 0.3.2")
+            raise RuntimeError("workspace size requires libmathdx 0.3.2 or later")
 
         return self._traits.workspace_size
 
@@ -433,7 +434,7 @@ class Solver:
     # ==========================
 
     def execute(*args):
-        raise RuntimeError("execute is a device function and cannot be called on the host.")
+        raise RuntimeError("execute should not be called directly outside of a jitted kernel.")
 
     # ==========================
     # Private methods
@@ -540,8 +541,24 @@ def compile_solver_execute(
     code_type: Any,
     execution_api: str,
 ) -> tuple[Code, str]:
+    """
+    Compiles the solver device function to LTO IR for the given code type.
+
+    Args:
+        solver (Solver): The solver device function to compile.
+
+        code_type (CodeType): The target code type, an instance of
+            :py:class:`nvmath.device.CodeType` or a compatible 2-tuple.
+
+        execution_api (str): The execution API, ``'compiled_leading_dim'`` or
+            ``'runtime_leading_dim'``.
+
+    Returns:
+        A tuple of the compiled :py:class:`nvmath.device.Code` and the mangled symbol name
+        of the device function.
+    """
     code_type = parse_code_type(code_type)
-    check_code_type(code_type, "cuSOLVERdx")
+    check_code_type(code_type, "cuSOLVERDx")
 
     h = solver._generate_SOLVER(execution_api).descriptor
 
@@ -715,7 +732,7 @@ Can be one of: {", ".join(f"``'{v}'``" for v in ALLOWED_FILL_MODE)}.""".replace(
 class CholeskySolver(_LinearSolverProperties):
     """
     A class that encapsulates Cholesky factorization and solve device functions
-    for symmetric positive definite matrices.
+    for Hermitian positive definite matrices.
 
     **Available operations:**
 
@@ -751,9 +768,9 @@ class CholeskySolver(_LinearSolverProperties):
 
         execution (str): {execution}
 
-        sm (ComputeCapability): {sm}
-
         fill_mode (str): {fill_mode}
+
+        sm (ComputeCapability): {sm}
 
         arrangement (Sequence[str], optional): {arrangement}
 
@@ -830,7 +847,7 @@ class CholeskySolver(_LinearSolverProperties):
 
     def factorize(self, a, info, lda=None) -> None:
         """
-        Computes the Cholesky factorization of a symmetric positive definite matrix A.
+        Computes the Cholesky factorization of a Hermitian positive definite matrix A.
 
         This device function computes A = L @ L^H (if fill_mode = ``'lower'``)
         or A = U^H @ U (if fill_mode = ``'upper'``). Uses cuSOLVERDx ``'potrf'``.
@@ -845,8 +862,8 @@ class CholeskySolver(_LinearSolverProperties):
         Args:
             a: Pointer to an array in shared memory, storing
                the matrix according to the specified
-               arrangement and leading dimension (see :meth:`__init__`).
-               On entry, contains the symmetric positive definite matrix.
+               arrangement and leading dimension (see :class:`CholeskySolver`).
+               On entry, contains the Hermitian positive definite matrix.
                On exit, contains the triangular factor L (lower) or U (upper).
             info: Pointer to a 1D array of ``int32``. On exit, ``info[batch_id] = 0``
                   indicates success for that batch, ``info[batch_id] != 0``
@@ -854,7 +871,7 @@ class CholeskySolver(_LinearSolverProperties):
             lda: Optional runtime leading dimension of matrix A.
                  If not specified, the compile-time ``lda`` is used.
         """
-        raise RuntimeError("factorize is a device function and cannot be called on the host.")
+        raise RuntimeError("factorize should not be called directly outside of a jitted kernel.")
 
     def solve(self, a, b, lda=None, ldb=None) -> None:
         """
@@ -875,10 +892,11 @@ class CholeskySolver(_LinearSolverProperties):
             a: Pointer to an array in shared memory, storing
                the triangular factor L (lower) or U (upper)
                from the Cholesky factorization, according
-               to the specified arrangement and leading dimension (see :meth:`__init__`).
+               to the specified arrangement
+               and leading dimension (see :class:`CholeskySolver`).
             b: Pointer to an array in shared memory, storing the
                matrix according to the specified
-               arrangement and leading dimension (see :meth:`__init__`).
+               arrangement and leading dimension (see :class:`CholeskySolver`).
                The matrix is overwritten in place with the solution matrix x.
             lda: Optional runtime leading dimension of matrix A.
                  The ``lda`` and ``ldb`` must be specified together.
@@ -887,7 +905,7 @@ class CholeskySolver(_LinearSolverProperties):
                  The ``lda`` and ``ldb`` must be specified together.
                  If not specified, the compile-time ``ldb`` is used.
         """
-        raise RuntimeError("solve is a device function and cannot be called on the host.")
+        raise RuntimeError("solve should not be called directly outside of a jitted kernel.")
 
 
 # ==========================
@@ -944,8 +962,8 @@ class LUSolver(_LinearSolverProperties):
       with strides ``(ldb * N, ldb, 1)``
 
     .. note::
-        If a nonsingular matrix A is diagonal dominant, then it is safe to factorize
-        without pivoting. If a matrix is not diagonal dominant, then pivoting is usually
+        If a nonsingular matrix A is diagonally dominant, then it is safe to factorize
+        without pivoting. If a matrix is not diagonally dominant, then pivoting is usually
         required to ensure numerical stability (see :class:`LUPivotSolver`).
 
     Args:
@@ -1052,7 +1070,7 @@ class LUSolver(_LinearSolverProperties):
 
         Args:
             a: Pointer to an array in shared memory, storing the batched matrix according
-               to the specified arrangement and leading dimension (see :meth:`__init__`).
+               to the specified arrangement and leading dimension (see :class:`LUSolver`).
                The matrix is overwritten in place.
                On exit, contains the factors L and U from the factorization A = L @ U.
                The unit diagonal elements of L are not stored.
@@ -1065,7 +1083,7 @@ class LUSolver(_LinearSolverProperties):
             lda: Optional runtime leading dimension of matrix A.
                  If not specified, the compile-time ``lda`` is used.
         """
-        raise RuntimeError("factorize is a device function and cannot be called on the host.")
+        raise RuntimeError("factorize should not be called directly outside of a jitted kernel.")
 
     def solve(self, a, b, lda=None, ldb=None) -> None:
         """
@@ -1092,11 +1110,11 @@ class LUSolver(_LinearSolverProperties):
         Args:
             a: Pointer to an array in shared memory, storing the batched factors L and U
                from the LU factorization, according to the specified arrangement
-               and leading dimension (see :meth:`__init__`).
+               and leading dimension (see :class:`LUSolver`).
                The unit diagonal elements of L are not stored.
                See the :meth:`factorize` documentation for details.
             b: Pointer to an array in shared memory, storing the batched matrix according
-               to the specified arrangement and leading dimension (see :meth:`__init__`).
+               to the specified arrangement and leading dimension (see :class:`LUSolver`).
                The matrix is overwritten in place with the solution matrix x.
             lda: Optional runtime leading dimension of matrix A.
                  The ``lda`` and ``ldb`` must be specified together.
@@ -1105,7 +1123,7 @@ class LUSolver(_LinearSolverProperties):
                  The ``lda`` and ``ldb`` must be specified together.
                  If not specified, the compile-time ``ldb`` is used.
         """
-        raise RuntimeError("solve is a device function and cannot be called on the host.")
+        raise RuntimeError("solve should not be called directly outside of a jitted kernel.")
 
 
 # ==========================
@@ -1191,7 +1209,7 @@ class TriangularSolver(_SolverProperties):
       with strides ``(ldb * M, ldb, 1)``
 
     .. note::
-        The TRSM function is temporarily exposed in cuSolverDx library
+        The TRSM function is temporarily exposed in cuSOLVERDx library
         and will be moved to cuBLASDx library in a future release.
 
     Args:
@@ -1201,8 +1219,6 @@ class TriangularSolver(_SolverProperties):
 
         execution (str): {execution}
 
-        sm (ComputeCapability): {sm}
-
         side (str): {side}
 
         fill_mode (str): {fill_mode}
@@ -1210,6 +1226,8 @@ class TriangularSolver(_SolverProperties):
         diag (str): {diag}
 
         transpose_mode (str, optional): {transpose_mode}
+
+        sm (ComputeCapability): {sm}
 
         arrangement (Sequence[str], optional): {arrangement}
 
@@ -1345,7 +1363,7 @@ class TriangularSolver(_SolverProperties):
         Args:
             a: Pointer to an array in shared memory, storing the batched triangular matrix
                according to the specified arrangement
-               and leading dimension (see :meth:`__init__`).
+               and leading dimension (see :class:`TriangularSolver`).
                The ``fill_mode`` parameter denotes which
                part of the matrix is used (the other part is ignored).
                For unit diagonal mode (``diag='unit'``),
@@ -1353,7 +1371,7 @@ class TriangularSolver(_SolverProperties):
             b: Pointer to an array in shared memory,
                storing the batched ``M`` x ``N`` right-hand side
                matrix according to the specified arrangement
-               and leading dimension (see :meth:`__init__`).
+               and leading dimension (see :class:`TriangularSolver`).
                The operation is in-place: result X overwrites B.
             lda: Optional runtime leading dimension for matrix A.
                  The ``lda`` and ``ldb`` must be specified together.
@@ -1362,7 +1380,7 @@ class TriangularSolver(_SolverProperties):
                  The ``lda`` and ``ldb`` must be specified together.
                  If not specified, the compile-time ``ldb`` is used.
         """
-        raise RuntimeError("solve is a device function and cannot be called on the host.")
+        raise RuntimeError("solve should not be called directly outside of a jitted kernel.")
 
 
 # ==========================
@@ -1380,7 +1398,7 @@ class LUPivotSolver(_LinearSolverProperties):
 
     * factorize: Computes the LU factorization P @ A = L @ U with partial pivoting,
       where P is a permutation matrix, L is a
-      lower triangular matrix and U is an upper triangular matrix.
+      unit lower triangular matrix and U is an upper triangular matrix.
     * solve: Solves the system Ax = B using a previously
       computed LU factorization with partial pivoting
 
@@ -1529,7 +1547,8 @@ class LUPivotSolver(_LinearSolverProperties):
 
         Args:
             a: Pointer to an array in shared memory, storing the batched matrix according
-               to the specified arrangement and leading dimension (see :meth:`__init__`).
+               to the specified arrangement
+               and leading dimension (see :class:`LUPivotSolver`).
                The matrix is overwritten in place.
                On exit, contains the factors L and U from the factorization P @ A = L @ U.
                The unit diagonal elements of L are not stored.
@@ -1547,7 +1566,7 @@ class LUPivotSolver(_LinearSolverProperties):
             lda: Optional runtime leading dimension of matrix A.
                  If not specified, the compile-time ``lda`` is used.
         """
-        raise RuntimeError("factorize is a device function and cannot be called on the host.")
+        raise RuntimeError("factorize should not be called directly outside of a jitted kernel.")
 
     def solve(self, a, ipiv, b, lda=None, ldb=None) -> None:
         """
@@ -1574,7 +1593,8 @@ class LUPivotSolver(_LinearSolverProperties):
         Args:
             a: Pointer to an array in shared memory, storing the batched factors L and U
                from the LU factorization with partial pivoting, according
-               to the specified arrangement and leading dimension (see :meth:`__init__`).
+               to the specified arrangement
+               and leading dimension (see :class:`LUPivotSolver`).
                The unit diagonal elements of L are not stored.
                See the :meth:`factorize` documentation for details.
             ipiv: Pointer to a 1D array of ``int32`` in shared or global memory
@@ -1582,9 +1602,11 @@ class LUPivotSolver(_LinearSolverProperties):
                   The array has size min(M, N) for each batch. The ipiv array should contain
                   the pivot information from the :meth:`factorize` call.
                   ``ipiv[batch_id * min(M, N) + i]`` indicates that row i was interchanged
-                  with row ``ipiv[batch_id * min(M, N) + i]`` in the batch_id-th batch of A.
+                  with row ``ipiv[batch_id * min(M, N) + i] - 1``
+                  in the batch_id-th batch of A.
             b: Pointer to an array in shared memory, storing the batched matrix according
-               to the specified arrangement and leading dimension (see :meth:`__init__`).
+               to the specified arrangement
+               and leading dimension (see :class:`LUPivotSolver`).
                The matrix is overwritten in place with the solution matrix x.
             lda: Optional runtime leading dimension of matrix A.
                  The ``lda`` and ``ldb`` must be specified together.
@@ -1593,7 +1615,7 @@ class LUPivotSolver(_LinearSolverProperties):
                  The ``lda`` and ``ldb`` must be specified together.
                  If not specified, the compile-time ``ldb`` is used.
         """
-        raise RuntimeError("solve is a device function and cannot be called on the host.")
+        raise RuntimeError("solve should not be called directly outside of a jitted kernel.")
 
 
 # ==========================
@@ -1612,12 +1634,8 @@ ORTOGHONAL_FACTORIZER_DOCSTRING["size"] = f"""{SOLVER_DOCSTRING_SIZE_BASE}
 ``M`` and ``N`` represent the dimensions of the matrix A used in factorization.
 ``K`` is ignored if specified.""".replace("\n", " ")
 
-ORTOGHONAL_FACTORIZER_DOCSTRING["arrangement"] = (
-    """Storage layout for matrix A.
+ORTOGHONAL_FACTORIZER_DOCSTRING["arrangement"] = """Storage layout for matrix A.
 Can be one of: ``'col_major'``, ``'row_major'``. Defaults to ``'col_major'``.""".replace("\n", " ")
-    + " "
-    + ADAPTERS_API_LD_DOCSTRING
-)
 
 ORTOGHONAL_FACTORIZER_DOCSTRING["leading_dimension"] = (
     """The leading dimension for input matrix A, or ``None``.
@@ -1825,7 +1843,7 @@ class QRFactorize(_OrthogonalFactorizerProperties):
         Each Householder vector has the form H(i) = I - tau[i] * v * v^H, where:
 
         * v is a vector of size M for each batch
-        * v[0:i-1] = 0, v[i] = 1
+        * v[0:i] = 0, v[i] = 1
         * v[i+1:M] is stored on exit in A[i+1:M, i]
 
         For more details, see: :cusolverdx_doc:`get_started/functions/geqrf.html`
@@ -1833,7 +1851,8 @@ class QRFactorize(_OrthogonalFactorizerProperties):
         Args:
             a: Pointer to an array in shared memory, storing
                the batched matrix according
-               to the specified arrangement and leading dimension (see :meth:`__init__`).
+               to the specified arrangement
+               and leading dimension (see :class:`QRFactorize`).
                The matrix is overwritten in place.
                On exit, the upper triangular or upper trapezoidal part (including diagonal)
                contains the matrix R. The elements below the diagonal, with the array tau,
@@ -1845,7 +1864,7 @@ class QRFactorize(_OrthogonalFactorizerProperties):
             lda: Optional runtime leading dimension of matrix A.
                  If not specified, the compile-time ``lda`` is used.
         """
-        raise RuntimeError("factorize is a device function and cannot be called on the host.")
+        raise RuntimeError("factorize should not be called directly outside of a jitted kernel.")
 
 
 # ==========================
@@ -1969,7 +1988,7 @@ class LQFactorize(_OrthogonalFactorizerProperties):
         Each Householder vector has the form H(i) = I - tau[i] * v * v^H, where:
 
         * v is a vector of size N for each batch
-        * v[0:i-1] = 0, v[i] = 1
+        * v[0:i] = 0, v[i] = 1
         * conjugate(v[i+1:N]) is stored on exit in A[i, i+1:N]
 
         For more details, see: :cusolverdx_doc:`get_started/functions/gelqf.html`
@@ -1977,7 +1996,8 @@ class LQFactorize(_OrthogonalFactorizerProperties):
         Args:
             a: Pointer to an array in shared memory, storing
                the batched M x N matrix according
-               to the specified arrangement and leading dimension (see :meth:`__init__`).
+               to the specified arrangement
+               and leading dimension (see :class:`LQFactorize`).
                The matrix is overwritten in place.
                On exit, the lower triangular or lower trapezoidal part (including diagonal)
                contains the matrix L. The elements above the diagonal, with the array tau,
@@ -1989,7 +2009,7 @@ class LQFactorize(_OrthogonalFactorizerProperties):
             lda: Optional runtime leading dimension of matrix A.
                  If not specified, the compile-time ``lda`` is used.
         """
-        raise RuntimeError("factorize is a device function and cannot be called on the host.")
+        raise RuntimeError("factorize should not be called directly outside of a jitted kernel.")
 
 
 # ==========================
@@ -2043,9 +2063,9 @@ class QRMultiply(_SolverProperties):
     **For matrix C (M x N):**
 
     * **Column-major arrangement**: Matrix shape ``(batches_per_block, M, N)``
-      with strides ``(ldb * N, 1, ldb)``
+      with strides ``(ldc * N, 1, ldc)``
     * **Row-major arrangement**: Matrix shape ``(batches_per_block, M, N)``
-      with strides ``(ldb * M, ldb, 1)``
+      with strides ``(ldc * M, ldc, 1)``
 
     Args:
         size (Sequence[int]): {size}
@@ -2054,9 +2074,9 @@ class QRMultiply(_SolverProperties):
 
         execution (str): {execution}
 
-        sm (ComputeCapability): {sm}
-
         side (str): {side}
+
+        sm (ComputeCapability): {sm}
 
         transpose_mode (str, optional): {transpose_mode}
 
@@ -2196,7 +2216,7 @@ class QRMultiply(_SolverProperties):
         Args:
             a: Pointer to an array in shared memory, storing the batched matrix containing
                Householder vectors from the QR factorization, according to the specified
-               arrangement and leading dimension (see :meth:`__init__`).
+               arrangement and leading dimension (see :class:`QRMultiply`).
                The elements below the diagonal of A, with the array tau, represent the
                unitary matrix Q as a product of Householder reflections.
                If ``side='left'``, A is ``M`` x ``K``.
@@ -2207,7 +2227,7 @@ class QRMultiply(_SolverProperties):
             c: Pointer to an array in shared memory,
                storing the batched ``M`` x ``N`` matrix
                according to the specified arrangement
-               and leading dimension (see :meth:`__init__`).
+               and leading dimension (see :class:`QRMultiply`).
                The operation is in-place: result overwrites C.
             lda: Optional runtime leading dimension for matrix A.
                  The ``lda`` and ``ldc`` must be specified together.
@@ -2216,7 +2236,7 @@ class QRMultiply(_SolverProperties):
                  The ``lda`` and ``ldc`` must be specified together.
                  If not specified, the compile-time ``ldc`` is used.
         """
-        raise RuntimeError("multiply is a device function and cannot be called on the host.")
+        raise RuntimeError("multiply should not be called directly outside of a jitted kernel.")
 
 
 # ==========================
@@ -2281,9 +2301,9 @@ class LQMultiply(_SolverProperties):
 
         execution (str): {execution}
 
-        sm (ComputeCapability): {sm}
-
         side (str): {side}
+
+        sm (ComputeCapability): {sm}
 
         transpose_mode (str, optional): {transpose_mode}
 
@@ -2423,7 +2443,7 @@ class LQMultiply(_SolverProperties):
         Args:
             a: Pointer to an array in shared memory, storing the batched matrix containing
                Householder vectors from the LQ factorization, according to the specified
-               arrangement and leading dimension (see :meth:`__init__`).
+               arrangement and leading dimension (see :class:`LQMultiply`).
                The elements above the diagonal of A, with the array tau, represent the
                unitary matrix Q as a product of Householder reflections.
                If ``side='left'``, A is ``K`` x ``M``.
@@ -2434,7 +2454,7 @@ class LQMultiply(_SolverProperties):
             c: Pointer to an array in shared memory,
                storing the batched ``M`` x ``N`` matrix
                according to the specified arrangement
-               and leading dimension (see :meth:`__init__`).
+               and leading dimension (see :class:`LQMultiply`).
                The operation is in-place: result overwrites C.
             lda: Optional runtime leading dimension for matrix A.
                  The ``lda`` and ``ldc`` must be specified together.
@@ -2443,7 +2463,7 @@ class LQMultiply(_SolverProperties):
                  The ``lda`` and ``ldc`` must be specified together.
                  If not specified, the compile-time ``ldc`` is used.
         """
-        raise RuntimeError("multiply is a device function and cannot be called on the host.")
+        raise RuntimeError("multiply should not be called directly outside of a jitted kernel.")
 
 
 # ==========================
@@ -2471,15 +2491,13 @@ LEAST_SQUARES_SOLVER_DOCSTRING["leading_dimensions"] = SOLVER_DOCSTRING["leading
 class LeastSquaresSolver(_SolverProperties):
     """
     A class that encapsulates least squares solver device function (``'gels'``).
-    GELS (GEneral Least Square) solves overdetermined
+    GELS (GEneral Least Squares) solves overdetermined
     or underdetermined least squares problems:
 
     .. math::
        \\min \\| op(A) * X - B \\|_2
 
     using the QR or LQ factorization of A, and overwriting B with the solution X.
-
-    The configurations supported by GELS are:
 
     **Memory layout requirements:**
 
@@ -2668,7 +2686,7 @@ class LeastSquaresSolver(_SolverProperties):
         Args:
             a: Pointer to an array in shared memory, storing the batched matrix
                according to the specified arrangement
-               and leading dimension (see :meth:`__init__`).
+               and leading dimension (see :class:`LeastSquaresSolver`).
                The matrix is overwritten in place by the QR or LQ factorization.
             tau: Pointer to a 1D array of size min(M, N) for each batch.
                  Contains the scalar factors of the Householder reflections.
@@ -2677,7 +2695,7 @@ class LeastSquaresSolver(_SolverProperties):
             b: Pointer to an array in shared memory,
                storing the batched right-hand side matrix
                according to the specified arrangement
-               and leading dimension (see :meth:`__init__`).
+               and leading dimension (see :class:`LeastSquaresSolver`).
                The storage size is ``max(M, N) x K`` per batch.
                The operation is in-place: result X overwrites B.
             lda: Optional runtime leading dimension for matrix A.
@@ -2687,4 +2705,4 @@ class LeastSquaresSolver(_SolverProperties):
                  The ``lda`` and ``ldb`` must be specified together.
                  If not specified, the compile-time ``ldb`` is used.
         """
-        raise RuntimeError("solve is a device function and cannot be called on the host.")
+        raise RuntimeError("solve should not be called directly outside of a jitted kernel.")

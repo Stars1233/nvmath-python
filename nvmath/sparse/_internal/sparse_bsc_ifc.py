@@ -168,6 +168,9 @@ class BSCTensorHolder(SparseTensorHolder):
         No copy is performed if the BSCTensor is already on the requested device.
         """
 
+        if self.tensor_package == "nvmath":
+            return super().to(device_id=device_id, stream_holder=stream_holder)
+
         target_ccol_indices = self.ccol_indices.to(device_id=device_id, stream_holder=stream_holder)
         target_row_indices = self.row_indices.to(device_id=device_id, stream_holder=stream_holder)
         target_values = self.values.to(device_id=device_id, stream_holder=stream_holder)

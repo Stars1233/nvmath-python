@@ -14,6 +14,11 @@ Detailed documentation of cuRAND device APIs can be found in the
 `cuRAND documentation
 <https://docs.nvidia.com/cuda/curand/group__DEVICE.html#group__DEVICE>`_.
 
+.. note::
+
+   The random device APIs currently support only the ``numba-cuda`` compiler.
+   See :ref:`device-api-supported-compilers` for details.
+
 .. _device-api-curand-reference:
 
 API Reference

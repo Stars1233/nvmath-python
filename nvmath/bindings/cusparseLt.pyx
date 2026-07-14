@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 #
-# This code was automatically generated across versions from 0.7.1 to 0.8.1, generator version 0.3.1.dev1565+g7fa82f8eb. Do not modify it directly.
+# This code was automatically generated across versions from 0.7.1 to 0.8.1, generator version 0.3.1.dev1471+g7122059e9. Do not modify it directly.
 
 cimport cython  # NOQA
 
@@ -254,7 +254,6 @@ cpdef get_mat_desc_attribute_dtype(int attr):
 
 ###########################################################################
 
-
 cpdef mat_desc_set_attribute(intptr_t handle, intptr_t matmul_descr, int mat_attribute, intptr_t data, size_t data_size):
     """See `cusparseLtMatDescSetAttribute`."""
     with nogil:
@@ -317,7 +316,6 @@ cpdef get_matmul_desc_attribute_dtype(int attr):
 
 ###########################################################################
 
-
 cpdef matmul_desc_set_attribute(intptr_t handle, intptr_t matmul_descr, int matmul_attribute, intptr_t data, size_t data_size):
     """See `cusparseLtMatmulDescSetAttribute`."""
     with nogil:
@@ -365,7 +363,6 @@ cpdef get_matmul_alg_attribute_dtype(int attr):
     return matmul_alg_attribute_sizes[attr]
 
 ###########################################################################
-
 
 cpdef matmul_alg_set_attribute(intptr_t handle, intptr_t alg_selection, int attribute, intptr_t data, size_t data_size):
     """See `cusparseLtMatmulAlgSetAttribute`."""

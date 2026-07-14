@@ -19,6 +19,7 @@ from dataclasses import dataclass, field
 from logging import Logger
 from typing import ClassVar, Literal, TypeAlias
 
+from nvmath._internal import templates
 from nvmath.bindings import cudss
 from nvmath.internal import mem_limit
 
@@ -57,8 +58,8 @@ class HybridMemoryModeOptions:
             mem_limit.check_memory_str(self.hybrid_device_memory_limit, "hybrid device memory limit")
 
 
-@dataclass
-class ExecutionCUDA:
+@dataclass(frozen=True, slots=True, kw_only=True)
+class ExecutionCUDA(templates.ExecutionCUDA):
     """
     A data class for providing GPU execution options to the :class:`DirectSolver`
     object and the wrapper function :func:`direct_solver`.
@@ -74,8 +75,6 @@ class ExecutionCUDA:
        :func:`direct_solver`.
     """
 
-    name: ClassVar[Literal["cuda"]] = "cuda"
-    device_id: int = 0
     hybrid_memory_mode_options: object = field(default_factory=HybridMemoryModeOptions)
 
 
@@ -167,7 +166,6 @@ class DirectSolverPlanPreferences:
         pivot_type: The pivot type to use.
         pivot_threshold: The pivot threshold to use.
         max_nnz: The maximum number of non-zeros in the LU factorization.
-        use_matching: Whether to use matching.
         matching_algorithm: The matching algorithm to use.
         nd_min_levels: The number of levels in the nested dissection.
         use_superpanels: Whether to use superpanels.
@@ -179,12 +177,11 @@ class DirectSolverPlanPreferences:
     """
 
     host_nthreads: int | None = None
-    reordering_algorithm: cudss.AlgType | None = None
+    reordering_algorithm: cudss.ReorderingAlg | None = None
     pivot_type: int | None = None
     pivot_threshold: float | None = None
     max_nnz: int | None = None
-    use_matching: bool | None = None
-    matching_algorithm: cudss.AlgType | None = None
+    matching_algorithm: cudss.MatchingAlg | None = None
     nd_min_levels: int | None = None
     use_superpanels: bool | None = None
 
@@ -206,8 +203,8 @@ class DirectSolverFactorizationPreferences:
        `cuDSS configuration documentation <https://docs.nvidia.com/cuda/cudss/types.html#cudssconfigparam-t>`_
     """
 
-    factorization_algorithm: cudss.AlgType | None = None
-    pivot_eps_algorithm: cudss.AlgType | None = None
+    factorization_algorithm: cudss.FactorizationAlg | None = None
+    pivot_eps_algorithm: cudss.PivotEpsilonAlg | None = None
     pivot_eps: float | None = None
 
 
@@ -226,5 +223,5 @@ class DirectSolverSolutionPreferences:
        `cuDSS configuration documentation <https://docs.nvidia.com/cuda/cudss/types.html#cudssconfigparam-t>`_
     """
 
-    solution_algorithm: cudss.AlgType | None = None
+    solution_algorithm: cudss.SolveAlg | None = None
     ir_num_steps: int | None = None

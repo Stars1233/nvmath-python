@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 #
-# This code was automatically generated with version 25.5, generator version 0.3.1.dev1303+g031f1197f. Do not modify it directly.
+# This code was automatically generated across versions from 25.5 to 26.5, generator version 0.3.1.dev1725+ge72d09d68.d20260601. Do not modify it directly.
 
 import os
 
@@ -39,7 +39,11 @@ cdef extern from "<dlfcn.h>" nogil:
 cdef object __symbol_lock = threading.Lock()
 cdef bint __py_nvpl_blas_init = False
 cdef str __current_so_name = ""
-cdef tuple __lib_so_names = ("libnvpl_blas_lp64_gomp.so.0", "libmkl_rt.so.2",  "libopenblas.so.0",)
+# From MKL 2026.0.0 onward, only libmkl_rt.so.3 is shipped; keep libmkl_rt.so.2 in the probe order for older installs.
+# NVPL>=26.5, MKL provide both ILP64 and LP64 APIs through these artifacts. For openBLAS, it's probably only LP64.
+# Use libnvpl_blas_lp64_gomp.so.0 so that LP64 symbols are LP64 and ILP64 symbols are true ILP64.
+# https://docs.nvidia.com/nvpl/latest/blas/programming_model/building_and_linking.html#ilp64-64-suffix-symbols
+cdef tuple __lib_so_names = ("libnvpl_blas_lp64_gomp.so.0", "libmkl_rt.so.3", "libmkl_rt.so.2",  "libopenblas.so.0",)
 
 
 cdef void* __MKL_Set_Num_Threads_Local = NULL
@@ -154,6 +158,118 @@ cdef void* __cblas_sgemm_batch_strided = NULL
 cdef void* __cblas_dgemm_batch_strided = NULL
 cdef void* __cblas_cgemm_batch_strided = NULL
 cdef void* __cblas_zgemm_batch_strided = NULL
+cdef void* __cblas_sgemmt = NULL
+cdef void* __cblas_dgemmt = NULL
+cdef void* __cblas_cgemmt = NULL
+cdef void* __cblas_zgemmt = NULL
+cdef void* __cblas_sgemv_64 = NULL
+cdef void* __cblas_sgbmv_64 = NULL
+cdef void* __cblas_strmv_64 = NULL
+cdef void* __cblas_stbmv_64 = NULL
+cdef void* __cblas_stpmv_64 = NULL
+cdef void* __cblas_strsv_64 = NULL
+cdef void* __cblas_stbsv_64 = NULL
+cdef void* __cblas_stpsv_64 = NULL
+cdef void* __cblas_dgemv_64 = NULL
+cdef void* __cblas_dgbmv_64 = NULL
+cdef void* __cblas_dtrmv_64 = NULL
+cdef void* __cblas_dtbmv_64 = NULL
+cdef void* __cblas_dtpmv_64 = NULL
+cdef void* __cblas_dtrsv_64 = NULL
+cdef void* __cblas_dtbsv_64 = NULL
+cdef void* __cblas_dtpsv_64 = NULL
+cdef void* __cblas_cgemv_64 = NULL
+cdef void* __cblas_cgbmv_64 = NULL
+cdef void* __cblas_ctrmv_64 = NULL
+cdef void* __cblas_ctbmv_64 = NULL
+cdef void* __cblas_ctpmv_64 = NULL
+cdef void* __cblas_ctrsv_64 = NULL
+cdef void* __cblas_ctbsv_64 = NULL
+cdef void* __cblas_ctpsv_64 = NULL
+cdef void* __cblas_zgemv_64 = NULL
+cdef void* __cblas_zgbmv_64 = NULL
+cdef void* __cblas_ztrmv_64 = NULL
+cdef void* __cblas_ztbmv_64 = NULL
+cdef void* __cblas_ztpmv_64 = NULL
+cdef void* __cblas_ztrsv_64 = NULL
+cdef void* __cblas_ztbsv_64 = NULL
+cdef void* __cblas_ztpsv_64 = NULL
+cdef void* __cblas_ssymv_64 = NULL
+cdef void* __cblas_ssbmv_64 = NULL
+cdef void* __cblas_sspmv_64 = NULL
+cdef void* __cblas_sger_64 = NULL
+cdef void* __cblas_ssyr_64 = NULL
+cdef void* __cblas_sspr_64 = NULL
+cdef void* __cblas_ssyr2_64 = NULL
+cdef void* __cblas_sspr2_64 = NULL
+cdef void* __cblas_dsymv_64 = NULL
+cdef void* __cblas_dsbmv_64 = NULL
+cdef void* __cblas_dspmv_64 = NULL
+cdef void* __cblas_dger_64 = NULL
+cdef void* __cblas_dsyr_64 = NULL
+cdef void* __cblas_dspr_64 = NULL
+cdef void* __cblas_dsyr2_64 = NULL
+cdef void* __cblas_dspr2_64 = NULL
+cdef void* __cblas_chemv_64 = NULL
+cdef void* __cblas_chbmv_64 = NULL
+cdef void* __cblas_chpmv_64 = NULL
+cdef void* __cblas_cgeru_64 = NULL
+cdef void* __cblas_cgerc_64 = NULL
+cdef void* __cblas_cher_64 = NULL
+cdef void* __cblas_chpr_64 = NULL
+cdef void* __cblas_cher2_64 = NULL
+cdef void* __cblas_chpr2_64 = NULL
+cdef void* __cblas_zhemv_64 = NULL
+cdef void* __cblas_zhbmv_64 = NULL
+cdef void* __cblas_zhpmv_64 = NULL
+cdef void* __cblas_zgeru_64 = NULL
+cdef void* __cblas_zgerc_64 = NULL
+cdef void* __cblas_zher_64 = NULL
+cdef void* __cblas_zhpr_64 = NULL
+cdef void* __cblas_zher2_64 = NULL
+cdef void* __cblas_zhpr2_64 = NULL
+cdef void* __cblas_sgemm_64 = NULL
+cdef void* __cblas_ssymm_64 = NULL
+cdef void* __cblas_ssyrk_64 = NULL
+cdef void* __cblas_ssyr2k_64 = NULL
+cdef void* __cblas_strmm_64 = NULL
+cdef void* __cblas_strsm_64 = NULL
+cdef void* __cblas_dgemm_64 = NULL
+cdef void* __cblas_dsymm_64 = NULL
+cdef void* __cblas_dsyrk_64 = NULL
+cdef void* __cblas_dsyr2k_64 = NULL
+cdef void* __cblas_dtrmm_64 = NULL
+cdef void* __cblas_dtrsm_64 = NULL
+cdef void* __cblas_cgemm_64 = NULL
+cdef void* __cblas_csymm_64 = NULL
+cdef void* __cblas_csyrk_64 = NULL
+cdef void* __cblas_csyr2k_64 = NULL
+cdef void* __cblas_ctrmm_64 = NULL
+cdef void* __cblas_ctrsm_64 = NULL
+cdef void* __cblas_zgemm_64 = NULL
+cdef void* __cblas_zsymm_64 = NULL
+cdef void* __cblas_zsyrk_64 = NULL
+cdef void* __cblas_zsyr2k_64 = NULL
+cdef void* __cblas_ztrmm_64 = NULL
+cdef void* __cblas_ztrsm_64 = NULL
+cdef void* __cblas_chemm_64 = NULL
+cdef void* __cblas_cherk_64 = NULL
+cdef void* __cblas_cher2k_64 = NULL
+cdef void* __cblas_zhemm_64 = NULL
+cdef void* __cblas_zherk_64 = NULL
+cdef void* __cblas_zher2k_64 = NULL
+cdef void* __cblas_sgemmt_64 = NULL
+cdef void* __cblas_dgemmt_64 = NULL
+cdef void* __cblas_cgemmt_64 = NULL
+cdef void* __cblas_zgemmt_64 = NULL
+cdef void* __cblas_sgemm_batch_64 = NULL
+cdef void* __cblas_dgemm_batch_64 = NULL
+cdef void* __cblas_cgemm_batch_64 = NULL
+cdef void* __cblas_zgemm_batch_64 = NULL
+cdef void* __cblas_sgemm_batch_strided_64 = NULL
+cdef void* __cblas_dgemm_batch_strided_64 = NULL
+cdef void* __cblas_cgemm_batch_strided_64 = NULL
+cdef void* __cblas_zgemm_batch_strided_64 = NULL
 
 
 cdef void* load_library() except* with gil:
@@ -992,6 +1108,790 @@ cdef int _check_or_init_nvpl_blas() except -1 nogil:
                 handle = load_library()
             __cblas_zgemm_batch_strided = dlsym(handle, 'cblas_zgemm_batch_strided')
 
+        global __cblas_sgemmt
+        __cblas_sgemmt = dlsym(RTLD_DEFAULT, 'cblas_sgemmt')
+        if __cblas_sgemmt == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_sgemmt = dlsym(handle, 'cblas_sgemmt')
+
+        global __cblas_dgemmt
+        __cblas_dgemmt = dlsym(RTLD_DEFAULT, 'cblas_dgemmt')
+        if __cblas_dgemmt == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_dgemmt = dlsym(handle, 'cblas_dgemmt')
+
+        global __cblas_cgemmt
+        __cblas_cgemmt = dlsym(RTLD_DEFAULT, 'cblas_cgemmt')
+        if __cblas_cgemmt == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_cgemmt = dlsym(handle, 'cblas_cgemmt')
+
+        global __cblas_zgemmt
+        __cblas_zgemmt = dlsym(RTLD_DEFAULT, 'cblas_zgemmt')
+        if __cblas_zgemmt == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_zgemmt = dlsym(handle, 'cblas_zgemmt')
+
+        global __cblas_sgemv_64
+        __cblas_sgemv_64 = dlsym(RTLD_DEFAULT, 'cblas_sgemv_64')
+        if __cblas_sgemv_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_sgemv_64 = dlsym(handle, 'cblas_sgemv_64')
+
+        global __cblas_sgbmv_64
+        __cblas_sgbmv_64 = dlsym(RTLD_DEFAULT, 'cblas_sgbmv_64')
+        if __cblas_sgbmv_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_sgbmv_64 = dlsym(handle, 'cblas_sgbmv_64')
+
+        global __cblas_strmv_64
+        __cblas_strmv_64 = dlsym(RTLD_DEFAULT, 'cblas_strmv_64')
+        if __cblas_strmv_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_strmv_64 = dlsym(handle, 'cblas_strmv_64')
+
+        global __cblas_stbmv_64
+        __cblas_stbmv_64 = dlsym(RTLD_DEFAULT, 'cblas_stbmv_64')
+        if __cblas_stbmv_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_stbmv_64 = dlsym(handle, 'cblas_stbmv_64')
+
+        global __cblas_stpmv_64
+        __cblas_stpmv_64 = dlsym(RTLD_DEFAULT, 'cblas_stpmv_64')
+        if __cblas_stpmv_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_stpmv_64 = dlsym(handle, 'cblas_stpmv_64')
+
+        global __cblas_strsv_64
+        __cblas_strsv_64 = dlsym(RTLD_DEFAULT, 'cblas_strsv_64')
+        if __cblas_strsv_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_strsv_64 = dlsym(handle, 'cblas_strsv_64')
+
+        global __cblas_stbsv_64
+        __cblas_stbsv_64 = dlsym(RTLD_DEFAULT, 'cblas_stbsv_64')
+        if __cblas_stbsv_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_stbsv_64 = dlsym(handle, 'cblas_stbsv_64')
+
+        global __cblas_stpsv_64
+        __cblas_stpsv_64 = dlsym(RTLD_DEFAULT, 'cblas_stpsv_64')
+        if __cblas_stpsv_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_stpsv_64 = dlsym(handle, 'cblas_stpsv_64')
+
+        global __cblas_dgemv_64
+        __cblas_dgemv_64 = dlsym(RTLD_DEFAULT, 'cblas_dgemv_64')
+        if __cblas_dgemv_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_dgemv_64 = dlsym(handle, 'cblas_dgemv_64')
+
+        global __cblas_dgbmv_64
+        __cblas_dgbmv_64 = dlsym(RTLD_DEFAULT, 'cblas_dgbmv_64')
+        if __cblas_dgbmv_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_dgbmv_64 = dlsym(handle, 'cblas_dgbmv_64')
+
+        global __cblas_dtrmv_64
+        __cblas_dtrmv_64 = dlsym(RTLD_DEFAULT, 'cblas_dtrmv_64')
+        if __cblas_dtrmv_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_dtrmv_64 = dlsym(handle, 'cblas_dtrmv_64')
+
+        global __cblas_dtbmv_64
+        __cblas_dtbmv_64 = dlsym(RTLD_DEFAULT, 'cblas_dtbmv_64')
+        if __cblas_dtbmv_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_dtbmv_64 = dlsym(handle, 'cblas_dtbmv_64')
+
+        global __cblas_dtpmv_64
+        __cblas_dtpmv_64 = dlsym(RTLD_DEFAULT, 'cblas_dtpmv_64')
+        if __cblas_dtpmv_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_dtpmv_64 = dlsym(handle, 'cblas_dtpmv_64')
+
+        global __cblas_dtrsv_64
+        __cblas_dtrsv_64 = dlsym(RTLD_DEFAULT, 'cblas_dtrsv_64')
+        if __cblas_dtrsv_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_dtrsv_64 = dlsym(handle, 'cblas_dtrsv_64')
+
+        global __cblas_dtbsv_64
+        __cblas_dtbsv_64 = dlsym(RTLD_DEFAULT, 'cblas_dtbsv_64')
+        if __cblas_dtbsv_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_dtbsv_64 = dlsym(handle, 'cblas_dtbsv_64')
+
+        global __cblas_dtpsv_64
+        __cblas_dtpsv_64 = dlsym(RTLD_DEFAULT, 'cblas_dtpsv_64')
+        if __cblas_dtpsv_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_dtpsv_64 = dlsym(handle, 'cblas_dtpsv_64')
+
+        global __cblas_cgemv_64
+        __cblas_cgemv_64 = dlsym(RTLD_DEFAULT, 'cblas_cgemv_64')
+        if __cblas_cgemv_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_cgemv_64 = dlsym(handle, 'cblas_cgemv_64')
+
+        global __cblas_cgbmv_64
+        __cblas_cgbmv_64 = dlsym(RTLD_DEFAULT, 'cblas_cgbmv_64')
+        if __cblas_cgbmv_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_cgbmv_64 = dlsym(handle, 'cblas_cgbmv_64')
+
+        global __cblas_ctrmv_64
+        __cblas_ctrmv_64 = dlsym(RTLD_DEFAULT, 'cblas_ctrmv_64')
+        if __cblas_ctrmv_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_ctrmv_64 = dlsym(handle, 'cblas_ctrmv_64')
+
+        global __cblas_ctbmv_64
+        __cblas_ctbmv_64 = dlsym(RTLD_DEFAULT, 'cblas_ctbmv_64')
+        if __cblas_ctbmv_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_ctbmv_64 = dlsym(handle, 'cblas_ctbmv_64')
+
+        global __cblas_ctpmv_64
+        __cblas_ctpmv_64 = dlsym(RTLD_DEFAULT, 'cblas_ctpmv_64')
+        if __cblas_ctpmv_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_ctpmv_64 = dlsym(handle, 'cblas_ctpmv_64')
+
+        global __cblas_ctrsv_64
+        __cblas_ctrsv_64 = dlsym(RTLD_DEFAULT, 'cblas_ctrsv_64')
+        if __cblas_ctrsv_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_ctrsv_64 = dlsym(handle, 'cblas_ctrsv_64')
+
+        global __cblas_ctbsv_64
+        __cblas_ctbsv_64 = dlsym(RTLD_DEFAULT, 'cblas_ctbsv_64')
+        if __cblas_ctbsv_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_ctbsv_64 = dlsym(handle, 'cblas_ctbsv_64')
+
+        global __cblas_ctpsv_64
+        __cblas_ctpsv_64 = dlsym(RTLD_DEFAULT, 'cblas_ctpsv_64')
+        if __cblas_ctpsv_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_ctpsv_64 = dlsym(handle, 'cblas_ctpsv_64')
+
+        global __cblas_zgemv_64
+        __cblas_zgemv_64 = dlsym(RTLD_DEFAULT, 'cblas_zgemv_64')
+        if __cblas_zgemv_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_zgemv_64 = dlsym(handle, 'cblas_zgemv_64')
+
+        global __cblas_zgbmv_64
+        __cblas_zgbmv_64 = dlsym(RTLD_DEFAULT, 'cblas_zgbmv_64')
+        if __cblas_zgbmv_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_zgbmv_64 = dlsym(handle, 'cblas_zgbmv_64')
+
+        global __cblas_ztrmv_64
+        __cblas_ztrmv_64 = dlsym(RTLD_DEFAULT, 'cblas_ztrmv_64')
+        if __cblas_ztrmv_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_ztrmv_64 = dlsym(handle, 'cblas_ztrmv_64')
+
+        global __cblas_ztbmv_64
+        __cblas_ztbmv_64 = dlsym(RTLD_DEFAULT, 'cblas_ztbmv_64')
+        if __cblas_ztbmv_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_ztbmv_64 = dlsym(handle, 'cblas_ztbmv_64')
+
+        global __cblas_ztpmv_64
+        __cblas_ztpmv_64 = dlsym(RTLD_DEFAULT, 'cblas_ztpmv_64')
+        if __cblas_ztpmv_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_ztpmv_64 = dlsym(handle, 'cblas_ztpmv_64')
+
+        global __cblas_ztrsv_64
+        __cblas_ztrsv_64 = dlsym(RTLD_DEFAULT, 'cblas_ztrsv_64')
+        if __cblas_ztrsv_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_ztrsv_64 = dlsym(handle, 'cblas_ztrsv_64')
+
+        global __cblas_ztbsv_64
+        __cblas_ztbsv_64 = dlsym(RTLD_DEFAULT, 'cblas_ztbsv_64')
+        if __cblas_ztbsv_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_ztbsv_64 = dlsym(handle, 'cblas_ztbsv_64')
+
+        global __cblas_ztpsv_64
+        __cblas_ztpsv_64 = dlsym(RTLD_DEFAULT, 'cblas_ztpsv_64')
+        if __cblas_ztpsv_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_ztpsv_64 = dlsym(handle, 'cblas_ztpsv_64')
+
+        global __cblas_ssymv_64
+        __cblas_ssymv_64 = dlsym(RTLD_DEFAULT, 'cblas_ssymv_64')
+        if __cblas_ssymv_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_ssymv_64 = dlsym(handle, 'cblas_ssymv_64')
+
+        global __cblas_ssbmv_64
+        __cblas_ssbmv_64 = dlsym(RTLD_DEFAULT, 'cblas_ssbmv_64')
+        if __cblas_ssbmv_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_ssbmv_64 = dlsym(handle, 'cblas_ssbmv_64')
+
+        global __cblas_sspmv_64
+        __cblas_sspmv_64 = dlsym(RTLD_DEFAULT, 'cblas_sspmv_64')
+        if __cblas_sspmv_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_sspmv_64 = dlsym(handle, 'cblas_sspmv_64')
+
+        global __cblas_sger_64
+        __cblas_sger_64 = dlsym(RTLD_DEFAULT, 'cblas_sger_64')
+        if __cblas_sger_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_sger_64 = dlsym(handle, 'cblas_sger_64')
+
+        global __cblas_ssyr_64
+        __cblas_ssyr_64 = dlsym(RTLD_DEFAULT, 'cblas_ssyr_64')
+        if __cblas_ssyr_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_ssyr_64 = dlsym(handle, 'cblas_ssyr_64')
+
+        global __cblas_sspr_64
+        __cblas_sspr_64 = dlsym(RTLD_DEFAULT, 'cblas_sspr_64')
+        if __cblas_sspr_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_sspr_64 = dlsym(handle, 'cblas_sspr_64')
+
+        global __cblas_ssyr2_64
+        __cblas_ssyr2_64 = dlsym(RTLD_DEFAULT, 'cblas_ssyr2_64')
+        if __cblas_ssyr2_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_ssyr2_64 = dlsym(handle, 'cblas_ssyr2_64')
+
+        global __cblas_sspr2_64
+        __cblas_sspr2_64 = dlsym(RTLD_DEFAULT, 'cblas_sspr2_64')
+        if __cblas_sspr2_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_sspr2_64 = dlsym(handle, 'cblas_sspr2_64')
+
+        global __cblas_dsymv_64
+        __cblas_dsymv_64 = dlsym(RTLD_DEFAULT, 'cblas_dsymv_64')
+        if __cblas_dsymv_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_dsymv_64 = dlsym(handle, 'cblas_dsymv_64')
+
+        global __cblas_dsbmv_64
+        __cblas_dsbmv_64 = dlsym(RTLD_DEFAULT, 'cblas_dsbmv_64')
+        if __cblas_dsbmv_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_dsbmv_64 = dlsym(handle, 'cblas_dsbmv_64')
+
+        global __cblas_dspmv_64
+        __cblas_dspmv_64 = dlsym(RTLD_DEFAULT, 'cblas_dspmv_64')
+        if __cblas_dspmv_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_dspmv_64 = dlsym(handle, 'cblas_dspmv_64')
+
+        global __cblas_dger_64
+        __cblas_dger_64 = dlsym(RTLD_DEFAULT, 'cblas_dger_64')
+        if __cblas_dger_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_dger_64 = dlsym(handle, 'cblas_dger_64')
+
+        global __cblas_dsyr_64
+        __cblas_dsyr_64 = dlsym(RTLD_DEFAULT, 'cblas_dsyr_64')
+        if __cblas_dsyr_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_dsyr_64 = dlsym(handle, 'cblas_dsyr_64')
+
+        global __cblas_dspr_64
+        __cblas_dspr_64 = dlsym(RTLD_DEFAULT, 'cblas_dspr_64')
+        if __cblas_dspr_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_dspr_64 = dlsym(handle, 'cblas_dspr_64')
+
+        global __cblas_dsyr2_64
+        __cblas_dsyr2_64 = dlsym(RTLD_DEFAULT, 'cblas_dsyr2_64')
+        if __cblas_dsyr2_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_dsyr2_64 = dlsym(handle, 'cblas_dsyr2_64')
+
+        global __cblas_dspr2_64
+        __cblas_dspr2_64 = dlsym(RTLD_DEFAULT, 'cblas_dspr2_64')
+        if __cblas_dspr2_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_dspr2_64 = dlsym(handle, 'cblas_dspr2_64')
+
+        global __cblas_chemv_64
+        __cblas_chemv_64 = dlsym(RTLD_DEFAULT, 'cblas_chemv_64')
+        if __cblas_chemv_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_chemv_64 = dlsym(handle, 'cblas_chemv_64')
+
+        global __cblas_chbmv_64
+        __cblas_chbmv_64 = dlsym(RTLD_DEFAULT, 'cblas_chbmv_64')
+        if __cblas_chbmv_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_chbmv_64 = dlsym(handle, 'cblas_chbmv_64')
+
+        global __cblas_chpmv_64
+        __cblas_chpmv_64 = dlsym(RTLD_DEFAULT, 'cblas_chpmv_64')
+        if __cblas_chpmv_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_chpmv_64 = dlsym(handle, 'cblas_chpmv_64')
+
+        global __cblas_cgeru_64
+        __cblas_cgeru_64 = dlsym(RTLD_DEFAULT, 'cblas_cgeru_64')
+        if __cblas_cgeru_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_cgeru_64 = dlsym(handle, 'cblas_cgeru_64')
+
+        global __cblas_cgerc_64
+        __cblas_cgerc_64 = dlsym(RTLD_DEFAULT, 'cblas_cgerc_64')
+        if __cblas_cgerc_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_cgerc_64 = dlsym(handle, 'cblas_cgerc_64')
+
+        global __cblas_cher_64
+        __cblas_cher_64 = dlsym(RTLD_DEFAULT, 'cblas_cher_64')
+        if __cblas_cher_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_cher_64 = dlsym(handle, 'cblas_cher_64')
+
+        global __cblas_chpr_64
+        __cblas_chpr_64 = dlsym(RTLD_DEFAULT, 'cblas_chpr_64')
+        if __cblas_chpr_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_chpr_64 = dlsym(handle, 'cblas_chpr_64')
+
+        global __cblas_cher2_64
+        __cblas_cher2_64 = dlsym(RTLD_DEFAULT, 'cblas_cher2_64')
+        if __cblas_cher2_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_cher2_64 = dlsym(handle, 'cblas_cher2_64')
+
+        global __cblas_chpr2_64
+        __cblas_chpr2_64 = dlsym(RTLD_DEFAULT, 'cblas_chpr2_64')
+        if __cblas_chpr2_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_chpr2_64 = dlsym(handle, 'cblas_chpr2_64')
+
+        global __cblas_zhemv_64
+        __cblas_zhemv_64 = dlsym(RTLD_DEFAULT, 'cblas_zhemv_64')
+        if __cblas_zhemv_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_zhemv_64 = dlsym(handle, 'cblas_zhemv_64')
+
+        global __cblas_zhbmv_64
+        __cblas_zhbmv_64 = dlsym(RTLD_DEFAULT, 'cblas_zhbmv_64')
+        if __cblas_zhbmv_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_zhbmv_64 = dlsym(handle, 'cblas_zhbmv_64')
+
+        global __cblas_zhpmv_64
+        __cblas_zhpmv_64 = dlsym(RTLD_DEFAULT, 'cblas_zhpmv_64')
+        if __cblas_zhpmv_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_zhpmv_64 = dlsym(handle, 'cblas_zhpmv_64')
+
+        global __cblas_zgeru_64
+        __cblas_zgeru_64 = dlsym(RTLD_DEFAULT, 'cblas_zgeru_64')
+        if __cblas_zgeru_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_zgeru_64 = dlsym(handle, 'cblas_zgeru_64')
+
+        global __cblas_zgerc_64
+        __cblas_zgerc_64 = dlsym(RTLD_DEFAULT, 'cblas_zgerc_64')
+        if __cblas_zgerc_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_zgerc_64 = dlsym(handle, 'cblas_zgerc_64')
+
+        global __cblas_zher_64
+        __cblas_zher_64 = dlsym(RTLD_DEFAULT, 'cblas_zher_64')
+        if __cblas_zher_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_zher_64 = dlsym(handle, 'cblas_zher_64')
+
+        global __cblas_zhpr_64
+        __cblas_zhpr_64 = dlsym(RTLD_DEFAULT, 'cblas_zhpr_64')
+        if __cblas_zhpr_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_zhpr_64 = dlsym(handle, 'cblas_zhpr_64')
+
+        global __cblas_zher2_64
+        __cblas_zher2_64 = dlsym(RTLD_DEFAULT, 'cblas_zher2_64')
+        if __cblas_zher2_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_zher2_64 = dlsym(handle, 'cblas_zher2_64')
+
+        global __cblas_zhpr2_64
+        __cblas_zhpr2_64 = dlsym(RTLD_DEFAULT, 'cblas_zhpr2_64')
+        if __cblas_zhpr2_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_zhpr2_64 = dlsym(handle, 'cblas_zhpr2_64')
+
+        global __cblas_sgemm_64
+        __cblas_sgemm_64 = dlsym(RTLD_DEFAULT, 'cblas_sgemm_64')
+        if __cblas_sgemm_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_sgemm_64 = dlsym(handle, 'cblas_sgemm_64')
+
+        global __cblas_ssymm_64
+        __cblas_ssymm_64 = dlsym(RTLD_DEFAULT, 'cblas_ssymm_64')
+        if __cblas_ssymm_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_ssymm_64 = dlsym(handle, 'cblas_ssymm_64')
+
+        global __cblas_ssyrk_64
+        __cblas_ssyrk_64 = dlsym(RTLD_DEFAULT, 'cblas_ssyrk_64')
+        if __cblas_ssyrk_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_ssyrk_64 = dlsym(handle, 'cblas_ssyrk_64')
+
+        global __cblas_ssyr2k_64
+        __cblas_ssyr2k_64 = dlsym(RTLD_DEFAULT, 'cblas_ssyr2k_64')
+        if __cblas_ssyr2k_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_ssyr2k_64 = dlsym(handle, 'cblas_ssyr2k_64')
+
+        global __cblas_strmm_64
+        __cblas_strmm_64 = dlsym(RTLD_DEFAULT, 'cblas_strmm_64')
+        if __cblas_strmm_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_strmm_64 = dlsym(handle, 'cblas_strmm_64')
+
+        global __cblas_strsm_64
+        __cblas_strsm_64 = dlsym(RTLD_DEFAULT, 'cblas_strsm_64')
+        if __cblas_strsm_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_strsm_64 = dlsym(handle, 'cblas_strsm_64')
+
+        global __cblas_dgemm_64
+        __cblas_dgemm_64 = dlsym(RTLD_DEFAULT, 'cblas_dgemm_64')
+        if __cblas_dgemm_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_dgemm_64 = dlsym(handle, 'cblas_dgemm_64')
+
+        global __cblas_dsymm_64
+        __cblas_dsymm_64 = dlsym(RTLD_DEFAULT, 'cblas_dsymm_64')
+        if __cblas_dsymm_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_dsymm_64 = dlsym(handle, 'cblas_dsymm_64')
+
+        global __cblas_dsyrk_64
+        __cblas_dsyrk_64 = dlsym(RTLD_DEFAULT, 'cblas_dsyrk_64')
+        if __cblas_dsyrk_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_dsyrk_64 = dlsym(handle, 'cblas_dsyrk_64')
+
+        global __cblas_dsyr2k_64
+        __cblas_dsyr2k_64 = dlsym(RTLD_DEFAULT, 'cblas_dsyr2k_64')
+        if __cblas_dsyr2k_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_dsyr2k_64 = dlsym(handle, 'cblas_dsyr2k_64')
+
+        global __cblas_dtrmm_64
+        __cblas_dtrmm_64 = dlsym(RTLD_DEFAULT, 'cblas_dtrmm_64')
+        if __cblas_dtrmm_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_dtrmm_64 = dlsym(handle, 'cblas_dtrmm_64')
+
+        global __cblas_dtrsm_64
+        __cblas_dtrsm_64 = dlsym(RTLD_DEFAULT, 'cblas_dtrsm_64')
+        if __cblas_dtrsm_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_dtrsm_64 = dlsym(handle, 'cblas_dtrsm_64')
+
+        global __cblas_cgemm_64
+        __cblas_cgemm_64 = dlsym(RTLD_DEFAULT, 'cblas_cgemm_64')
+        if __cblas_cgemm_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_cgemm_64 = dlsym(handle, 'cblas_cgemm_64')
+
+        global __cblas_csymm_64
+        __cblas_csymm_64 = dlsym(RTLD_DEFAULT, 'cblas_csymm_64')
+        if __cblas_csymm_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_csymm_64 = dlsym(handle, 'cblas_csymm_64')
+
+        global __cblas_csyrk_64
+        __cblas_csyrk_64 = dlsym(RTLD_DEFAULT, 'cblas_csyrk_64')
+        if __cblas_csyrk_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_csyrk_64 = dlsym(handle, 'cblas_csyrk_64')
+
+        global __cblas_csyr2k_64
+        __cblas_csyr2k_64 = dlsym(RTLD_DEFAULT, 'cblas_csyr2k_64')
+        if __cblas_csyr2k_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_csyr2k_64 = dlsym(handle, 'cblas_csyr2k_64')
+
+        global __cblas_ctrmm_64
+        __cblas_ctrmm_64 = dlsym(RTLD_DEFAULT, 'cblas_ctrmm_64')
+        if __cblas_ctrmm_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_ctrmm_64 = dlsym(handle, 'cblas_ctrmm_64')
+
+        global __cblas_ctrsm_64
+        __cblas_ctrsm_64 = dlsym(RTLD_DEFAULT, 'cblas_ctrsm_64')
+        if __cblas_ctrsm_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_ctrsm_64 = dlsym(handle, 'cblas_ctrsm_64')
+
+        global __cblas_zgemm_64
+        __cblas_zgemm_64 = dlsym(RTLD_DEFAULT, 'cblas_zgemm_64')
+        if __cblas_zgemm_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_zgemm_64 = dlsym(handle, 'cblas_zgemm_64')
+
+        global __cblas_zsymm_64
+        __cblas_zsymm_64 = dlsym(RTLD_DEFAULT, 'cblas_zsymm_64')
+        if __cblas_zsymm_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_zsymm_64 = dlsym(handle, 'cblas_zsymm_64')
+
+        global __cblas_zsyrk_64
+        __cblas_zsyrk_64 = dlsym(RTLD_DEFAULT, 'cblas_zsyrk_64')
+        if __cblas_zsyrk_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_zsyrk_64 = dlsym(handle, 'cblas_zsyrk_64')
+
+        global __cblas_zsyr2k_64
+        __cblas_zsyr2k_64 = dlsym(RTLD_DEFAULT, 'cblas_zsyr2k_64')
+        if __cblas_zsyr2k_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_zsyr2k_64 = dlsym(handle, 'cblas_zsyr2k_64')
+
+        global __cblas_ztrmm_64
+        __cblas_ztrmm_64 = dlsym(RTLD_DEFAULT, 'cblas_ztrmm_64')
+        if __cblas_ztrmm_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_ztrmm_64 = dlsym(handle, 'cblas_ztrmm_64')
+
+        global __cblas_ztrsm_64
+        __cblas_ztrsm_64 = dlsym(RTLD_DEFAULT, 'cblas_ztrsm_64')
+        if __cblas_ztrsm_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_ztrsm_64 = dlsym(handle, 'cblas_ztrsm_64')
+
+        global __cblas_chemm_64
+        __cblas_chemm_64 = dlsym(RTLD_DEFAULT, 'cblas_chemm_64')
+        if __cblas_chemm_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_chemm_64 = dlsym(handle, 'cblas_chemm_64')
+
+        global __cblas_cherk_64
+        __cblas_cherk_64 = dlsym(RTLD_DEFAULT, 'cblas_cherk_64')
+        if __cblas_cherk_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_cherk_64 = dlsym(handle, 'cblas_cherk_64')
+
+        global __cblas_cher2k_64
+        __cblas_cher2k_64 = dlsym(RTLD_DEFAULT, 'cblas_cher2k_64')
+        if __cblas_cher2k_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_cher2k_64 = dlsym(handle, 'cblas_cher2k_64')
+
+        global __cblas_zhemm_64
+        __cblas_zhemm_64 = dlsym(RTLD_DEFAULT, 'cblas_zhemm_64')
+        if __cblas_zhemm_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_zhemm_64 = dlsym(handle, 'cblas_zhemm_64')
+
+        global __cblas_zherk_64
+        __cblas_zherk_64 = dlsym(RTLD_DEFAULT, 'cblas_zherk_64')
+        if __cblas_zherk_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_zherk_64 = dlsym(handle, 'cblas_zherk_64')
+
+        global __cblas_zher2k_64
+        __cblas_zher2k_64 = dlsym(RTLD_DEFAULT, 'cblas_zher2k_64')
+        if __cblas_zher2k_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_zher2k_64 = dlsym(handle, 'cblas_zher2k_64')
+
+        global __cblas_sgemmt_64
+        __cblas_sgemmt_64 = dlsym(RTLD_DEFAULT, 'cblas_sgemmt_64')
+        if __cblas_sgemmt_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_sgemmt_64 = dlsym(handle, 'cblas_sgemmt_64')
+
+        global __cblas_dgemmt_64
+        __cblas_dgemmt_64 = dlsym(RTLD_DEFAULT, 'cblas_dgemmt_64')
+        if __cblas_dgemmt_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_dgemmt_64 = dlsym(handle, 'cblas_dgemmt_64')
+
+        global __cblas_cgemmt_64
+        __cblas_cgemmt_64 = dlsym(RTLD_DEFAULT, 'cblas_cgemmt_64')
+        if __cblas_cgemmt_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_cgemmt_64 = dlsym(handle, 'cblas_cgemmt_64')
+
+        global __cblas_zgemmt_64
+        __cblas_zgemmt_64 = dlsym(RTLD_DEFAULT, 'cblas_zgemmt_64')
+        if __cblas_zgemmt_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_zgemmt_64 = dlsym(handle, 'cblas_zgemmt_64')
+
+        global __cblas_sgemm_batch_64
+        __cblas_sgemm_batch_64 = dlsym(RTLD_DEFAULT, 'cblas_sgemm_batch_64')
+        if __cblas_sgemm_batch_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_sgemm_batch_64 = dlsym(handle, 'cblas_sgemm_batch_64')
+
+        global __cblas_dgemm_batch_64
+        __cblas_dgemm_batch_64 = dlsym(RTLD_DEFAULT, 'cblas_dgemm_batch_64')
+        if __cblas_dgemm_batch_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_dgemm_batch_64 = dlsym(handle, 'cblas_dgemm_batch_64')
+
+        global __cblas_cgemm_batch_64
+        __cblas_cgemm_batch_64 = dlsym(RTLD_DEFAULT, 'cblas_cgemm_batch_64')
+        if __cblas_cgemm_batch_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_cgemm_batch_64 = dlsym(handle, 'cblas_cgemm_batch_64')
+
+        global __cblas_zgemm_batch_64
+        __cblas_zgemm_batch_64 = dlsym(RTLD_DEFAULT, 'cblas_zgemm_batch_64')
+        if __cblas_zgemm_batch_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_zgemm_batch_64 = dlsym(handle, 'cblas_zgemm_batch_64')
+
+        global __cblas_sgemm_batch_strided_64
+        __cblas_sgemm_batch_strided_64 = dlsym(RTLD_DEFAULT, 'cblas_sgemm_batch_strided_64')
+        if __cblas_sgemm_batch_strided_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_sgemm_batch_strided_64 = dlsym(handle, 'cblas_sgemm_batch_strided_64')
+
+        global __cblas_dgemm_batch_strided_64
+        __cblas_dgemm_batch_strided_64 = dlsym(RTLD_DEFAULT, 'cblas_dgemm_batch_strided_64')
+        if __cblas_dgemm_batch_strided_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_dgemm_batch_strided_64 = dlsym(handle, 'cblas_dgemm_batch_strided_64')
+
+        global __cblas_cgemm_batch_strided_64
+        __cblas_cgemm_batch_strided_64 = dlsym(RTLD_DEFAULT, 'cblas_cgemm_batch_strided_64')
+        if __cblas_cgemm_batch_strided_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_cgemm_batch_strided_64 = dlsym(handle, 'cblas_cgemm_batch_strided_64')
+
+        global __cblas_zgemm_batch_strided_64
+        __cblas_zgemm_batch_strided_64 = dlsym(RTLD_DEFAULT, 'cblas_zgemm_batch_strided_64')
+        if __cblas_zgemm_batch_strided_64 == NULL:
+            if handle == NULL:
+                handle = load_library()
+            __cblas_zgemm_batch_strided_64 = dlsym(handle, 'cblas_zgemm_batch_strided_64')
+
         __py_nvpl_blas_init = True
         return 0
 
@@ -1357,6 +2257,342 @@ cpdef dict _inspect_function_pointers():
 
     global __cblas_zgemm_batch_strided
     data["__cblas_zgemm_batch_strided"] = <intptr_t>__cblas_zgemm_batch_strided
+
+    global __cblas_sgemmt
+    data["__cblas_sgemmt"] = <intptr_t>__cblas_sgemmt
+
+    global __cblas_dgemmt
+    data["__cblas_dgemmt"] = <intptr_t>__cblas_dgemmt
+
+    global __cblas_cgemmt
+    data["__cblas_cgemmt"] = <intptr_t>__cblas_cgemmt
+
+    global __cblas_zgemmt
+    data["__cblas_zgemmt"] = <intptr_t>__cblas_zgemmt
+
+    global __cblas_sgemv_64
+    data["__cblas_sgemv_64"] = <intptr_t>__cblas_sgemv_64
+
+    global __cblas_sgbmv_64
+    data["__cblas_sgbmv_64"] = <intptr_t>__cblas_sgbmv_64
+
+    global __cblas_strmv_64
+    data["__cblas_strmv_64"] = <intptr_t>__cblas_strmv_64
+
+    global __cblas_stbmv_64
+    data["__cblas_stbmv_64"] = <intptr_t>__cblas_stbmv_64
+
+    global __cblas_stpmv_64
+    data["__cblas_stpmv_64"] = <intptr_t>__cblas_stpmv_64
+
+    global __cblas_strsv_64
+    data["__cblas_strsv_64"] = <intptr_t>__cblas_strsv_64
+
+    global __cblas_stbsv_64
+    data["__cblas_stbsv_64"] = <intptr_t>__cblas_stbsv_64
+
+    global __cblas_stpsv_64
+    data["__cblas_stpsv_64"] = <intptr_t>__cblas_stpsv_64
+
+    global __cblas_dgemv_64
+    data["__cblas_dgemv_64"] = <intptr_t>__cblas_dgemv_64
+
+    global __cblas_dgbmv_64
+    data["__cblas_dgbmv_64"] = <intptr_t>__cblas_dgbmv_64
+
+    global __cblas_dtrmv_64
+    data["__cblas_dtrmv_64"] = <intptr_t>__cblas_dtrmv_64
+
+    global __cblas_dtbmv_64
+    data["__cblas_dtbmv_64"] = <intptr_t>__cblas_dtbmv_64
+
+    global __cblas_dtpmv_64
+    data["__cblas_dtpmv_64"] = <intptr_t>__cblas_dtpmv_64
+
+    global __cblas_dtrsv_64
+    data["__cblas_dtrsv_64"] = <intptr_t>__cblas_dtrsv_64
+
+    global __cblas_dtbsv_64
+    data["__cblas_dtbsv_64"] = <intptr_t>__cblas_dtbsv_64
+
+    global __cblas_dtpsv_64
+    data["__cblas_dtpsv_64"] = <intptr_t>__cblas_dtpsv_64
+
+    global __cblas_cgemv_64
+    data["__cblas_cgemv_64"] = <intptr_t>__cblas_cgemv_64
+
+    global __cblas_cgbmv_64
+    data["__cblas_cgbmv_64"] = <intptr_t>__cblas_cgbmv_64
+
+    global __cblas_ctrmv_64
+    data["__cblas_ctrmv_64"] = <intptr_t>__cblas_ctrmv_64
+
+    global __cblas_ctbmv_64
+    data["__cblas_ctbmv_64"] = <intptr_t>__cblas_ctbmv_64
+
+    global __cblas_ctpmv_64
+    data["__cblas_ctpmv_64"] = <intptr_t>__cblas_ctpmv_64
+
+    global __cblas_ctrsv_64
+    data["__cblas_ctrsv_64"] = <intptr_t>__cblas_ctrsv_64
+
+    global __cblas_ctbsv_64
+    data["__cblas_ctbsv_64"] = <intptr_t>__cblas_ctbsv_64
+
+    global __cblas_ctpsv_64
+    data["__cblas_ctpsv_64"] = <intptr_t>__cblas_ctpsv_64
+
+    global __cblas_zgemv_64
+    data["__cblas_zgemv_64"] = <intptr_t>__cblas_zgemv_64
+
+    global __cblas_zgbmv_64
+    data["__cblas_zgbmv_64"] = <intptr_t>__cblas_zgbmv_64
+
+    global __cblas_ztrmv_64
+    data["__cblas_ztrmv_64"] = <intptr_t>__cblas_ztrmv_64
+
+    global __cblas_ztbmv_64
+    data["__cblas_ztbmv_64"] = <intptr_t>__cblas_ztbmv_64
+
+    global __cblas_ztpmv_64
+    data["__cblas_ztpmv_64"] = <intptr_t>__cblas_ztpmv_64
+
+    global __cblas_ztrsv_64
+    data["__cblas_ztrsv_64"] = <intptr_t>__cblas_ztrsv_64
+
+    global __cblas_ztbsv_64
+    data["__cblas_ztbsv_64"] = <intptr_t>__cblas_ztbsv_64
+
+    global __cblas_ztpsv_64
+    data["__cblas_ztpsv_64"] = <intptr_t>__cblas_ztpsv_64
+
+    global __cblas_ssymv_64
+    data["__cblas_ssymv_64"] = <intptr_t>__cblas_ssymv_64
+
+    global __cblas_ssbmv_64
+    data["__cblas_ssbmv_64"] = <intptr_t>__cblas_ssbmv_64
+
+    global __cblas_sspmv_64
+    data["__cblas_sspmv_64"] = <intptr_t>__cblas_sspmv_64
+
+    global __cblas_sger_64
+    data["__cblas_sger_64"] = <intptr_t>__cblas_sger_64
+
+    global __cblas_ssyr_64
+    data["__cblas_ssyr_64"] = <intptr_t>__cblas_ssyr_64
+
+    global __cblas_sspr_64
+    data["__cblas_sspr_64"] = <intptr_t>__cblas_sspr_64
+
+    global __cblas_ssyr2_64
+    data["__cblas_ssyr2_64"] = <intptr_t>__cblas_ssyr2_64
+
+    global __cblas_sspr2_64
+    data["__cblas_sspr2_64"] = <intptr_t>__cblas_sspr2_64
+
+    global __cblas_dsymv_64
+    data["__cblas_dsymv_64"] = <intptr_t>__cblas_dsymv_64
+
+    global __cblas_dsbmv_64
+    data["__cblas_dsbmv_64"] = <intptr_t>__cblas_dsbmv_64
+
+    global __cblas_dspmv_64
+    data["__cblas_dspmv_64"] = <intptr_t>__cblas_dspmv_64
+
+    global __cblas_dger_64
+    data["__cblas_dger_64"] = <intptr_t>__cblas_dger_64
+
+    global __cblas_dsyr_64
+    data["__cblas_dsyr_64"] = <intptr_t>__cblas_dsyr_64
+
+    global __cblas_dspr_64
+    data["__cblas_dspr_64"] = <intptr_t>__cblas_dspr_64
+
+    global __cblas_dsyr2_64
+    data["__cblas_dsyr2_64"] = <intptr_t>__cblas_dsyr2_64
+
+    global __cblas_dspr2_64
+    data["__cblas_dspr2_64"] = <intptr_t>__cblas_dspr2_64
+
+    global __cblas_chemv_64
+    data["__cblas_chemv_64"] = <intptr_t>__cblas_chemv_64
+
+    global __cblas_chbmv_64
+    data["__cblas_chbmv_64"] = <intptr_t>__cblas_chbmv_64
+
+    global __cblas_chpmv_64
+    data["__cblas_chpmv_64"] = <intptr_t>__cblas_chpmv_64
+
+    global __cblas_cgeru_64
+    data["__cblas_cgeru_64"] = <intptr_t>__cblas_cgeru_64
+
+    global __cblas_cgerc_64
+    data["__cblas_cgerc_64"] = <intptr_t>__cblas_cgerc_64
+
+    global __cblas_cher_64
+    data["__cblas_cher_64"] = <intptr_t>__cblas_cher_64
+
+    global __cblas_chpr_64
+    data["__cblas_chpr_64"] = <intptr_t>__cblas_chpr_64
+
+    global __cblas_cher2_64
+    data["__cblas_cher2_64"] = <intptr_t>__cblas_cher2_64
+
+    global __cblas_chpr2_64
+    data["__cblas_chpr2_64"] = <intptr_t>__cblas_chpr2_64
+
+    global __cblas_zhemv_64
+    data["__cblas_zhemv_64"] = <intptr_t>__cblas_zhemv_64
+
+    global __cblas_zhbmv_64
+    data["__cblas_zhbmv_64"] = <intptr_t>__cblas_zhbmv_64
+
+    global __cblas_zhpmv_64
+    data["__cblas_zhpmv_64"] = <intptr_t>__cblas_zhpmv_64
+
+    global __cblas_zgeru_64
+    data["__cblas_zgeru_64"] = <intptr_t>__cblas_zgeru_64
+
+    global __cblas_zgerc_64
+    data["__cblas_zgerc_64"] = <intptr_t>__cblas_zgerc_64
+
+    global __cblas_zher_64
+    data["__cblas_zher_64"] = <intptr_t>__cblas_zher_64
+
+    global __cblas_zhpr_64
+    data["__cblas_zhpr_64"] = <intptr_t>__cblas_zhpr_64
+
+    global __cblas_zher2_64
+    data["__cblas_zher2_64"] = <intptr_t>__cblas_zher2_64
+
+    global __cblas_zhpr2_64
+    data["__cblas_zhpr2_64"] = <intptr_t>__cblas_zhpr2_64
+
+    global __cblas_sgemm_64
+    data["__cblas_sgemm_64"] = <intptr_t>__cblas_sgemm_64
+
+    global __cblas_ssymm_64
+    data["__cblas_ssymm_64"] = <intptr_t>__cblas_ssymm_64
+
+    global __cblas_ssyrk_64
+    data["__cblas_ssyrk_64"] = <intptr_t>__cblas_ssyrk_64
+
+    global __cblas_ssyr2k_64
+    data["__cblas_ssyr2k_64"] = <intptr_t>__cblas_ssyr2k_64
+
+    global __cblas_strmm_64
+    data["__cblas_strmm_64"] = <intptr_t>__cblas_strmm_64
+
+    global __cblas_strsm_64
+    data["__cblas_strsm_64"] = <intptr_t>__cblas_strsm_64
+
+    global __cblas_dgemm_64
+    data["__cblas_dgemm_64"] = <intptr_t>__cblas_dgemm_64
+
+    global __cblas_dsymm_64
+    data["__cblas_dsymm_64"] = <intptr_t>__cblas_dsymm_64
+
+    global __cblas_dsyrk_64
+    data["__cblas_dsyrk_64"] = <intptr_t>__cblas_dsyrk_64
+
+    global __cblas_dsyr2k_64
+    data["__cblas_dsyr2k_64"] = <intptr_t>__cblas_dsyr2k_64
+
+    global __cblas_dtrmm_64
+    data["__cblas_dtrmm_64"] = <intptr_t>__cblas_dtrmm_64
+
+    global __cblas_dtrsm_64
+    data["__cblas_dtrsm_64"] = <intptr_t>__cblas_dtrsm_64
+
+    global __cblas_cgemm_64
+    data["__cblas_cgemm_64"] = <intptr_t>__cblas_cgemm_64
+
+    global __cblas_csymm_64
+    data["__cblas_csymm_64"] = <intptr_t>__cblas_csymm_64
+
+    global __cblas_csyrk_64
+    data["__cblas_csyrk_64"] = <intptr_t>__cblas_csyrk_64
+
+    global __cblas_csyr2k_64
+    data["__cblas_csyr2k_64"] = <intptr_t>__cblas_csyr2k_64
+
+    global __cblas_ctrmm_64
+    data["__cblas_ctrmm_64"] = <intptr_t>__cblas_ctrmm_64
+
+    global __cblas_ctrsm_64
+    data["__cblas_ctrsm_64"] = <intptr_t>__cblas_ctrsm_64
+
+    global __cblas_zgemm_64
+    data["__cblas_zgemm_64"] = <intptr_t>__cblas_zgemm_64
+
+    global __cblas_zsymm_64
+    data["__cblas_zsymm_64"] = <intptr_t>__cblas_zsymm_64
+
+    global __cblas_zsyrk_64
+    data["__cblas_zsyrk_64"] = <intptr_t>__cblas_zsyrk_64
+
+    global __cblas_zsyr2k_64
+    data["__cblas_zsyr2k_64"] = <intptr_t>__cblas_zsyr2k_64
+
+    global __cblas_ztrmm_64
+    data["__cblas_ztrmm_64"] = <intptr_t>__cblas_ztrmm_64
+
+    global __cblas_ztrsm_64
+    data["__cblas_ztrsm_64"] = <intptr_t>__cblas_ztrsm_64
+
+    global __cblas_chemm_64
+    data["__cblas_chemm_64"] = <intptr_t>__cblas_chemm_64
+
+    global __cblas_cherk_64
+    data["__cblas_cherk_64"] = <intptr_t>__cblas_cherk_64
+
+    global __cblas_cher2k_64
+    data["__cblas_cher2k_64"] = <intptr_t>__cblas_cher2k_64
+
+    global __cblas_zhemm_64
+    data["__cblas_zhemm_64"] = <intptr_t>__cblas_zhemm_64
+
+    global __cblas_zherk_64
+    data["__cblas_zherk_64"] = <intptr_t>__cblas_zherk_64
+
+    global __cblas_zher2k_64
+    data["__cblas_zher2k_64"] = <intptr_t>__cblas_zher2k_64
+
+    global __cblas_sgemmt_64
+    data["__cblas_sgemmt_64"] = <intptr_t>__cblas_sgemmt_64
+
+    global __cblas_dgemmt_64
+    data["__cblas_dgemmt_64"] = <intptr_t>__cblas_dgemmt_64
+
+    global __cblas_cgemmt_64
+    data["__cblas_cgemmt_64"] = <intptr_t>__cblas_cgemmt_64
+
+    global __cblas_zgemmt_64
+    data["__cblas_zgemmt_64"] = <intptr_t>__cblas_zgemmt_64
+
+    global __cblas_sgemm_batch_64
+    data["__cblas_sgemm_batch_64"] = <intptr_t>__cblas_sgemm_batch_64
+
+    global __cblas_dgemm_batch_64
+    data["__cblas_dgemm_batch_64"] = <intptr_t>__cblas_dgemm_batch_64
+
+    global __cblas_cgemm_batch_64
+    data["__cblas_cgemm_batch_64"] = <intptr_t>__cblas_cgemm_batch_64
+
+    global __cblas_zgemm_batch_64
+    data["__cblas_zgemm_batch_64"] = <intptr_t>__cblas_zgemm_batch_64
+
+    global __cblas_sgemm_batch_strided_64
+    data["__cblas_sgemm_batch_strided_64"] = <intptr_t>__cblas_sgemm_batch_strided_64
+
+    global __cblas_dgemm_batch_strided_64
+    data["__cblas_dgemm_batch_strided_64"] = <intptr_t>__cblas_dgemm_batch_strided_64
+
+    global __cblas_cgemm_batch_strided_64
+    data["__cblas_cgemm_batch_strided_64"] = <intptr_t>__cblas_cgemm_batch_strided_64
+
+    global __cblas_zgemm_batch_strided_64
+    data["__cblas_zgemm_batch_strided_64"] = <intptr_t>__cblas_zgemm_batch_strided_64
 
     func_ptrs = data
     return data
@@ -2597,4 +3833,1236 @@ cdef void _cblas_zgemm_batch_strided(const CBLAS_ORDER Order, const CBLAS_TRANSP
         with gil:
             raise FunctionNotFoundError("function cblas_zgemm_batch_strided is not found")
     (<void (*)(const CBLAS_ORDER, const CBLAS_TRANSPOSE, const CBLAS_TRANSPOSE, const nvpl_int_t, const nvpl_int_t, const nvpl_int_t, const void*, const void*, const nvpl_int_t, const nvpl_int_t, const void*, const nvpl_int_t, const nvpl_int_t, const void*, void*, const nvpl_int_t, const nvpl_int_t, const nvpl_int_t) noexcept nogil>__cblas_zgemm_batch_strided)(
+        Order, TransA, TransB, M, N, K, alpha, A, lda, stridea, B, ldb, strideb, beta, C, ldc, stridec, batch_size)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_sgemmt(const CBLAS_ORDER Order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_TRANSPOSE TransB, const nvpl_int_t N, const nvpl_int_t K, const float alpha, const float* A, const nvpl_int_t lda, const float* B, const nvpl_int_t ldb, const float beta, float* C, const nvpl_int_t ldc) except* nogil:
+    global __cblas_sgemmt
+    _check_or_init_nvpl_blas()
+    if __cblas_sgemmt == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_sgemmt is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_UPLO, const CBLAS_TRANSPOSE, const CBLAS_TRANSPOSE, const nvpl_int_t, const nvpl_int_t, const float, const float*, const nvpl_int_t, const float*, const nvpl_int_t, const float, float*, const nvpl_int_t) noexcept nogil>__cblas_sgemmt)(
+        Order, Uplo, TransA, TransB, N, K, alpha, A, lda, B, ldb, beta, C, ldc)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_dgemmt(const CBLAS_ORDER Order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_TRANSPOSE TransB, const nvpl_int_t N, const nvpl_int_t K, const double alpha, const double* A, const nvpl_int_t lda, const double* B, const nvpl_int_t ldb, const double beta, double* C, const nvpl_int_t ldc) except* nogil:
+    global __cblas_dgemmt
+    _check_or_init_nvpl_blas()
+    if __cblas_dgemmt == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_dgemmt is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_UPLO, const CBLAS_TRANSPOSE, const CBLAS_TRANSPOSE, const nvpl_int_t, const nvpl_int_t, const double, const double*, const nvpl_int_t, const double*, const nvpl_int_t, const double, double*, const nvpl_int_t) noexcept nogil>__cblas_dgemmt)(
+        Order, Uplo, TransA, TransB, N, K, alpha, A, lda, B, ldb, beta, C, ldc)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_cgemmt(const CBLAS_ORDER Order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_TRANSPOSE TransB, const nvpl_int_t N, const nvpl_int_t K, const void* alpha, const void* A, const nvpl_int_t lda, const void* B, const nvpl_int_t ldb, const void* beta, void* C, const nvpl_int_t ldc) except* nogil:
+    global __cblas_cgemmt
+    _check_or_init_nvpl_blas()
+    if __cblas_cgemmt == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_cgemmt is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_UPLO, const CBLAS_TRANSPOSE, const CBLAS_TRANSPOSE, const nvpl_int_t, const nvpl_int_t, const void*, const void*, const nvpl_int_t, const void*, const nvpl_int_t, const void*, void*, const nvpl_int_t) noexcept nogil>__cblas_cgemmt)(
+        Order, Uplo, TransA, TransB, N, K, alpha, A, lda, B, ldb, beta, C, ldc)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_zgemmt(const CBLAS_ORDER Order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_TRANSPOSE TransB, const nvpl_int_t N, const nvpl_int_t K, const void* alpha, const void* A, const nvpl_int_t lda, const void* B, const nvpl_int_t ldb, const void* beta, void* C, const nvpl_int_t ldc) except* nogil:
+    global __cblas_zgemmt
+    _check_or_init_nvpl_blas()
+    if __cblas_zgemmt == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_zgemmt is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_UPLO, const CBLAS_TRANSPOSE, const CBLAS_TRANSPOSE, const nvpl_int_t, const nvpl_int_t, const void*, const void*, const nvpl_int_t, const void*, const nvpl_int_t, const void*, void*, const nvpl_int_t) noexcept nogil>__cblas_zgemmt)(
+        Order, Uplo, TransA, TransB, N, K, alpha, A, lda, B, ldb, beta, C, ldc)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_sgemv_64(const CBLAS_ORDER order, const CBLAS_TRANSPOSE TransA, const nvpl_int64_t M, const nvpl_int64_t N, const float alpha, const float* A, const nvpl_int64_t lda, const float* X, const nvpl_int64_t incX, const float beta, float* Y, const nvpl_int64_t incY) except* nogil:
+    global __cblas_sgemv_64
+    _check_or_init_nvpl_blas()
+    if __cblas_sgemv_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_sgemv_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_TRANSPOSE, const nvpl_int64_t, const nvpl_int64_t, const float, const float*, const nvpl_int64_t, const float*, const nvpl_int64_t, const float, float*, const nvpl_int64_t) noexcept nogil>__cblas_sgemv_64)(
+        order, TransA, M, N, alpha, A, lda, X, incX, beta, Y, incY)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_sgbmv_64(const CBLAS_ORDER order, const CBLAS_TRANSPOSE TransA, const nvpl_int64_t M, const nvpl_int64_t N, const nvpl_int64_t KL, const nvpl_int64_t KU, const float alpha, const float* A, const nvpl_int64_t lda, const float* X, const nvpl_int64_t incX, const float beta, float* Y, const nvpl_int64_t incY) except* nogil:
+    global __cblas_sgbmv_64
+    _check_or_init_nvpl_blas()
+    if __cblas_sgbmv_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_sgbmv_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_TRANSPOSE, const nvpl_int64_t, const nvpl_int64_t, const nvpl_int64_t, const nvpl_int64_t, const float, const float*, const nvpl_int64_t, const float*, const nvpl_int64_t, const float, float*, const nvpl_int64_t) noexcept nogil>__cblas_sgbmv_64)(
+        order, TransA, M, N, KL, KU, alpha, A, lda, X, incX, beta, Y, incY)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_strmv_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_DIAG Diag, const nvpl_int64_t N, const float* A, const nvpl_int64_t lda, float* X, const nvpl_int64_t incX) except* nogil:
+    global __cblas_strmv_64
+    _check_or_init_nvpl_blas()
+    if __cblas_strmv_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_strmv_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_UPLO, const CBLAS_TRANSPOSE, const CBLAS_DIAG, const nvpl_int64_t, const float*, const nvpl_int64_t, float*, const nvpl_int64_t) noexcept nogil>__cblas_strmv_64)(
+        order, Uplo, TransA, Diag, N, A, lda, X, incX)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_stbmv_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_DIAG Diag, const nvpl_int64_t N, const nvpl_int64_t K, const float* A, const nvpl_int64_t lda, float* X, const nvpl_int64_t incX) except* nogil:
+    global __cblas_stbmv_64
+    _check_or_init_nvpl_blas()
+    if __cblas_stbmv_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_stbmv_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_UPLO, const CBLAS_TRANSPOSE, const CBLAS_DIAG, const nvpl_int64_t, const nvpl_int64_t, const float*, const nvpl_int64_t, float*, const nvpl_int64_t) noexcept nogil>__cblas_stbmv_64)(
+        order, Uplo, TransA, Diag, N, K, A, lda, X, incX)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_stpmv_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_DIAG Diag, const nvpl_int64_t N, const float* Ap, float* X, const nvpl_int64_t incX) except* nogil:
+    global __cblas_stpmv_64
+    _check_or_init_nvpl_blas()
+    if __cblas_stpmv_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_stpmv_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_UPLO, const CBLAS_TRANSPOSE, const CBLAS_DIAG, const nvpl_int64_t, const float*, float*, const nvpl_int64_t) noexcept nogil>__cblas_stpmv_64)(
+        order, Uplo, TransA, Diag, N, Ap, X, incX)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_strsv_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_DIAG Diag, const nvpl_int64_t N, const float* A, const nvpl_int64_t lda, float* X, const nvpl_int64_t incX) except* nogil:
+    global __cblas_strsv_64
+    _check_or_init_nvpl_blas()
+    if __cblas_strsv_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_strsv_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_UPLO, const CBLAS_TRANSPOSE, const CBLAS_DIAG, const nvpl_int64_t, const float*, const nvpl_int64_t, float*, const nvpl_int64_t) noexcept nogil>__cblas_strsv_64)(
+        order, Uplo, TransA, Diag, N, A, lda, X, incX)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_stbsv_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_DIAG Diag, const nvpl_int64_t N, const nvpl_int64_t K, const float* A, const nvpl_int64_t lda, float* X, const nvpl_int64_t incX) except* nogil:
+    global __cblas_stbsv_64
+    _check_or_init_nvpl_blas()
+    if __cblas_stbsv_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_stbsv_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_UPLO, const CBLAS_TRANSPOSE, const CBLAS_DIAG, const nvpl_int64_t, const nvpl_int64_t, const float*, const nvpl_int64_t, float*, const nvpl_int64_t) noexcept nogil>__cblas_stbsv_64)(
+        order, Uplo, TransA, Diag, N, K, A, lda, X, incX)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_stpsv_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_DIAG Diag, const nvpl_int64_t N, const float* Ap, float* X, const nvpl_int64_t incX) except* nogil:
+    global __cblas_stpsv_64
+    _check_or_init_nvpl_blas()
+    if __cblas_stpsv_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_stpsv_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_UPLO, const CBLAS_TRANSPOSE, const CBLAS_DIAG, const nvpl_int64_t, const float*, float*, const nvpl_int64_t) noexcept nogil>__cblas_stpsv_64)(
+        order, Uplo, TransA, Diag, N, Ap, X, incX)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_dgemv_64(const CBLAS_ORDER order, const CBLAS_TRANSPOSE TransA, const nvpl_int64_t M, const nvpl_int64_t N, const double alpha, const double* A, const nvpl_int64_t lda, const double* X, const nvpl_int64_t incX, const double beta, double* Y, const nvpl_int64_t incY) except* nogil:
+    global __cblas_dgemv_64
+    _check_or_init_nvpl_blas()
+    if __cblas_dgemv_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_dgemv_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_TRANSPOSE, const nvpl_int64_t, const nvpl_int64_t, const double, const double*, const nvpl_int64_t, const double*, const nvpl_int64_t, const double, double*, const nvpl_int64_t) noexcept nogil>__cblas_dgemv_64)(
+        order, TransA, M, N, alpha, A, lda, X, incX, beta, Y, incY)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_dgbmv_64(const CBLAS_ORDER order, const CBLAS_TRANSPOSE TransA, const nvpl_int64_t M, const nvpl_int64_t N, const nvpl_int64_t KL, const nvpl_int64_t KU, const double alpha, const double* A, const nvpl_int64_t lda, const double* X, const nvpl_int64_t incX, const double beta, double* Y, const nvpl_int64_t incY) except* nogil:
+    global __cblas_dgbmv_64
+    _check_or_init_nvpl_blas()
+    if __cblas_dgbmv_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_dgbmv_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_TRANSPOSE, const nvpl_int64_t, const nvpl_int64_t, const nvpl_int64_t, const nvpl_int64_t, const double, const double*, const nvpl_int64_t, const double*, const nvpl_int64_t, const double, double*, const nvpl_int64_t) noexcept nogil>__cblas_dgbmv_64)(
+        order, TransA, M, N, KL, KU, alpha, A, lda, X, incX, beta, Y, incY)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_dtrmv_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_DIAG Diag, const nvpl_int64_t N, const double* A, const nvpl_int64_t lda, double* X, const nvpl_int64_t incX) except* nogil:
+    global __cblas_dtrmv_64
+    _check_or_init_nvpl_blas()
+    if __cblas_dtrmv_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_dtrmv_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_UPLO, const CBLAS_TRANSPOSE, const CBLAS_DIAG, const nvpl_int64_t, const double*, const nvpl_int64_t, double*, const nvpl_int64_t) noexcept nogil>__cblas_dtrmv_64)(
+        order, Uplo, TransA, Diag, N, A, lda, X, incX)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_dtbmv_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_DIAG Diag, const nvpl_int64_t N, const nvpl_int64_t K, const double* A, const nvpl_int64_t lda, double* X, const nvpl_int64_t incX) except* nogil:
+    global __cblas_dtbmv_64
+    _check_or_init_nvpl_blas()
+    if __cblas_dtbmv_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_dtbmv_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_UPLO, const CBLAS_TRANSPOSE, const CBLAS_DIAG, const nvpl_int64_t, const nvpl_int64_t, const double*, const nvpl_int64_t, double*, const nvpl_int64_t) noexcept nogil>__cblas_dtbmv_64)(
+        order, Uplo, TransA, Diag, N, K, A, lda, X, incX)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_dtpmv_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_DIAG Diag, const nvpl_int64_t N, const double* Ap, double* X, const nvpl_int64_t incX) except* nogil:
+    global __cblas_dtpmv_64
+    _check_or_init_nvpl_blas()
+    if __cblas_dtpmv_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_dtpmv_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_UPLO, const CBLAS_TRANSPOSE, const CBLAS_DIAG, const nvpl_int64_t, const double*, double*, const nvpl_int64_t) noexcept nogil>__cblas_dtpmv_64)(
+        order, Uplo, TransA, Diag, N, Ap, X, incX)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_dtrsv_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_DIAG Diag, const nvpl_int64_t N, const double* A, const nvpl_int64_t lda, double* X, const nvpl_int64_t incX) except* nogil:
+    global __cblas_dtrsv_64
+    _check_or_init_nvpl_blas()
+    if __cblas_dtrsv_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_dtrsv_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_UPLO, const CBLAS_TRANSPOSE, const CBLAS_DIAG, const nvpl_int64_t, const double*, const nvpl_int64_t, double*, const nvpl_int64_t) noexcept nogil>__cblas_dtrsv_64)(
+        order, Uplo, TransA, Diag, N, A, lda, X, incX)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_dtbsv_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_DIAG Diag, const nvpl_int64_t N, const nvpl_int64_t K, const double* A, const nvpl_int64_t lda, double* X, const nvpl_int64_t incX) except* nogil:
+    global __cblas_dtbsv_64
+    _check_or_init_nvpl_blas()
+    if __cblas_dtbsv_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_dtbsv_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_UPLO, const CBLAS_TRANSPOSE, const CBLAS_DIAG, const nvpl_int64_t, const nvpl_int64_t, const double*, const nvpl_int64_t, double*, const nvpl_int64_t) noexcept nogil>__cblas_dtbsv_64)(
+        order, Uplo, TransA, Diag, N, K, A, lda, X, incX)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_dtpsv_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_DIAG Diag, const nvpl_int64_t N, const double* Ap, double* X, const nvpl_int64_t incX) except* nogil:
+    global __cblas_dtpsv_64
+    _check_or_init_nvpl_blas()
+    if __cblas_dtpsv_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_dtpsv_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_UPLO, const CBLAS_TRANSPOSE, const CBLAS_DIAG, const nvpl_int64_t, const double*, double*, const nvpl_int64_t) noexcept nogil>__cblas_dtpsv_64)(
+        order, Uplo, TransA, Diag, N, Ap, X, incX)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_cgemv_64(const CBLAS_ORDER order, const CBLAS_TRANSPOSE TransA, const nvpl_int64_t M, const nvpl_int64_t N, const void* alpha, const void* A, const nvpl_int64_t lda, const void* X, const nvpl_int64_t incX, const void* beta, void* Y, const nvpl_int64_t incY) except* nogil:
+    global __cblas_cgemv_64
+    _check_or_init_nvpl_blas()
+    if __cblas_cgemv_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_cgemv_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_TRANSPOSE, const nvpl_int64_t, const nvpl_int64_t, const void*, const void*, const nvpl_int64_t, const void*, const nvpl_int64_t, const void*, void*, const nvpl_int64_t) noexcept nogil>__cblas_cgemv_64)(
+        order, TransA, M, N, alpha, A, lda, X, incX, beta, Y, incY)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_cgbmv_64(const CBLAS_ORDER order, const CBLAS_TRANSPOSE TransA, const nvpl_int64_t M, const nvpl_int64_t N, const nvpl_int64_t KL, const nvpl_int64_t KU, const void* alpha, const void* A, const nvpl_int64_t lda, const void* X, const nvpl_int64_t incX, const void* beta, void* Y, const nvpl_int64_t incY) except* nogil:
+    global __cblas_cgbmv_64
+    _check_or_init_nvpl_blas()
+    if __cblas_cgbmv_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_cgbmv_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_TRANSPOSE, const nvpl_int64_t, const nvpl_int64_t, const nvpl_int64_t, const nvpl_int64_t, const void*, const void*, const nvpl_int64_t, const void*, const nvpl_int64_t, const void*, void*, const nvpl_int64_t) noexcept nogil>__cblas_cgbmv_64)(
+        order, TransA, M, N, KL, KU, alpha, A, lda, X, incX, beta, Y, incY)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_ctrmv_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_DIAG Diag, const nvpl_int64_t N, const void* A, const nvpl_int64_t lda, void* X, const nvpl_int64_t incX) except* nogil:
+    global __cblas_ctrmv_64
+    _check_or_init_nvpl_blas()
+    if __cblas_ctrmv_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_ctrmv_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_UPLO, const CBLAS_TRANSPOSE, const CBLAS_DIAG, const nvpl_int64_t, const void*, const nvpl_int64_t, void*, const nvpl_int64_t) noexcept nogil>__cblas_ctrmv_64)(
+        order, Uplo, TransA, Diag, N, A, lda, X, incX)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_ctbmv_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_DIAG Diag, const nvpl_int64_t N, const nvpl_int64_t K, const void* A, const nvpl_int64_t lda, void* X, const nvpl_int64_t incX) except* nogil:
+    global __cblas_ctbmv_64
+    _check_or_init_nvpl_blas()
+    if __cblas_ctbmv_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_ctbmv_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_UPLO, const CBLAS_TRANSPOSE, const CBLAS_DIAG, const nvpl_int64_t, const nvpl_int64_t, const void*, const nvpl_int64_t, void*, const nvpl_int64_t) noexcept nogil>__cblas_ctbmv_64)(
+        order, Uplo, TransA, Diag, N, K, A, lda, X, incX)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_ctpmv_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_DIAG Diag, const nvpl_int64_t N, const void* Ap, void* X, const nvpl_int64_t incX) except* nogil:
+    global __cblas_ctpmv_64
+    _check_or_init_nvpl_blas()
+    if __cblas_ctpmv_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_ctpmv_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_UPLO, const CBLAS_TRANSPOSE, const CBLAS_DIAG, const nvpl_int64_t, const void*, void*, const nvpl_int64_t) noexcept nogil>__cblas_ctpmv_64)(
+        order, Uplo, TransA, Diag, N, Ap, X, incX)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_ctrsv_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_DIAG Diag, const nvpl_int64_t N, const void* A, const nvpl_int64_t lda, void* X, const nvpl_int64_t incX) except* nogil:
+    global __cblas_ctrsv_64
+    _check_or_init_nvpl_blas()
+    if __cblas_ctrsv_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_ctrsv_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_UPLO, const CBLAS_TRANSPOSE, const CBLAS_DIAG, const nvpl_int64_t, const void*, const nvpl_int64_t, void*, const nvpl_int64_t) noexcept nogil>__cblas_ctrsv_64)(
+        order, Uplo, TransA, Diag, N, A, lda, X, incX)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_ctbsv_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_DIAG Diag, const nvpl_int64_t N, const nvpl_int64_t K, const void* A, const nvpl_int64_t lda, void* X, const nvpl_int64_t incX) except* nogil:
+    global __cblas_ctbsv_64
+    _check_or_init_nvpl_blas()
+    if __cblas_ctbsv_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_ctbsv_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_UPLO, const CBLAS_TRANSPOSE, const CBLAS_DIAG, const nvpl_int64_t, const nvpl_int64_t, const void*, const nvpl_int64_t, void*, const nvpl_int64_t) noexcept nogil>__cblas_ctbsv_64)(
+        order, Uplo, TransA, Diag, N, K, A, lda, X, incX)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_ctpsv_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_DIAG Diag, const nvpl_int64_t N, const void* Ap, void* X, const nvpl_int64_t incX) except* nogil:
+    global __cblas_ctpsv_64
+    _check_or_init_nvpl_blas()
+    if __cblas_ctpsv_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_ctpsv_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_UPLO, const CBLAS_TRANSPOSE, const CBLAS_DIAG, const nvpl_int64_t, const void*, void*, const nvpl_int64_t) noexcept nogil>__cblas_ctpsv_64)(
+        order, Uplo, TransA, Diag, N, Ap, X, incX)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_zgemv_64(const CBLAS_ORDER order, const CBLAS_TRANSPOSE TransA, const nvpl_int64_t M, const nvpl_int64_t N, const void* alpha, const void* A, const nvpl_int64_t lda, const void* X, const nvpl_int64_t incX, const void* beta, void* Y, const nvpl_int64_t incY) except* nogil:
+    global __cblas_zgemv_64
+    _check_or_init_nvpl_blas()
+    if __cblas_zgemv_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_zgemv_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_TRANSPOSE, const nvpl_int64_t, const nvpl_int64_t, const void*, const void*, const nvpl_int64_t, const void*, const nvpl_int64_t, const void*, void*, const nvpl_int64_t) noexcept nogil>__cblas_zgemv_64)(
+        order, TransA, M, N, alpha, A, lda, X, incX, beta, Y, incY)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_zgbmv_64(const CBLAS_ORDER order, const CBLAS_TRANSPOSE TransA, const nvpl_int64_t M, const nvpl_int64_t N, const nvpl_int64_t KL, const nvpl_int64_t KU, const void* alpha, const void* A, const nvpl_int64_t lda, const void* X, const nvpl_int64_t incX, const void* beta, void* Y, const nvpl_int64_t incY) except* nogil:
+    global __cblas_zgbmv_64
+    _check_or_init_nvpl_blas()
+    if __cblas_zgbmv_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_zgbmv_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_TRANSPOSE, const nvpl_int64_t, const nvpl_int64_t, const nvpl_int64_t, const nvpl_int64_t, const void*, const void*, const nvpl_int64_t, const void*, const nvpl_int64_t, const void*, void*, const nvpl_int64_t) noexcept nogil>__cblas_zgbmv_64)(
+        order, TransA, M, N, KL, KU, alpha, A, lda, X, incX, beta, Y, incY)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_ztrmv_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_DIAG Diag, const nvpl_int64_t N, const void* A, const nvpl_int64_t lda, void* X, const nvpl_int64_t incX) except* nogil:
+    global __cblas_ztrmv_64
+    _check_or_init_nvpl_blas()
+    if __cblas_ztrmv_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_ztrmv_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_UPLO, const CBLAS_TRANSPOSE, const CBLAS_DIAG, const nvpl_int64_t, const void*, const nvpl_int64_t, void*, const nvpl_int64_t) noexcept nogil>__cblas_ztrmv_64)(
+        order, Uplo, TransA, Diag, N, A, lda, X, incX)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_ztbmv_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_DIAG Diag, const nvpl_int64_t N, const nvpl_int64_t K, const void* A, const nvpl_int64_t lda, void* X, const nvpl_int64_t incX) except* nogil:
+    global __cblas_ztbmv_64
+    _check_or_init_nvpl_blas()
+    if __cblas_ztbmv_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_ztbmv_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_UPLO, const CBLAS_TRANSPOSE, const CBLAS_DIAG, const nvpl_int64_t, const nvpl_int64_t, const void*, const nvpl_int64_t, void*, const nvpl_int64_t) noexcept nogil>__cblas_ztbmv_64)(
+        order, Uplo, TransA, Diag, N, K, A, lda, X, incX)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_ztpmv_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_DIAG Diag, const nvpl_int64_t N, const void* Ap, void* X, const nvpl_int64_t incX) except* nogil:
+    global __cblas_ztpmv_64
+    _check_or_init_nvpl_blas()
+    if __cblas_ztpmv_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_ztpmv_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_UPLO, const CBLAS_TRANSPOSE, const CBLAS_DIAG, const nvpl_int64_t, const void*, void*, const nvpl_int64_t) noexcept nogil>__cblas_ztpmv_64)(
+        order, Uplo, TransA, Diag, N, Ap, X, incX)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_ztrsv_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_DIAG Diag, const nvpl_int64_t N, const void* A, const nvpl_int64_t lda, void* X, const nvpl_int64_t incX) except* nogil:
+    global __cblas_ztrsv_64
+    _check_or_init_nvpl_blas()
+    if __cblas_ztrsv_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_ztrsv_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_UPLO, const CBLAS_TRANSPOSE, const CBLAS_DIAG, const nvpl_int64_t, const void*, const nvpl_int64_t, void*, const nvpl_int64_t) noexcept nogil>__cblas_ztrsv_64)(
+        order, Uplo, TransA, Diag, N, A, lda, X, incX)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_ztbsv_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_DIAG Diag, const nvpl_int64_t N, const nvpl_int64_t K, const void* A, const nvpl_int64_t lda, void* X, const nvpl_int64_t incX) except* nogil:
+    global __cblas_ztbsv_64
+    _check_or_init_nvpl_blas()
+    if __cblas_ztbsv_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_ztbsv_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_UPLO, const CBLAS_TRANSPOSE, const CBLAS_DIAG, const nvpl_int64_t, const nvpl_int64_t, const void*, const nvpl_int64_t, void*, const nvpl_int64_t) noexcept nogil>__cblas_ztbsv_64)(
+        order, Uplo, TransA, Diag, N, K, A, lda, X, incX)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_ztpsv_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_DIAG Diag, const nvpl_int64_t N, const void* Ap, void* X, const nvpl_int64_t incX) except* nogil:
+    global __cblas_ztpsv_64
+    _check_or_init_nvpl_blas()
+    if __cblas_ztpsv_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_ztpsv_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_UPLO, const CBLAS_TRANSPOSE, const CBLAS_DIAG, const nvpl_int64_t, const void*, void*, const nvpl_int64_t) noexcept nogil>__cblas_ztpsv_64)(
+        order, Uplo, TransA, Diag, N, Ap, X, incX)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_ssymv_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const nvpl_int64_t N, const float alpha, const float* A, const nvpl_int64_t lda, const float* X, const nvpl_int64_t incX, const float beta, float* Y, const nvpl_int64_t incY) except* nogil:
+    global __cblas_ssymv_64
+    _check_or_init_nvpl_blas()
+    if __cblas_ssymv_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_ssymv_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_UPLO, const nvpl_int64_t, const float, const float*, const nvpl_int64_t, const float*, const nvpl_int64_t, const float, float*, const nvpl_int64_t) noexcept nogil>__cblas_ssymv_64)(
+        order, Uplo, N, alpha, A, lda, X, incX, beta, Y, incY)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_ssbmv_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const nvpl_int64_t N, const nvpl_int64_t K, const float alpha, const float* A, const nvpl_int64_t lda, const float* X, const nvpl_int64_t incX, const float beta, float* Y, const nvpl_int64_t incY) except* nogil:
+    global __cblas_ssbmv_64
+    _check_or_init_nvpl_blas()
+    if __cblas_ssbmv_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_ssbmv_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_UPLO, const nvpl_int64_t, const nvpl_int64_t, const float, const float*, const nvpl_int64_t, const float*, const nvpl_int64_t, const float, float*, const nvpl_int64_t) noexcept nogil>__cblas_ssbmv_64)(
+        order, Uplo, N, K, alpha, A, lda, X, incX, beta, Y, incY)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_sspmv_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const nvpl_int64_t N, const float alpha, const float* Ap, const float* X, const nvpl_int64_t incX, const float beta, float* Y, const nvpl_int64_t incY) except* nogil:
+    global __cblas_sspmv_64
+    _check_or_init_nvpl_blas()
+    if __cblas_sspmv_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_sspmv_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_UPLO, const nvpl_int64_t, const float, const float*, const float*, const nvpl_int64_t, const float, float*, const nvpl_int64_t) noexcept nogil>__cblas_sspmv_64)(
+        order, Uplo, N, alpha, Ap, X, incX, beta, Y, incY)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_sger_64(const CBLAS_ORDER order, const nvpl_int64_t M, const nvpl_int64_t N, const float alpha, const float* X, const nvpl_int64_t incX, const float* Y, const nvpl_int64_t incY, float* A, const nvpl_int64_t lda) except* nogil:
+    global __cblas_sger_64
+    _check_or_init_nvpl_blas()
+    if __cblas_sger_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_sger_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const nvpl_int64_t, const nvpl_int64_t, const float, const float*, const nvpl_int64_t, const float*, const nvpl_int64_t, float*, const nvpl_int64_t) noexcept nogil>__cblas_sger_64)(
+        order, M, N, alpha, X, incX, Y, incY, A, lda)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_ssyr_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const nvpl_int64_t N, const float alpha, const float* X, const nvpl_int64_t incX, float* A, const nvpl_int64_t lda) except* nogil:
+    global __cblas_ssyr_64
+    _check_or_init_nvpl_blas()
+    if __cblas_ssyr_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_ssyr_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_UPLO, const nvpl_int64_t, const float, const float*, const nvpl_int64_t, float*, const nvpl_int64_t) noexcept nogil>__cblas_ssyr_64)(
+        order, Uplo, N, alpha, X, incX, A, lda)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_sspr_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const nvpl_int64_t N, const float alpha, const float* X, const nvpl_int64_t incX, float* Ap) except* nogil:
+    global __cblas_sspr_64
+    _check_or_init_nvpl_blas()
+    if __cblas_sspr_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_sspr_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_UPLO, const nvpl_int64_t, const float, const float*, const nvpl_int64_t, float*) noexcept nogil>__cblas_sspr_64)(
+        order, Uplo, N, alpha, X, incX, Ap)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_ssyr2_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const nvpl_int64_t N, const float alpha, const float* X, const nvpl_int64_t incX, const float* Y, const nvpl_int64_t incY, float* A, const nvpl_int64_t lda) except* nogil:
+    global __cblas_ssyr2_64
+    _check_or_init_nvpl_blas()
+    if __cblas_ssyr2_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_ssyr2_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_UPLO, const nvpl_int64_t, const float, const float*, const nvpl_int64_t, const float*, const nvpl_int64_t, float*, const nvpl_int64_t) noexcept nogil>__cblas_ssyr2_64)(
+        order, Uplo, N, alpha, X, incX, Y, incY, A, lda)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_sspr2_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const nvpl_int64_t N, const float alpha, const float* X, const nvpl_int64_t incX, const float* Y, const nvpl_int64_t incY, float* A) except* nogil:
+    global __cblas_sspr2_64
+    _check_or_init_nvpl_blas()
+    if __cblas_sspr2_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_sspr2_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_UPLO, const nvpl_int64_t, const float, const float*, const nvpl_int64_t, const float*, const nvpl_int64_t, float*) noexcept nogil>__cblas_sspr2_64)(
+        order, Uplo, N, alpha, X, incX, Y, incY, A)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_dsymv_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const nvpl_int64_t N, const double alpha, const double* A, const nvpl_int64_t lda, const double* X, const nvpl_int64_t incX, const double beta, double* Y, const nvpl_int64_t incY) except* nogil:
+    global __cblas_dsymv_64
+    _check_or_init_nvpl_blas()
+    if __cblas_dsymv_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_dsymv_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_UPLO, const nvpl_int64_t, const double, const double*, const nvpl_int64_t, const double*, const nvpl_int64_t, const double, double*, const nvpl_int64_t) noexcept nogil>__cblas_dsymv_64)(
+        order, Uplo, N, alpha, A, lda, X, incX, beta, Y, incY)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_dsbmv_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const nvpl_int64_t N, const nvpl_int64_t K, const double alpha, const double* A, const nvpl_int64_t lda, const double* X, const nvpl_int64_t incX, const double beta, double* Y, const nvpl_int64_t incY) except* nogil:
+    global __cblas_dsbmv_64
+    _check_or_init_nvpl_blas()
+    if __cblas_dsbmv_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_dsbmv_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_UPLO, const nvpl_int64_t, const nvpl_int64_t, const double, const double*, const nvpl_int64_t, const double*, const nvpl_int64_t, const double, double*, const nvpl_int64_t) noexcept nogil>__cblas_dsbmv_64)(
+        order, Uplo, N, K, alpha, A, lda, X, incX, beta, Y, incY)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_dspmv_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const nvpl_int64_t N, const double alpha, const double* Ap, const double* X, const nvpl_int64_t incX, const double beta, double* Y, const nvpl_int64_t incY) except* nogil:
+    global __cblas_dspmv_64
+    _check_or_init_nvpl_blas()
+    if __cblas_dspmv_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_dspmv_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_UPLO, const nvpl_int64_t, const double, const double*, const double*, const nvpl_int64_t, const double, double*, const nvpl_int64_t) noexcept nogil>__cblas_dspmv_64)(
+        order, Uplo, N, alpha, Ap, X, incX, beta, Y, incY)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_dger_64(const CBLAS_ORDER order, const nvpl_int64_t M, const nvpl_int64_t N, const double alpha, const double* X, const nvpl_int64_t incX, const double* Y, const nvpl_int64_t incY, double* A, const nvpl_int64_t lda) except* nogil:
+    global __cblas_dger_64
+    _check_or_init_nvpl_blas()
+    if __cblas_dger_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_dger_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const nvpl_int64_t, const nvpl_int64_t, const double, const double*, const nvpl_int64_t, const double*, const nvpl_int64_t, double*, const nvpl_int64_t) noexcept nogil>__cblas_dger_64)(
+        order, M, N, alpha, X, incX, Y, incY, A, lda)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_dsyr_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const nvpl_int64_t N, const double alpha, const double* X, const nvpl_int64_t incX, double* A, const nvpl_int64_t lda) except* nogil:
+    global __cblas_dsyr_64
+    _check_or_init_nvpl_blas()
+    if __cblas_dsyr_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_dsyr_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_UPLO, const nvpl_int64_t, const double, const double*, const nvpl_int64_t, double*, const nvpl_int64_t) noexcept nogil>__cblas_dsyr_64)(
+        order, Uplo, N, alpha, X, incX, A, lda)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_dspr_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const nvpl_int64_t N, const double alpha, const double* X, const nvpl_int64_t incX, double* Ap) except* nogil:
+    global __cblas_dspr_64
+    _check_or_init_nvpl_blas()
+    if __cblas_dspr_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_dspr_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_UPLO, const nvpl_int64_t, const double, const double*, const nvpl_int64_t, double*) noexcept nogil>__cblas_dspr_64)(
+        order, Uplo, N, alpha, X, incX, Ap)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_dsyr2_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const nvpl_int64_t N, const double alpha, const double* X, const nvpl_int64_t incX, const double* Y, const nvpl_int64_t incY, double* A, const nvpl_int64_t lda) except* nogil:
+    global __cblas_dsyr2_64
+    _check_or_init_nvpl_blas()
+    if __cblas_dsyr2_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_dsyr2_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_UPLO, const nvpl_int64_t, const double, const double*, const nvpl_int64_t, const double*, const nvpl_int64_t, double*, const nvpl_int64_t) noexcept nogil>__cblas_dsyr2_64)(
+        order, Uplo, N, alpha, X, incX, Y, incY, A, lda)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_dspr2_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const nvpl_int64_t N, const double alpha, const double* X, const nvpl_int64_t incX, const double* Y, const nvpl_int64_t incY, double* A) except* nogil:
+    global __cblas_dspr2_64
+    _check_or_init_nvpl_blas()
+    if __cblas_dspr2_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_dspr2_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_UPLO, const nvpl_int64_t, const double, const double*, const nvpl_int64_t, const double*, const nvpl_int64_t, double*) noexcept nogil>__cblas_dspr2_64)(
+        order, Uplo, N, alpha, X, incX, Y, incY, A)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_chemv_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const nvpl_int64_t N, const void* alpha, const void* A, const nvpl_int64_t lda, const void* X, const nvpl_int64_t incX, const void* beta, void* Y, const nvpl_int64_t incY) except* nogil:
+    global __cblas_chemv_64
+    _check_or_init_nvpl_blas()
+    if __cblas_chemv_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_chemv_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_UPLO, const nvpl_int64_t, const void*, const void*, const nvpl_int64_t, const void*, const nvpl_int64_t, const void*, void*, const nvpl_int64_t) noexcept nogil>__cblas_chemv_64)(
+        order, Uplo, N, alpha, A, lda, X, incX, beta, Y, incY)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_chbmv_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const nvpl_int64_t N, const nvpl_int64_t K, const void* alpha, const void* A, const nvpl_int64_t lda, const void* X, const nvpl_int64_t incX, const void* beta, void* Y, const nvpl_int64_t incY) except* nogil:
+    global __cblas_chbmv_64
+    _check_or_init_nvpl_blas()
+    if __cblas_chbmv_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_chbmv_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_UPLO, const nvpl_int64_t, const nvpl_int64_t, const void*, const void*, const nvpl_int64_t, const void*, const nvpl_int64_t, const void*, void*, const nvpl_int64_t) noexcept nogil>__cblas_chbmv_64)(
+        order, Uplo, N, K, alpha, A, lda, X, incX, beta, Y, incY)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_chpmv_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const nvpl_int64_t N, const void* alpha, const void* Ap, const void* X, const nvpl_int64_t incX, const void* beta, void* Y, const nvpl_int64_t incY) except* nogil:
+    global __cblas_chpmv_64
+    _check_or_init_nvpl_blas()
+    if __cblas_chpmv_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_chpmv_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_UPLO, const nvpl_int64_t, const void*, const void*, const void*, const nvpl_int64_t, const void*, void*, const nvpl_int64_t) noexcept nogil>__cblas_chpmv_64)(
+        order, Uplo, N, alpha, Ap, X, incX, beta, Y, incY)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_cgeru_64(const CBLAS_ORDER order, const nvpl_int64_t M, const nvpl_int64_t N, const void* alpha, const void* X, const nvpl_int64_t incX, const void* Y, const nvpl_int64_t incY, void* A, const nvpl_int64_t lda) except* nogil:
+    global __cblas_cgeru_64
+    _check_or_init_nvpl_blas()
+    if __cblas_cgeru_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_cgeru_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const nvpl_int64_t, const nvpl_int64_t, const void*, const void*, const nvpl_int64_t, const void*, const nvpl_int64_t, void*, const nvpl_int64_t) noexcept nogil>__cblas_cgeru_64)(
+        order, M, N, alpha, X, incX, Y, incY, A, lda)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_cgerc_64(const CBLAS_ORDER order, const nvpl_int64_t M, const nvpl_int64_t N, const void* alpha, const void* X, const nvpl_int64_t incX, const void* Y, const nvpl_int64_t incY, void* A, const nvpl_int64_t lda) except* nogil:
+    global __cblas_cgerc_64
+    _check_or_init_nvpl_blas()
+    if __cblas_cgerc_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_cgerc_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const nvpl_int64_t, const nvpl_int64_t, const void*, const void*, const nvpl_int64_t, const void*, const nvpl_int64_t, void*, const nvpl_int64_t) noexcept nogil>__cblas_cgerc_64)(
+        order, M, N, alpha, X, incX, Y, incY, A, lda)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_cher_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const nvpl_int64_t N, const float alpha, const void* X, const nvpl_int64_t incX, void* A, const nvpl_int64_t lda) except* nogil:
+    global __cblas_cher_64
+    _check_or_init_nvpl_blas()
+    if __cblas_cher_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_cher_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_UPLO, const nvpl_int64_t, const float, const void*, const nvpl_int64_t, void*, const nvpl_int64_t) noexcept nogil>__cblas_cher_64)(
+        order, Uplo, N, alpha, X, incX, A, lda)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_chpr_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const nvpl_int64_t N, const float alpha, const void* X, const nvpl_int64_t incX, void* A) except* nogil:
+    global __cblas_chpr_64
+    _check_or_init_nvpl_blas()
+    if __cblas_chpr_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_chpr_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_UPLO, const nvpl_int64_t, const float, const void*, const nvpl_int64_t, void*) noexcept nogil>__cblas_chpr_64)(
+        order, Uplo, N, alpha, X, incX, A)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_cher2_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const nvpl_int64_t N, const void* alpha, const void* X, const nvpl_int64_t incX, const void* Y, const nvpl_int64_t incY, void* A, const nvpl_int64_t lda) except* nogil:
+    global __cblas_cher2_64
+    _check_or_init_nvpl_blas()
+    if __cblas_cher2_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_cher2_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_UPLO, const nvpl_int64_t, const void*, const void*, const nvpl_int64_t, const void*, const nvpl_int64_t, void*, const nvpl_int64_t) noexcept nogil>__cblas_cher2_64)(
+        order, Uplo, N, alpha, X, incX, Y, incY, A, lda)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_chpr2_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const nvpl_int64_t N, const void* alpha, const void* X, const nvpl_int64_t incX, const void* Y, const nvpl_int64_t incY, void* Ap) except* nogil:
+    global __cblas_chpr2_64
+    _check_or_init_nvpl_blas()
+    if __cblas_chpr2_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_chpr2_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_UPLO, const nvpl_int64_t, const void*, const void*, const nvpl_int64_t, const void*, const nvpl_int64_t, void*) noexcept nogil>__cblas_chpr2_64)(
+        order, Uplo, N, alpha, X, incX, Y, incY, Ap)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_zhemv_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const nvpl_int64_t N, const void* alpha, const void* A, const nvpl_int64_t lda, const void* X, const nvpl_int64_t incX, const void* beta, void* Y, const nvpl_int64_t incY) except* nogil:
+    global __cblas_zhemv_64
+    _check_or_init_nvpl_blas()
+    if __cblas_zhemv_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_zhemv_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_UPLO, const nvpl_int64_t, const void*, const void*, const nvpl_int64_t, const void*, const nvpl_int64_t, const void*, void*, const nvpl_int64_t) noexcept nogil>__cblas_zhemv_64)(
+        order, Uplo, N, alpha, A, lda, X, incX, beta, Y, incY)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_zhbmv_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const nvpl_int64_t N, const nvpl_int64_t K, const void* alpha, const void* A, const nvpl_int64_t lda, const void* X, const nvpl_int64_t incX, const void* beta, void* Y, const nvpl_int64_t incY) except* nogil:
+    global __cblas_zhbmv_64
+    _check_or_init_nvpl_blas()
+    if __cblas_zhbmv_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_zhbmv_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_UPLO, const nvpl_int64_t, const nvpl_int64_t, const void*, const void*, const nvpl_int64_t, const void*, const nvpl_int64_t, const void*, void*, const nvpl_int64_t) noexcept nogil>__cblas_zhbmv_64)(
+        order, Uplo, N, K, alpha, A, lda, X, incX, beta, Y, incY)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_zhpmv_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const nvpl_int64_t N, const void* alpha, const void* Ap, const void* X, const nvpl_int64_t incX, const void* beta, void* Y, const nvpl_int64_t incY) except* nogil:
+    global __cblas_zhpmv_64
+    _check_or_init_nvpl_blas()
+    if __cblas_zhpmv_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_zhpmv_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_UPLO, const nvpl_int64_t, const void*, const void*, const void*, const nvpl_int64_t, const void*, void*, const nvpl_int64_t) noexcept nogil>__cblas_zhpmv_64)(
+        order, Uplo, N, alpha, Ap, X, incX, beta, Y, incY)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_zgeru_64(const CBLAS_ORDER order, const nvpl_int64_t M, const nvpl_int64_t N, const void* alpha, const void* X, const nvpl_int64_t incX, const void* Y, const nvpl_int64_t incY, void* A, const nvpl_int64_t lda) except* nogil:
+    global __cblas_zgeru_64
+    _check_or_init_nvpl_blas()
+    if __cblas_zgeru_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_zgeru_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const nvpl_int64_t, const nvpl_int64_t, const void*, const void*, const nvpl_int64_t, const void*, const nvpl_int64_t, void*, const nvpl_int64_t) noexcept nogil>__cblas_zgeru_64)(
+        order, M, N, alpha, X, incX, Y, incY, A, lda)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_zgerc_64(const CBLAS_ORDER order, const nvpl_int64_t M, const nvpl_int64_t N, const void* alpha, const void* X, const nvpl_int64_t incX, const void* Y, const nvpl_int64_t incY, void* A, const nvpl_int64_t lda) except* nogil:
+    global __cblas_zgerc_64
+    _check_or_init_nvpl_blas()
+    if __cblas_zgerc_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_zgerc_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const nvpl_int64_t, const nvpl_int64_t, const void*, const void*, const nvpl_int64_t, const void*, const nvpl_int64_t, void*, const nvpl_int64_t) noexcept nogil>__cblas_zgerc_64)(
+        order, M, N, alpha, X, incX, Y, incY, A, lda)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_zher_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const nvpl_int64_t N, const double alpha, const void* X, const nvpl_int64_t incX, void* A, const nvpl_int64_t lda) except* nogil:
+    global __cblas_zher_64
+    _check_or_init_nvpl_blas()
+    if __cblas_zher_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_zher_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_UPLO, const nvpl_int64_t, const double, const void*, const nvpl_int64_t, void*, const nvpl_int64_t) noexcept nogil>__cblas_zher_64)(
+        order, Uplo, N, alpha, X, incX, A, lda)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_zhpr_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const nvpl_int64_t N, const double alpha, const void* X, const nvpl_int64_t incX, void* A) except* nogil:
+    global __cblas_zhpr_64
+    _check_or_init_nvpl_blas()
+    if __cblas_zhpr_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_zhpr_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_UPLO, const nvpl_int64_t, const double, const void*, const nvpl_int64_t, void*) noexcept nogil>__cblas_zhpr_64)(
+        order, Uplo, N, alpha, X, incX, A)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_zher2_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const nvpl_int64_t N, const void* alpha, const void* X, const nvpl_int64_t incX, const void* Y, const nvpl_int64_t incY, void* A, const nvpl_int64_t lda) except* nogil:
+    global __cblas_zher2_64
+    _check_or_init_nvpl_blas()
+    if __cblas_zher2_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_zher2_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_UPLO, const nvpl_int64_t, const void*, const void*, const nvpl_int64_t, const void*, const nvpl_int64_t, void*, const nvpl_int64_t) noexcept nogil>__cblas_zher2_64)(
+        order, Uplo, N, alpha, X, incX, Y, incY, A, lda)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_zhpr2_64(const CBLAS_ORDER order, const CBLAS_UPLO Uplo, const nvpl_int64_t N, const void* alpha, const void* X, const nvpl_int64_t incX, const void* Y, const nvpl_int64_t incY, void* Ap) except* nogil:
+    global __cblas_zhpr2_64
+    _check_or_init_nvpl_blas()
+    if __cblas_zhpr2_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_zhpr2_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_UPLO, const nvpl_int64_t, const void*, const void*, const nvpl_int64_t, const void*, const nvpl_int64_t, void*) noexcept nogil>__cblas_zhpr2_64)(
+        order, Uplo, N, alpha, X, incX, Y, incY, Ap)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_sgemm_64(const CBLAS_ORDER Order, const CBLAS_TRANSPOSE TransA, const CBLAS_TRANSPOSE TransB, const nvpl_int64_t M, const nvpl_int64_t N, const nvpl_int64_t K, const float alpha, const float* A, const nvpl_int64_t lda, const float* B, const nvpl_int64_t ldb, const float beta, float* C, const nvpl_int64_t ldc) except* nogil:
+    global __cblas_sgemm_64
+    _check_or_init_nvpl_blas()
+    if __cblas_sgemm_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_sgemm_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_TRANSPOSE, const CBLAS_TRANSPOSE, const nvpl_int64_t, const nvpl_int64_t, const nvpl_int64_t, const float, const float*, const nvpl_int64_t, const float*, const nvpl_int64_t, const float, float*, const nvpl_int64_t) noexcept nogil>__cblas_sgemm_64)(
+        Order, TransA, TransB, M, N, K, alpha, A, lda, B, ldb, beta, C, ldc)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_ssymm_64(const CBLAS_ORDER Order, const CBLAS_SIDE Side, const CBLAS_UPLO Uplo, const nvpl_int64_t M, const nvpl_int64_t N, const float alpha, const float* A, const nvpl_int64_t lda, const float* B, const nvpl_int64_t ldb, const float beta, float* C, const nvpl_int64_t ldc) except* nogil:
+    global __cblas_ssymm_64
+    _check_or_init_nvpl_blas()
+    if __cblas_ssymm_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_ssymm_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_SIDE, const CBLAS_UPLO, const nvpl_int64_t, const nvpl_int64_t, const float, const float*, const nvpl_int64_t, const float*, const nvpl_int64_t, const float, float*, const nvpl_int64_t) noexcept nogil>__cblas_ssymm_64)(
+        Order, Side, Uplo, M, N, alpha, A, lda, B, ldb, beta, C, ldc)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_ssyrk_64(const CBLAS_ORDER Order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE Trans, const nvpl_int64_t N, const nvpl_int64_t K, const float alpha, const float* A, const nvpl_int64_t lda, const float beta, float* C, const nvpl_int64_t ldc) except* nogil:
+    global __cblas_ssyrk_64
+    _check_or_init_nvpl_blas()
+    if __cblas_ssyrk_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_ssyrk_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_UPLO, const CBLAS_TRANSPOSE, const nvpl_int64_t, const nvpl_int64_t, const float, const float*, const nvpl_int64_t, const float, float*, const nvpl_int64_t) noexcept nogil>__cblas_ssyrk_64)(
+        Order, Uplo, Trans, N, K, alpha, A, lda, beta, C, ldc)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_ssyr2k_64(const CBLAS_ORDER Order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE Trans, const nvpl_int64_t N, const nvpl_int64_t K, const float alpha, const float* A, const nvpl_int64_t lda, const float* B, const nvpl_int64_t ldb, const float beta, float* C, const nvpl_int64_t ldc) except* nogil:
+    global __cblas_ssyr2k_64
+    _check_or_init_nvpl_blas()
+    if __cblas_ssyr2k_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_ssyr2k_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_UPLO, const CBLAS_TRANSPOSE, const nvpl_int64_t, const nvpl_int64_t, const float, const float*, const nvpl_int64_t, const float*, const nvpl_int64_t, const float, float*, const nvpl_int64_t) noexcept nogil>__cblas_ssyr2k_64)(
+        Order, Uplo, Trans, N, K, alpha, A, lda, B, ldb, beta, C, ldc)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_strmm_64(const CBLAS_ORDER Order, const CBLAS_SIDE Side, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_DIAG Diag, const nvpl_int64_t M, const nvpl_int64_t N, const float alpha, const float* A, const nvpl_int64_t lda, float* B, const nvpl_int64_t ldb) except* nogil:
+    global __cblas_strmm_64
+    _check_or_init_nvpl_blas()
+    if __cblas_strmm_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_strmm_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_SIDE, const CBLAS_UPLO, const CBLAS_TRANSPOSE, const CBLAS_DIAG, const nvpl_int64_t, const nvpl_int64_t, const float, const float*, const nvpl_int64_t, float*, const nvpl_int64_t) noexcept nogil>__cblas_strmm_64)(
+        Order, Side, Uplo, TransA, Diag, M, N, alpha, A, lda, B, ldb)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_strsm_64(const CBLAS_ORDER Order, const CBLAS_SIDE Side, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_DIAG Diag, const nvpl_int64_t M, const nvpl_int64_t N, const float alpha, const float* A, const nvpl_int64_t lda, float* B, const nvpl_int64_t ldb) except* nogil:
+    global __cblas_strsm_64
+    _check_or_init_nvpl_blas()
+    if __cblas_strsm_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_strsm_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_SIDE, const CBLAS_UPLO, const CBLAS_TRANSPOSE, const CBLAS_DIAG, const nvpl_int64_t, const nvpl_int64_t, const float, const float*, const nvpl_int64_t, float*, const nvpl_int64_t) noexcept nogil>__cblas_strsm_64)(
+        Order, Side, Uplo, TransA, Diag, M, N, alpha, A, lda, B, ldb)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_dgemm_64(const CBLAS_ORDER Order, const CBLAS_TRANSPOSE TransA, const CBLAS_TRANSPOSE TransB, const nvpl_int64_t M, const nvpl_int64_t N, const nvpl_int64_t K, const double alpha, const double* A, const nvpl_int64_t lda, const double* B, const nvpl_int64_t ldb, const double beta, double* C, const nvpl_int64_t ldc) except* nogil:
+    global __cblas_dgemm_64
+    _check_or_init_nvpl_blas()
+    if __cblas_dgemm_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_dgemm_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_TRANSPOSE, const CBLAS_TRANSPOSE, const nvpl_int64_t, const nvpl_int64_t, const nvpl_int64_t, const double, const double*, const nvpl_int64_t, const double*, const nvpl_int64_t, const double, double*, const nvpl_int64_t) noexcept nogil>__cblas_dgemm_64)(
+        Order, TransA, TransB, M, N, K, alpha, A, lda, B, ldb, beta, C, ldc)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_dsymm_64(const CBLAS_ORDER Order, const CBLAS_SIDE Side, const CBLAS_UPLO Uplo, const nvpl_int64_t M, const nvpl_int64_t N, const double alpha, const double* A, const nvpl_int64_t lda, const double* B, const nvpl_int64_t ldb, const double beta, double* C, const nvpl_int64_t ldc) except* nogil:
+    global __cblas_dsymm_64
+    _check_or_init_nvpl_blas()
+    if __cblas_dsymm_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_dsymm_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_SIDE, const CBLAS_UPLO, const nvpl_int64_t, const nvpl_int64_t, const double, const double*, const nvpl_int64_t, const double*, const nvpl_int64_t, const double, double*, const nvpl_int64_t) noexcept nogil>__cblas_dsymm_64)(
+        Order, Side, Uplo, M, N, alpha, A, lda, B, ldb, beta, C, ldc)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_dsyrk_64(const CBLAS_ORDER Order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE Trans, const nvpl_int64_t N, const nvpl_int64_t K, const double alpha, const double* A, const nvpl_int64_t lda, const double beta, double* C, const nvpl_int64_t ldc) except* nogil:
+    global __cblas_dsyrk_64
+    _check_or_init_nvpl_blas()
+    if __cblas_dsyrk_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_dsyrk_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_UPLO, const CBLAS_TRANSPOSE, const nvpl_int64_t, const nvpl_int64_t, const double, const double*, const nvpl_int64_t, const double, double*, const nvpl_int64_t) noexcept nogil>__cblas_dsyrk_64)(
+        Order, Uplo, Trans, N, K, alpha, A, lda, beta, C, ldc)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_dsyr2k_64(const CBLAS_ORDER Order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE Trans, const nvpl_int64_t N, const nvpl_int64_t K, const double alpha, const double* A, const nvpl_int64_t lda, const double* B, const nvpl_int64_t ldb, const double beta, double* C, const nvpl_int64_t ldc) except* nogil:
+    global __cblas_dsyr2k_64
+    _check_or_init_nvpl_blas()
+    if __cblas_dsyr2k_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_dsyr2k_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_UPLO, const CBLAS_TRANSPOSE, const nvpl_int64_t, const nvpl_int64_t, const double, const double*, const nvpl_int64_t, const double*, const nvpl_int64_t, const double, double*, const nvpl_int64_t) noexcept nogil>__cblas_dsyr2k_64)(
+        Order, Uplo, Trans, N, K, alpha, A, lda, B, ldb, beta, C, ldc)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_dtrmm_64(const CBLAS_ORDER Order, const CBLAS_SIDE Side, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_DIAG Diag, const nvpl_int64_t M, const nvpl_int64_t N, const double alpha, const double* A, const nvpl_int64_t lda, double* B, const nvpl_int64_t ldb) except* nogil:
+    global __cblas_dtrmm_64
+    _check_or_init_nvpl_blas()
+    if __cblas_dtrmm_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_dtrmm_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_SIDE, const CBLAS_UPLO, const CBLAS_TRANSPOSE, const CBLAS_DIAG, const nvpl_int64_t, const nvpl_int64_t, const double, const double*, const nvpl_int64_t, double*, const nvpl_int64_t) noexcept nogil>__cblas_dtrmm_64)(
+        Order, Side, Uplo, TransA, Diag, M, N, alpha, A, lda, B, ldb)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_dtrsm_64(const CBLAS_ORDER Order, const CBLAS_SIDE Side, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_DIAG Diag, const nvpl_int64_t M, const nvpl_int64_t N, const double alpha, const double* A, const nvpl_int64_t lda, double* B, const nvpl_int64_t ldb) except* nogil:
+    global __cblas_dtrsm_64
+    _check_or_init_nvpl_blas()
+    if __cblas_dtrsm_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_dtrsm_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_SIDE, const CBLAS_UPLO, const CBLAS_TRANSPOSE, const CBLAS_DIAG, const nvpl_int64_t, const nvpl_int64_t, const double, const double*, const nvpl_int64_t, double*, const nvpl_int64_t) noexcept nogil>__cblas_dtrsm_64)(
+        Order, Side, Uplo, TransA, Diag, M, N, alpha, A, lda, B, ldb)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_cgemm_64(const CBLAS_ORDER Order, const CBLAS_TRANSPOSE TransA, const CBLAS_TRANSPOSE TransB, const nvpl_int64_t M, const nvpl_int64_t N, const nvpl_int64_t K, const void* alpha, const void* A, const nvpl_int64_t lda, const void* B, const nvpl_int64_t ldb, const void* beta, void* C, const nvpl_int64_t ldc) except* nogil:
+    global __cblas_cgemm_64
+    _check_or_init_nvpl_blas()
+    if __cblas_cgemm_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_cgemm_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_TRANSPOSE, const CBLAS_TRANSPOSE, const nvpl_int64_t, const nvpl_int64_t, const nvpl_int64_t, const void*, const void*, const nvpl_int64_t, const void*, const nvpl_int64_t, const void*, void*, const nvpl_int64_t) noexcept nogil>__cblas_cgemm_64)(
+        Order, TransA, TransB, M, N, K, alpha, A, lda, B, ldb, beta, C, ldc)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_csymm_64(const CBLAS_ORDER Order, const CBLAS_SIDE Side, const CBLAS_UPLO Uplo, const nvpl_int64_t M, const nvpl_int64_t N, const void* alpha, const void* A, const nvpl_int64_t lda, const void* B, const nvpl_int64_t ldb, const void* beta, void* C, const nvpl_int64_t ldc) except* nogil:
+    global __cblas_csymm_64
+    _check_or_init_nvpl_blas()
+    if __cblas_csymm_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_csymm_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_SIDE, const CBLAS_UPLO, const nvpl_int64_t, const nvpl_int64_t, const void*, const void*, const nvpl_int64_t, const void*, const nvpl_int64_t, const void*, void*, const nvpl_int64_t) noexcept nogil>__cblas_csymm_64)(
+        Order, Side, Uplo, M, N, alpha, A, lda, B, ldb, beta, C, ldc)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_csyrk_64(const CBLAS_ORDER Order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE Trans, const nvpl_int64_t N, const nvpl_int64_t K, const void* alpha, const void* A, const nvpl_int64_t lda, const void* beta, void* C, const nvpl_int64_t ldc) except* nogil:
+    global __cblas_csyrk_64
+    _check_or_init_nvpl_blas()
+    if __cblas_csyrk_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_csyrk_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_UPLO, const CBLAS_TRANSPOSE, const nvpl_int64_t, const nvpl_int64_t, const void*, const void*, const nvpl_int64_t, const void*, void*, const nvpl_int64_t) noexcept nogil>__cblas_csyrk_64)(
+        Order, Uplo, Trans, N, K, alpha, A, lda, beta, C, ldc)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_csyr2k_64(const CBLAS_ORDER Order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE Trans, const nvpl_int64_t N, const nvpl_int64_t K, const void* alpha, const void* A, const nvpl_int64_t lda, const void* B, const nvpl_int64_t ldb, const void* beta, void* C, const nvpl_int64_t ldc) except* nogil:
+    global __cblas_csyr2k_64
+    _check_or_init_nvpl_blas()
+    if __cblas_csyr2k_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_csyr2k_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_UPLO, const CBLAS_TRANSPOSE, const nvpl_int64_t, const nvpl_int64_t, const void*, const void*, const nvpl_int64_t, const void*, const nvpl_int64_t, const void*, void*, const nvpl_int64_t) noexcept nogil>__cblas_csyr2k_64)(
+        Order, Uplo, Trans, N, K, alpha, A, lda, B, ldb, beta, C, ldc)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_ctrmm_64(const CBLAS_ORDER Order, const CBLAS_SIDE Side, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_DIAG Diag, const nvpl_int64_t M, const nvpl_int64_t N, const void* alpha, const void* A, const nvpl_int64_t lda, void* B, const nvpl_int64_t ldb) except* nogil:
+    global __cblas_ctrmm_64
+    _check_or_init_nvpl_blas()
+    if __cblas_ctrmm_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_ctrmm_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_SIDE, const CBLAS_UPLO, const CBLAS_TRANSPOSE, const CBLAS_DIAG, const nvpl_int64_t, const nvpl_int64_t, const void*, const void*, const nvpl_int64_t, void*, const nvpl_int64_t) noexcept nogil>__cblas_ctrmm_64)(
+        Order, Side, Uplo, TransA, Diag, M, N, alpha, A, lda, B, ldb)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_ctrsm_64(const CBLAS_ORDER Order, const CBLAS_SIDE Side, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_DIAG Diag, const nvpl_int64_t M, const nvpl_int64_t N, const void* alpha, const void* A, const nvpl_int64_t lda, void* B, const nvpl_int64_t ldb) except* nogil:
+    global __cblas_ctrsm_64
+    _check_or_init_nvpl_blas()
+    if __cblas_ctrsm_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_ctrsm_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_SIDE, const CBLAS_UPLO, const CBLAS_TRANSPOSE, const CBLAS_DIAG, const nvpl_int64_t, const nvpl_int64_t, const void*, const void*, const nvpl_int64_t, void*, const nvpl_int64_t) noexcept nogil>__cblas_ctrsm_64)(
+        Order, Side, Uplo, TransA, Diag, M, N, alpha, A, lda, B, ldb)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_zgemm_64(const CBLAS_ORDER Order, const CBLAS_TRANSPOSE TransA, const CBLAS_TRANSPOSE TransB, const nvpl_int64_t M, const nvpl_int64_t N, const nvpl_int64_t K, const void* alpha, const void* A, const nvpl_int64_t lda, const void* B, const nvpl_int64_t ldb, const void* beta, void* C, const nvpl_int64_t ldc) except* nogil:
+    global __cblas_zgemm_64
+    _check_or_init_nvpl_blas()
+    if __cblas_zgemm_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_zgemm_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_TRANSPOSE, const CBLAS_TRANSPOSE, const nvpl_int64_t, const nvpl_int64_t, const nvpl_int64_t, const void*, const void*, const nvpl_int64_t, const void*, const nvpl_int64_t, const void*, void*, const nvpl_int64_t) noexcept nogil>__cblas_zgemm_64)(
+        Order, TransA, TransB, M, N, K, alpha, A, lda, B, ldb, beta, C, ldc)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_zsymm_64(const CBLAS_ORDER Order, const CBLAS_SIDE Side, const CBLAS_UPLO Uplo, const nvpl_int64_t M, const nvpl_int64_t N, const void* alpha, const void* A, const nvpl_int64_t lda, const void* B, const nvpl_int64_t ldb, const void* beta, void* C, const nvpl_int64_t ldc) except* nogil:
+    global __cblas_zsymm_64
+    _check_or_init_nvpl_blas()
+    if __cblas_zsymm_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_zsymm_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_SIDE, const CBLAS_UPLO, const nvpl_int64_t, const nvpl_int64_t, const void*, const void*, const nvpl_int64_t, const void*, const nvpl_int64_t, const void*, void*, const nvpl_int64_t) noexcept nogil>__cblas_zsymm_64)(
+        Order, Side, Uplo, M, N, alpha, A, lda, B, ldb, beta, C, ldc)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_zsyrk_64(const CBLAS_ORDER Order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE Trans, const nvpl_int64_t N, const nvpl_int64_t K, const void* alpha, const void* A, const nvpl_int64_t lda, const void* beta, void* C, const nvpl_int64_t ldc) except* nogil:
+    global __cblas_zsyrk_64
+    _check_or_init_nvpl_blas()
+    if __cblas_zsyrk_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_zsyrk_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_UPLO, const CBLAS_TRANSPOSE, const nvpl_int64_t, const nvpl_int64_t, const void*, const void*, const nvpl_int64_t, const void*, void*, const nvpl_int64_t) noexcept nogil>__cblas_zsyrk_64)(
+        Order, Uplo, Trans, N, K, alpha, A, lda, beta, C, ldc)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_zsyr2k_64(const CBLAS_ORDER Order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE Trans, const nvpl_int64_t N, const nvpl_int64_t K, const void* alpha, const void* A, const nvpl_int64_t lda, const void* B, const nvpl_int64_t ldb, const void* beta, void* C, const nvpl_int64_t ldc) except* nogil:
+    global __cblas_zsyr2k_64
+    _check_or_init_nvpl_blas()
+    if __cblas_zsyr2k_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_zsyr2k_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_UPLO, const CBLAS_TRANSPOSE, const nvpl_int64_t, const nvpl_int64_t, const void*, const void*, const nvpl_int64_t, const void*, const nvpl_int64_t, const void*, void*, const nvpl_int64_t) noexcept nogil>__cblas_zsyr2k_64)(
+        Order, Uplo, Trans, N, K, alpha, A, lda, B, ldb, beta, C, ldc)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_ztrmm_64(const CBLAS_ORDER Order, const CBLAS_SIDE Side, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_DIAG Diag, const nvpl_int64_t M, const nvpl_int64_t N, const void* alpha, const void* A, const nvpl_int64_t lda, void* B, const nvpl_int64_t ldb) except* nogil:
+    global __cblas_ztrmm_64
+    _check_or_init_nvpl_blas()
+    if __cblas_ztrmm_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_ztrmm_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_SIDE, const CBLAS_UPLO, const CBLAS_TRANSPOSE, const CBLAS_DIAG, const nvpl_int64_t, const nvpl_int64_t, const void*, const void*, const nvpl_int64_t, void*, const nvpl_int64_t) noexcept nogil>__cblas_ztrmm_64)(
+        Order, Side, Uplo, TransA, Diag, M, N, alpha, A, lda, B, ldb)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_ztrsm_64(const CBLAS_ORDER Order, const CBLAS_SIDE Side, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_DIAG Diag, const nvpl_int64_t M, const nvpl_int64_t N, const void* alpha, const void* A, const nvpl_int64_t lda, void* B, const nvpl_int64_t ldb) except* nogil:
+    global __cblas_ztrsm_64
+    _check_or_init_nvpl_blas()
+    if __cblas_ztrsm_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_ztrsm_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_SIDE, const CBLAS_UPLO, const CBLAS_TRANSPOSE, const CBLAS_DIAG, const nvpl_int64_t, const nvpl_int64_t, const void*, const void*, const nvpl_int64_t, void*, const nvpl_int64_t) noexcept nogil>__cblas_ztrsm_64)(
+        Order, Side, Uplo, TransA, Diag, M, N, alpha, A, lda, B, ldb)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_chemm_64(const CBLAS_ORDER Order, const CBLAS_SIDE Side, const CBLAS_UPLO Uplo, const nvpl_int64_t M, const nvpl_int64_t N, const void* alpha, const void* A, const nvpl_int64_t lda, const void* B, const nvpl_int64_t ldb, const void* beta, void* C, const nvpl_int64_t ldc) except* nogil:
+    global __cblas_chemm_64
+    _check_or_init_nvpl_blas()
+    if __cblas_chemm_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_chemm_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_SIDE, const CBLAS_UPLO, const nvpl_int64_t, const nvpl_int64_t, const void*, const void*, const nvpl_int64_t, const void*, const nvpl_int64_t, const void*, void*, const nvpl_int64_t) noexcept nogil>__cblas_chemm_64)(
+        Order, Side, Uplo, M, N, alpha, A, lda, B, ldb, beta, C, ldc)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_cherk_64(const CBLAS_ORDER Order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE Trans, const nvpl_int64_t N, const nvpl_int64_t K, const float alpha, const void* A, const nvpl_int64_t lda, const float beta, void* C, const nvpl_int64_t ldc) except* nogil:
+    global __cblas_cherk_64
+    _check_or_init_nvpl_blas()
+    if __cblas_cherk_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_cherk_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_UPLO, const CBLAS_TRANSPOSE, const nvpl_int64_t, const nvpl_int64_t, const float, const void*, const nvpl_int64_t, const float, void*, const nvpl_int64_t) noexcept nogil>__cblas_cherk_64)(
+        Order, Uplo, Trans, N, K, alpha, A, lda, beta, C, ldc)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_cher2k_64(const CBLAS_ORDER Order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE Trans, const nvpl_int64_t N, const nvpl_int64_t K, const void* alpha, const void* A, const nvpl_int64_t lda, const void* B, const nvpl_int64_t ldb, const float beta, void* C, const nvpl_int64_t ldc) except* nogil:
+    global __cblas_cher2k_64
+    _check_or_init_nvpl_blas()
+    if __cblas_cher2k_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_cher2k_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_UPLO, const CBLAS_TRANSPOSE, const nvpl_int64_t, const nvpl_int64_t, const void*, const void*, const nvpl_int64_t, const void*, const nvpl_int64_t, const float, void*, const nvpl_int64_t) noexcept nogil>__cblas_cher2k_64)(
+        Order, Uplo, Trans, N, K, alpha, A, lda, B, ldb, beta, C, ldc)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_zhemm_64(const CBLAS_ORDER Order, const CBLAS_SIDE Side, const CBLAS_UPLO Uplo, const nvpl_int64_t M, const nvpl_int64_t N, const void* alpha, const void* A, const nvpl_int64_t lda, const void* B, const nvpl_int64_t ldb, const void* beta, void* C, const nvpl_int64_t ldc) except* nogil:
+    global __cblas_zhemm_64
+    _check_or_init_nvpl_blas()
+    if __cblas_zhemm_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_zhemm_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_SIDE, const CBLAS_UPLO, const nvpl_int64_t, const nvpl_int64_t, const void*, const void*, const nvpl_int64_t, const void*, const nvpl_int64_t, const void*, void*, const nvpl_int64_t) noexcept nogil>__cblas_zhemm_64)(
+        Order, Side, Uplo, M, N, alpha, A, lda, B, ldb, beta, C, ldc)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_zherk_64(const CBLAS_ORDER Order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE Trans, const nvpl_int64_t N, const nvpl_int64_t K, const double alpha, const void* A, const nvpl_int64_t lda, const double beta, void* C, const nvpl_int64_t ldc) except* nogil:
+    global __cblas_zherk_64
+    _check_or_init_nvpl_blas()
+    if __cblas_zherk_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_zherk_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_UPLO, const CBLAS_TRANSPOSE, const nvpl_int64_t, const nvpl_int64_t, const double, const void*, const nvpl_int64_t, const double, void*, const nvpl_int64_t) noexcept nogil>__cblas_zherk_64)(
+        Order, Uplo, Trans, N, K, alpha, A, lda, beta, C, ldc)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_zher2k_64(const CBLAS_ORDER Order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE Trans, const nvpl_int64_t N, const nvpl_int64_t K, const void* alpha, const void* A, const nvpl_int64_t lda, const void* B, const nvpl_int64_t ldb, const double beta, void* C, const nvpl_int64_t ldc) except* nogil:
+    global __cblas_zher2k_64
+    _check_or_init_nvpl_blas()
+    if __cblas_zher2k_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_zher2k_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_UPLO, const CBLAS_TRANSPOSE, const nvpl_int64_t, const nvpl_int64_t, const void*, const void*, const nvpl_int64_t, const void*, const nvpl_int64_t, const double, void*, const nvpl_int64_t) noexcept nogil>__cblas_zher2k_64)(
+        Order, Uplo, Trans, N, K, alpha, A, lda, B, ldb, beta, C, ldc)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_sgemmt_64(const CBLAS_ORDER Order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_TRANSPOSE TransB, const nvpl_int64_t N, const nvpl_int64_t K, const float alpha, const float* A, const nvpl_int64_t lda, const float* B, const nvpl_int64_t ldb, const float beta, float* C, const nvpl_int64_t ldc) except* nogil:
+    global __cblas_sgemmt_64
+    _check_or_init_nvpl_blas()
+    if __cblas_sgemmt_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_sgemmt_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_UPLO, const CBLAS_TRANSPOSE, const CBLAS_TRANSPOSE, const nvpl_int64_t, const nvpl_int64_t, const float, const float*, const nvpl_int64_t, const float*, const nvpl_int64_t, const float, float*, const nvpl_int64_t) noexcept nogil>__cblas_sgemmt_64)(
+        Order, Uplo, TransA, TransB, N, K, alpha, A, lda, B, ldb, beta, C, ldc)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_dgemmt_64(const CBLAS_ORDER Order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_TRANSPOSE TransB, const nvpl_int64_t N, const nvpl_int64_t K, const double alpha, const double* A, const nvpl_int64_t lda, const double* B, const nvpl_int64_t ldb, const double beta, double* C, const nvpl_int64_t ldc) except* nogil:
+    global __cblas_dgemmt_64
+    _check_or_init_nvpl_blas()
+    if __cblas_dgemmt_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_dgemmt_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_UPLO, const CBLAS_TRANSPOSE, const CBLAS_TRANSPOSE, const nvpl_int64_t, const nvpl_int64_t, const double, const double*, const nvpl_int64_t, const double*, const nvpl_int64_t, const double, double*, const nvpl_int64_t) noexcept nogil>__cblas_dgemmt_64)(
+        Order, Uplo, TransA, TransB, N, K, alpha, A, lda, B, ldb, beta, C, ldc)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_cgemmt_64(const CBLAS_ORDER Order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_TRANSPOSE TransB, const nvpl_int64_t N, const nvpl_int64_t K, const void* alpha, const void* A, const nvpl_int64_t lda, const void* B, const nvpl_int64_t ldb, const void* beta, void* C, const nvpl_int64_t ldc) except* nogil:
+    global __cblas_cgemmt_64
+    _check_or_init_nvpl_blas()
+    if __cblas_cgemmt_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_cgemmt_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_UPLO, const CBLAS_TRANSPOSE, const CBLAS_TRANSPOSE, const nvpl_int64_t, const nvpl_int64_t, const void*, const void*, const nvpl_int64_t, const void*, const nvpl_int64_t, const void*, void*, const nvpl_int64_t) noexcept nogil>__cblas_cgemmt_64)(
+        Order, Uplo, TransA, TransB, N, K, alpha, A, lda, B, ldb, beta, C, ldc)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_zgemmt_64(const CBLAS_ORDER Order, const CBLAS_UPLO Uplo, const CBLAS_TRANSPOSE TransA, const CBLAS_TRANSPOSE TransB, const nvpl_int64_t N, const nvpl_int64_t K, const void* alpha, const void* A, const nvpl_int64_t lda, const void* B, const nvpl_int64_t ldb, const void* beta, void* C, const nvpl_int64_t ldc) except* nogil:
+    global __cblas_zgemmt_64
+    _check_or_init_nvpl_blas()
+    if __cblas_zgemmt_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_zgemmt_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_UPLO, const CBLAS_TRANSPOSE, const CBLAS_TRANSPOSE, const nvpl_int64_t, const nvpl_int64_t, const void*, const void*, const nvpl_int64_t, const void*, const nvpl_int64_t, const void*, void*, const nvpl_int64_t) noexcept nogil>__cblas_zgemmt_64)(
+        Order, Uplo, TransA, TransB, N, K, alpha, A, lda, B, ldb, beta, C, ldc)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_sgemm_batch_64(CBLAS_ORDER Order, CBLAS_TRANSPOSE* TransA_array, CBLAS_TRANSPOSE* TransB_array, nvpl_int64_t* M_array, nvpl_int64_t* N_array, nvpl_int64_t* K_array, const float* alpha_array, const float** A_array, nvpl_int64_t* lda_array, const float** B_array, nvpl_int64_t* ldb_array, const float* beta_array, float** C_array, nvpl_int64_t* ldc_array, nvpl_int64_t group_count, nvpl_int64_t* group_size) except* nogil:
+    global __cblas_sgemm_batch_64
+    _check_or_init_nvpl_blas()
+    if __cblas_sgemm_batch_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_sgemm_batch_64 is not found")
+    (<void (*)(CBLAS_ORDER, CBLAS_TRANSPOSE*, CBLAS_TRANSPOSE*, nvpl_int64_t*, nvpl_int64_t*, nvpl_int64_t*, const float*, const float**, nvpl_int64_t*, const float**, nvpl_int64_t*, const float*, float**, nvpl_int64_t*, nvpl_int64_t, nvpl_int64_t*) noexcept nogil>__cblas_sgemm_batch_64)(
+        Order, TransA_array, TransB_array, M_array, N_array, K_array, alpha_array, A_array, lda_array, B_array, ldb_array, beta_array, C_array, ldc_array, group_count, group_size)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_dgemm_batch_64(CBLAS_ORDER Order, CBLAS_TRANSPOSE* TransA_array, CBLAS_TRANSPOSE* TransB_array, nvpl_int64_t* M_array, nvpl_int64_t* N_array, nvpl_int64_t* K_array, const double* alpha_array, const double** A_array, nvpl_int64_t* lda_array, const double** B_array, nvpl_int64_t* ldb_array, const double* beta_array, double** C_array, nvpl_int64_t* ldc_array, nvpl_int64_t group_count, nvpl_int64_t* group_size) except* nogil:
+    global __cblas_dgemm_batch_64
+    _check_or_init_nvpl_blas()
+    if __cblas_dgemm_batch_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_dgemm_batch_64 is not found")
+    (<void (*)(CBLAS_ORDER, CBLAS_TRANSPOSE*, CBLAS_TRANSPOSE*, nvpl_int64_t*, nvpl_int64_t*, nvpl_int64_t*, const double*, const double**, nvpl_int64_t*, const double**, nvpl_int64_t*, const double*, double**, nvpl_int64_t*, nvpl_int64_t, nvpl_int64_t*) noexcept nogil>__cblas_dgemm_batch_64)(
+        Order, TransA_array, TransB_array, M_array, N_array, K_array, alpha_array, A_array, lda_array, B_array, ldb_array, beta_array, C_array, ldc_array, group_count, group_size)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_cgemm_batch_64(CBLAS_ORDER Order, CBLAS_TRANSPOSE* TransA_array, CBLAS_TRANSPOSE* TransB_array, nvpl_int64_t* M_array, nvpl_int64_t* N_array, nvpl_int64_t* K_array, const void* alpha_array, const void** A_array, nvpl_int64_t* lda_array, const void** B_array, nvpl_int64_t* ldb_array, const void* beta_array, void** C_array, nvpl_int64_t* ldc_array, nvpl_int64_t group_count, nvpl_int64_t* group_size) except* nogil:
+    global __cblas_cgemm_batch_64
+    _check_or_init_nvpl_blas()
+    if __cblas_cgemm_batch_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_cgemm_batch_64 is not found")
+    (<void (*)(CBLAS_ORDER, CBLAS_TRANSPOSE*, CBLAS_TRANSPOSE*, nvpl_int64_t*, nvpl_int64_t*, nvpl_int64_t*, const void*, const void**, nvpl_int64_t*, const void**, nvpl_int64_t*, const void*, void**, nvpl_int64_t*, nvpl_int64_t, nvpl_int64_t*) noexcept nogil>__cblas_cgemm_batch_64)(
+        Order, TransA_array, TransB_array, M_array, N_array, K_array, alpha_array, A_array, lda_array, B_array, ldb_array, beta_array, C_array, ldc_array, group_count, group_size)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_zgemm_batch_64(CBLAS_ORDER Order, CBLAS_TRANSPOSE* TransA_array, CBLAS_TRANSPOSE* TransB_array, nvpl_int64_t* M_array, nvpl_int64_t* N_array, nvpl_int64_t* K_array, const void* alpha_array, const void** A_array, nvpl_int64_t* lda_array, const void** B_array, nvpl_int64_t* ldb_array, const void* beta_array, void** C_array, nvpl_int64_t* ldc_array, nvpl_int64_t group_count, nvpl_int64_t* group_size) except* nogil:
+    global __cblas_zgemm_batch_64
+    _check_or_init_nvpl_blas()
+    if __cblas_zgemm_batch_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_zgemm_batch_64 is not found")
+    (<void (*)(CBLAS_ORDER, CBLAS_TRANSPOSE*, CBLAS_TRANSPOSE*, nvpl_int64_t*, nvpl_int64_t*, nvpl_int64_t*, const void*, const void**, nvpl_int64_t*, const void**, nvpl_int64_t*, const void*, void**, nvpl_int64_t*, nvpl_int64_t, nvpl_int64_t*) noexcept nogil>__cblas_zgemm_batch_64)(
+        Order, TransA_array, TransB_array, M_array, N_array, K_array, alpha_array, A_array, lda_array, B_array, ldb_array, beta_array, C_array, ldc_array, group_count, group_size)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_sgemm_batch_strided_64(const CBLAS_ORDER Order, const CBLAS_TRANSPOSE TransA, const CBLAS_TRANSPOSE TransB, const nvpl_int64_t M, const nvpl_int64_t N, const nvpl_int64_t K, const float alpha, const float* A, const nvpl_int64_t lda, const nvpl_int64_t stridea, const float* B, const nvpl_int64_t ldb, const nvpl_int64_t strideb, const float beta, float* C, const nvpl_int64_t ldc, const nvpl_int64_t stridec, const nvpl_int64_t batch_size) except* nogil:
+    global __cblas_sgemm_batch_strided_64
+    _check_or_init_nvpl_blas()
+    if __cblas_sgemm_batch_strided_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_sgemm_batch_strided_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_TRANSPOSE, const CBLAS_TRANSPOSE, const nvpl_int64_t, const nvpl_int64_t, const nvpl_int64_t, const float, const float*, const nvpl_int64_t, const nvpl_int64_t, const float*, const nvpl_int64_t, const nvpl_int64_t, const float, float*, const nvpl_int64_t, const nvpl_int64_t, const nvpl_int64_t) noexcept nogil>__cblas_sgemm_batch_strided_64)(
+        Order, TransA, TransB, M, N, K, alpha, A, lda, stridea, B, ldb, strideb, beta, C, ldc, stridec, batch_size)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_dgemm_batch_strided_64(const CBLAS_ORDER Order, const CBLAS_TRANSPOSE TransA, const CBLAS_TRANSPOSE TransB, const nvpl_int64_t M, const nvpl_int64_t N, const nvpl_int64_t K, const double alpha, const double* A, const nvpl_int64_t lda, const nvpl_int64_t stridea, const double* B, const nvpl_int64_t ldb, const nvpl_int64_t strideb, const double beta, double* C, const nvpl_int64_t ldc, const nvpl_int64_t stridec, const nvpl_int64_t batch_size) except* nogil:
+    global __cblas_dgemm_batch_strided_64
+    _check_or_init_nvpl_blas()
+    if __cblas_dgemm_batch_strided_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_dgemm_batch_strided_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_TRANSPOSE, const CBLAS_TRANSPOSE, const nvpl_int64_t, const nvpl_int64_t, const nvpl_int64_t, const double, const double*, const nvpl_int64_t, const nvpl_int64_t, const double*, const nvpl_int64_t, const nvpl_int64_t, const double, double*, const nvpl_int64_t, const nvpl_int64_t, const nvpl_int64_t) noexcept nogil>__cblas_dgemm_batch_strided_64)(
+        Order, TransA, TransB, M, N, K, alpha, A, lda, stridea, B, ldb, strideb, beta, C, ldc, stridec, batch_size)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_cgemm_batch_strided_64(const CBLAS_ORDER Order, const CBLAS_TRANSPOSE TransA, const CBLAS_TRANSPOSE TransB, const nvpl_int64_t M, const nvpl_int64_t N, const nvpl_int64_t K, const void* alpha, const void* A, const nvpl_int64_t lda, const nvpl_int64_t stridea, const void* B, const nvpl_int64_t ldb, const nvpl_int64_t strideb, const void* beta, void* C, const nvpl_int64_t ldc, const nvpl_int64_t stridec, const nvpl_int64_t batch_size) except* nogil:
+    global __cblas_cgemm_batch_strided_64
+    _check_or_init_nvpl_blas()
+    if __cblas_cgemm_batch_strided_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_cgemm_batch_strided_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_TRANSPOSE, const CBLAS_TRANSPOSE, const nvpl_int64_t, const nvpl_int64_t, const nvpl_int64_t, const void*, const void*, const nvpl_int64_t, const nvpl_int64_t, const void*, const nvpl_int64_t, const nvpl_int64_t, const void*, void*, const nvpl_int64_t, const nvpl_int64_t, const nvpl_int64_t) noexcept nogil>__cblas_cgemm_batch_strided_64)(
+        Order, TransA, TransB, M, N, K, alpha, A, lda, stridea, B, ldb, strideb, beta, C, ldc, stridec, batch_size)
+
+
+@cython.show_performance_hints(False)
+cdef void _cblas_zgemm_batch_strided_64(const CBLAS_ORDER Order, const CBLAS_TRANSPOSE TransA, const CBLAS_TRANSPOSE TransB, const nvpl_int64_t M, const nvpl_int64_t N, const nvpl_int64_t K, const void* alpha, const void* A, const nvpl_int64_t lda, const nvpl_int64_t stridea, const void* B, const nvpl_int64_t ldb, const nvpl_int64_t strideb, const void* beta, void* C, const nvpl_int64_t ldc, const nvpl_int64_t stridec, const nvpl_int64_t batch_size) except* nogil:
+    global __cblas_zgemm_batch_strided_64
+    _check_or_init_nvpl_blas()
+    if __cblas_zgemm_batch_strided_64 == NULL:
+        with gil:
+            raise FunctionNotFoundError("function cblas_zgemm_batch_strided_64 is not found")
+    (<void (*)(const CBLAS_ORDER, const CBLAS_TRANSPOSE, const CBLAS_TRANSPOSE, const nvpl_int64_t, const nvpl_int64_t, const nvpl_int64_t, const void*, const void*, const nvpl_int64_t, const nvpl_int64_t, const void*, const nvpl_int64_t, const nvpl_int64_t, const void*, void*, const nvpl_int64_t, const nvpl_int64_t, const nvpl_int64_t) noexcept nogil>__cblas_zgemm_batch_strided_64)(
         Order, TransA, TransB, M, N, K, alpha, A, lda, stridea, B, ldb, strideb, beta, C, ldc, stridec, batch_size)

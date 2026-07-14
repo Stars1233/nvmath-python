@@ -1,0 +1,13 @@
+---
+# Uncomment a section header and replace with your own note.
+#release_summary:
+#features:
+#api:
+#deprecations:
+fixes:
+#issues:
+#security:
+#doc:
+ - >
+  Fixed an incorrectly sized host memory allocation in
+  :class:`nvmath.distributed.linalg.advanced.Matmul`.

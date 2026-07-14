@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 #
-# This code was automatically generated across versions from 11.2.6 to 11.4.0, generator version 0.3.1.dev1303+g031f1197f. Do not modify it directly.
+# This code was automatically generated across versions from 11.2.6 to 11.4.0, generator version 0.3.1.dev1471+g7122059e9. Do not modify it directly.
 
 cimport cython  # NOQA
 from libc.stdint cimport int64_t
@@ -82,7 +82,7 @@ class XtSubFormat(_IntEnum):
     FORMAT_1D_INPUT_SHUFFLED = CUFFT_XT_FORMAT_1D_INPUT_SHUFFLED
     FORMAT_DISTRIBUTED_INPUT = CUFFT_XT_FORMAT_DISTRIBUTED_INPUT
     FORMAT_DISTRIBUTED_OUTPUT = CUFFT_XT_FORMAT_DISTRIBUTED_OUTPUT
-    FORMAT_FORMAT_UNDEFINED = CUFFT_FORMAT_UNDEFINED
+    FORMAT_UNDEFINED = CUFFT_FORMAT_UNDEFINED
 
 class XtCopyType(_IntEnum):
     """

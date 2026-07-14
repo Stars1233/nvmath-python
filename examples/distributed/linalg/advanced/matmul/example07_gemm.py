@@ -6,10 +6,13 @@
 This example demonstrates distributed GEMM on CuPy ndarrays.
 
 GEMM (General Matrix Multiply) is defined as:
-alpha * A @ B + beta * C
+alpha * a @ b + beta * c
 where `@` denotes matrix multiplication.
 
-The global operation performed in this example is: alpha * A @ B + beta * C
+The global operation performed in this example is: alpha * a @ b + beta * c
+
+Note that distributed matrix multiplication is inplace by default,
+with the result overwriting operand 'c'.
 
 $ mpiexec -n 4 python example07_gemm.py
 """
@@ -56,6 +59,10 @@ result = nvmath.distributed.linalg.advanced.matmul(
     beta=beta,
     distributions=distributions,
 )
+
+# Note: the distributed matmul is inplace by default when 'c' is provided
+# (the result is stored in 'c').
+assert result is c, "This example expects an in-place operation."
 
 # Synchronize the default stream, since by default the execution is non-blocking for GPU
 # operands.

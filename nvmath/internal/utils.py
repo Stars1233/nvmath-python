@@ -13,11 +13,7 @@ import typing
 from collections.abc import Callable, Sequence
 
 import cuda.bindings.runtime as cbr
-
-try:
-    from cuda.core import Device, Event, EventOptions
-except ImportError:
-    from cuda.core.experimental import Device, Event, EventOptions
+from cuda.core import Device, Event
 
 from nvmath._internal.layout import is_contiguous_and_dense
 
@@ -62,7 +58,14 @@ def check_or_create_options(
     return options
 
 
-def check_or_create_one_of_options(clss, options, options_description, *, cls_key="name", default_name=None):
+def check_or_create_one_of_options(
+    clss: tuple[type, ...],
+    options: None | str | dict[str, typing.Any] | object,
+    options_description: str,
+    *,
+    cls_key: str = "name",
+    default_name: str | None = None,
+) -> typing.Any:
     """
     Create one of the specified options dataclasses by name or from a dictionary of options.
     """
@@ -89,7 +92,13 @@ def check_or_create_one_of_options(clss, options, options_description, *, cls_ke
     return options
 
 
-def _create_one_of_options_from_name(clss, cls_name, options_description, *, cls_key="name"):
+def _create_one_of_options_from_name(
+    clss: tuple[type[typing.Any], ...],
+    cls_name: str,
+    options_description: str,
+    *,
+    cls_key: str = "name",
+) -> typing.Any:
     try:
         _cls_name = cls_name.lower()
         return next(cls for cls in clss if cls.name == _cls_name)()
@@ -98,13 +107,13 @@ def _create_one_of_options_from_name(clss, cls_name, options_description, *, cls
 
 
 def _create_one_of_options_from_dict(
-    clss,
-    options,
-    options_description,
+    clss: tuple[type[typing.Any], ...],
+    options: dict[str, typing.Any],
+    options_description: str,
     *,
-    cls_key="name",
-    default_name=None,
-):
+    cls_key: str = "name",
+    default_name: str | None = None,
+) -> typing.Any:
     cls_name = options.get(cls_key)
     if cls_name is None:
         cls_name = default_name
@@ -118,7 +127,13 @@ def _create_one_of_options_from_dict(
     return cls(**{key: name for key, name in options.items() if key != cls_key})
 
 
-def _raise_invalid_one_of_options(clss, options, options_description, *, cls_key="name"):
+def _raise_invalid_one_of_options(
+    clss: tuple[type[typing.Any], ...],
+    options: object,
+    options_description: str,
+    *,
+    cls_key: str = "name",
+) -> typing.NoReturn:
     accepted_names = ", ".join(f"'{cls.name}'" for cls in clss)
     accepted_types = ", ".join(str(cls) for cls in clss)
     raise ValueError(
@@ -474,9 +489,9 @@ def cuda_call_ctx(stream_holder: StreamHolder[AnyStream], blocking=True, timing=
 
     with device_ctx(device_id):
         if timing:
-            start = stream.record(options=EventOptions(enable_timing=blocking))
+            start = stream.record(options={timing_enabled_name(): blocking})
 
-        end = stream.device.create_event(options=EventOptions(enable_timing=(timing and blocking)))
+        end = stream.device.create_event(options={timing_enabled_name(): (timing and blocking)})
 
         time = Value(None, validator=lambda v: True)
         yield end, time
@@ -615,7 +630,7 @@ releasing workspace memory from and to the package memory pool on every call. Th
 }
 
 
-def _release_operand_docstring(plural, version_added=None):
+def _release_operand_docstring(plural, version_added=None, execution_methods=("execute",)):
     operands = "operands" if plural else "operand"
     their = "their" if plural else "its"
     counts = "counts" if plural else "count"
@@ -624,9 +639,13 @@ def _release_operand_docstring(plural, version_added=None):
     reset_method_unchecked = "reset_operands_unchecked" if plural else "reset_operand_unchecked"
     new_operands = "new operands" if plural else "a new operand"
     are = "are" if plural else "is"
+    # The method(s) that perform the computation. Matmul/FFT/tensor use :meth:`execute`;
+    # direct solvers use :meth:`factorize` / :meth:`solve` instead.
+    if not execution_methods:
+        raise ValueError("execution_methods must contain at least one method name")
+    execution_ref = " / ".join(f":meth:`{name}`" for name in execution_methods)
     version_line = f"\n\n        .. versionadded:: {version_added}" if version_added else ""
     return f"""\
-.. experimental:: method
 {version_line}
 
         This method does two things:
@@ -636,9 +655,8 @@ def _release_operand_docstring(plural, version_added=None):
 
         - Frees any internal copies (mirrors) that were created when the
           user-provided {operands} {reside} in a different memory space than
-          the execution (i.e., copies made during construction or
-          :meth:`{reset_method}` / :meth:`{reset_method_unchecked}`
-          if present).
+          the execution (i.e., copies made during construction or within
+          :meth:`{reset_method}` / :meth:`{reset_method_unchecked}`).
 
         This functionality can be useful in memory-constrained scenarios, e.g. where
         multiple stateful objects need to coexist. Leveraging this functionality,
@@ -653,17 +671,19 @@ def _release_operand_docstring(plural, version_added=None):
         Semantics:
             - Preserves the planned state of the stateful object.
 
+            - Repeated calls are safe: if the {operands} {are} already released, the
+              call is a no-op and an informational message is logged.
+
             - After calling this method, :meth:`{reset_method}` (or
-              :meth:`{reset_method_unchecked}` if present) must be called to
-              supply {new_operands} before the next :meth:`execute` call.
+              :meth:`{reset_method_unchecked}`) must be called to
+              supply {new_operands} before calling {execution_ref} again.
               Failure to do so will result in a runtime error.
               Device-side copies will be re-allocated as needed.
 
             - For cross-space scenarios (e.g. CPU {operands} with GPU execution,
               or GPU {operands} with CPU execution): execution is guaranteed to be
-              always blocking, so :meth:`execute` does not return until all
-              computation is complete. It is therefore always safe to call this
-              method after calling :meth:`execute` without additional synchronization.
+              always blocking. It is therefore always safe to call this
+              method after calling {execution_ref} without additional synchronization.
 
             - When the {operands} {are} in the same memory space as the execution
               (e.g. GPU {operands} with GPU execution): in such case, this method
@@ -685,13 +705,16 @@ COMMON_SHARED_DOC_MAP["release_operands"] = _release_operand_docstring(True, ver
 COMMON_SHARED_DOC_MAP["release_operand"] = _release_operand_docstring(False, version_added="0.9.0")
 
 
-def _reset_operand_unchecked_docstring(plural, version_added=None, validation_examples="package match, data type match"):
+def _reset_operand_unchecked_docstring(
+    plural, version_added=None, validation_examples="package match, data type match", experimental=True
+):
     operands = "operands" if plural else "operand"
     reset_method = "reset_operands" if plural else "reset_operand"
     release_method = "release_operands" if plural else "release_operand"
+    experimental_line = ".. experimental:: method" if experimental else ""
     version_line = f"\n\n        .. versionadded:: {version_added}" if version_added else ""
     return f"""\
-.. experimental:: method
+{experimental_line}
 {version_line}
 
         This method is a performance-optimized alternative to :meth:`{reset_method}`
@@ -769,3 +792,14 @@ def docstring_decorator(doc_map, skip_missing=False):
             return func_or_class
 
     return decorator
+
+
+@functools.cache
+def timing_enabled_name() -> str:
+    """
+    The name of the `timing_enabled` attribute in cuda.core.EventOptions.
+    """
+    from cuda.core import __version__ as version
+
+    major = int(version.split(".")[0])
+    return "enable_timing" if major == 0 else "timing_enabled"

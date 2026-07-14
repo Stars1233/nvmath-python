@@ -1,0 +1,24 @@
+---
+# Uncomment a section header and replace with your own note.
+#release_summary:
+#api:
+#  - Backward incompatible changes
+features:
+ - |
+   The :class:`nvmath.sparse.Matmul` and :func:`nvmath.sparse.matmul` APIs now
+   support UST operands in the CPU memory space for library dispatch as well as
+   code generation.
+#dependencies:
+#  - Dependency change announcements
+#deprecations:
+#  - Announcements of deprecations
+fixes:
+ - |
+   Added the ``stream`` argument to the :class:`nvmath.sparse.ust.Tensor` methods
+   that were missing one.
+#issues:
+#  - Known issues that are not yet fixed
+#security:
+#  - Non-breaking fixes of security issues
+#doc:
+#  - Notable documentation changes

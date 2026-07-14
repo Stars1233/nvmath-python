@@ -16,19 +16,14 @@ from threading import Lock
 from typing import TYPE_CHECKING, Any, Literal
 
 import numpy as np
-
-try:
-    from cuda.core import Device
-except ImportError:
-    from cuda.core.experimental import Device
+from cuda.core import Device
 
 if TYPE_CHECKING:
     import mpi4py
 
-from nvmath.distributed import fft, linalg, reshape  # noqa: E402
 from nvmath.internal.utils import device_ctx
 
-from . import distribution
+from . import distribution, fft, linalg
 from ._internal import nvshmem
 from ._utils import allocate_symmetric_memory, free_symmetric_memory
 from .process_group import MPIProcessGroup, ProcessGroup, TorchProcessGroup
@@ -45,7 +40,6 @@ __all__ = [
     "distribution",
     "fft",
     "linalg",
-    "reshape",
 ]
 
 _initialize_mutex = Lock()
@@ -188,6 +182,7 @@ def finalize() -> None:
             return
 
         linalg.advanced.matmulmod._grid_cache.clear()
+        linalg.generic._caching.clear_handles()
 
         if _ctx.nccl_comm is not None:
             with device_ctx(_ctx.device_id):

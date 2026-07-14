@@ -13,7 +13,7 @@ from nvmath.internal import utils
 from nvmath.internal.tensor_wrapper import maybe_register_package
 from nvmath.sparse import ExecutionCUDA, Matmul, MatmulOptions, matmul_matrix_qualifiers_dtype
 
-from ....helpers import check_freed_after
+from ....helpers import assert_reset_to_none_behavior, check_freed_after
 from ...utils.common_axes import (
     JIT_AVAILABLE,
     DType,
@@ -31,7 +31,9 @@ from ...utils.common_axes import (
 from ...utils.utils import (
     DEVICE_CC,
     allow_cusparse_unsupported,
+    allow_unsupported_conversion,
     assert_snapshot_equal,
+    cusparse_may_reject,
     get_custom_stream,
     idfn,
     is_known_linker_error,
@@ -49,6 +51,7 @@ from .utils.data_helpers import (
 )
 from .utils.support_matrix import (
     supported_codegen_index_dtypes,
+    supported_dispatch_formats,
     supported_dtypes,
     supported_formats,
     supported_index_dtypes,
@@ -249,7 +252,7 @@ def run_matmul(
             operand_placement,
             sparse_array_type,
             m,
-            n,
+            k,
             density,
             dtype,
             seed=RNG_SEED,
@@ -258,10 +261,10 @@ def run_matmul(
             device_id=device_id,
         )
         b = create_random_dense_matrix(
-            framework, operand_placement, n, k, dtype, seed=RNG_SEED, batch_dims=batch_b, device_id=device_id
+            framework, operand_placement, k, n, dtype, seed=RNG_SEED, batch_dims=batch_b, device_id=device_id
         )
         c = create_random_dense_matrix(
-            framework, operand_placement, m, k, dtype, seed=RNG_SEED, batch_dims=batch_c, device_id=device_id
+            framework, operand_placement, m, n, dtype, seed=RNG_SEED, batch_dims=batch_c, device_id=device_id
         )
         c_backup = copy_array(c)
         c_backup_1 = copy_array(c)
@@ -269,10 +272,10 @@ def run_matmul(
         # Avoid generating random sparse matrix to not change layout
         a1 = transform_sparse_array(a, lambda x: 3.7 * x + 1.1)
         b1 = create_random_dense_matrix(
-            framework, operand_placement, n, k, dtype, seed=RNG_SEED + 1, batch_dims=batch_b, device_id=device_id
+            framework, operand_placement, k, n, dtype, seed=RNG_SEED + 1, batch_dims=batch_b, device_id=device_id
         )
         c1 = create_random_dense_matrix(
-            framework, operand_placement, m, k, dtype, seed=RNG_SEED + 1, batch_dims=batch_c, device_id=device_id
+            framework, operand_placement, m, n, dtype, seed=RNG_SEED + 1, batch_dims=batch_c, device_id=device_id
         )
         c1_backup = copy_array(c1)
 
@@ -290,7 +293,7 @@ def run_matmul(
         )
 
     # Convert to UST operands
-    try:
+    with allow_unsupported_conversion():
         a_operand = ust.Tensor.from_package(a, stream=stream) if use_ust else a
         b_operand = ust.Tensor.from_package(b, stream=stream) if use_ust else b
         c_operand = ust.Tensor.from_package(c, stream=stream) if use_ust else c
@@ -306,8 +309,6 @@ def run_matmul(
         rc_a1_operand = sys.getrefcount(a1_operand)
         rc_b1_operand = sys.getrefcount(b1_operand)
         rc_c1_operand = sys.getrefcount(c1_operand)
-    except (TypeError, NotImplementedError) as e:
-        pytest.skip(f"Unable to perform UST conversion: {str(e)}")
 
     try:
         with Matmul(
@@ -336,9 +337,9 @@ def run_matmul(
                 operand_placement,
                 device_id,
                 dtype,
-                (*batch_a, m, n),
-                (*batch_b, n, k),
-                (*batch_c, m, k),
+                (*batch_a, m, k),
+                (*batch_b, k, n),
+                (*batch_c, m, n),
                 rtol=rtol,
                 stream=stream,
             )
@@ -454,9 +455,9 @@ def run_matmul(
                 operand_placement,
                 device_id,
                 dtype,
-                (*batch_a, m, n),
-                (*batch_b, n, k),
-                (*batch_c, m, k),
+                (*batch_a, m, k),
+                (*batch_b, k, n),
+                (*batch_c, m, n),
                 rtol=rtol,
                 stream=stream,
             )
@@ -606,7 +607,7 @@ def run_matmul(
         if index_dtype in framework2index_dtype[framework]
         for dtype in supported_dtypes
         if dtype in framework2dtype[framework]
-        for size in [(13, 17, 19), (32, 32, 32)]
+        for size in [(13, 19, 17), (32, 32, 32)]
         for enforce_codegen in [False, True]
         if use_ust or not enforce_codegen
         for reset_a in [False, True]
@@ -646,7 +647,7 @@ def test_reset(
     batch_dims = batch_dims.value
     use_unchecked = use_unchecked.value
 
-    with allow_cusparse_unsupported(enabled=sparse_array_type == SparseArrayType.BSR):
+    with allow_cusparse_unsupported(enabled=cusparse_may_reject(sparse_array_type, dtype)):
         run_matmul(
             framework=framework,
             operand_placement=operand_placement,
@@ -698,7 +699,7 @@ def test_reference_count_context_manager(
     use_ust = use_ust.value
     enforce_codegen = enforce_codegen.value
     execute = execute.value
-    m, n, k = (13, 17, 19)
+    m, n, k = (13, 19, 17)
     density = 0.5
     dtype = DType.float32
     index_dtype = DType.int32
@@ -708,28 +709,26 @@ def test_reference_count_context_manager(
         operand_placement,
         sparse_array_type,
         m,
-        n,
+        k,
         density,
         dtype,
         seed=RNG_SEED,
         index_dtype=index_dtype,
     )
-    b = create_random_dense_matrix(framework, operand_placement, n, k, dtype, seed=RNG_SEED)
-    c = create_random_dense_matrix(framework, operand_placement, m, k, dtype, seed=RNG_SEED)
+    b = create_random_dense_matrix(framework, operand_placement, k, n, dtype, seed=RNG_SEED)
+    c = create_random_dense_matrix(framework, operand_placement, m, n, dtype, seed=RNG_SEED)
 
-    try:
+    with allow_unsupported_conversion():
         operand_a = ust.Tensor.from_package(a) if use_ust else a
         operand_b = ust.Tensor.from_package(b) if use_ust else b
         operand_c = ust.Tensor.from_package(c) if use_ust else c
-    except (TypeError, NotImplementedError) as e:
-        pytest.skip(f"Unable to perform UST conversion: {str(e)}")
 
     rc_operand_a = sys.getrefcount(operand_a)
     rc_operand_b = sys.getrefcount(operand_b)
     rc_operand_c = sys.getrefcount(operand_c)
 
     try:
-        with allow_cusparse_unsupported(enabled=sparse_array_type == SparseArrayType.BSR):
+        with allow_cusparse_unsupported(enabled=cusparse_may_reject(sparse_array_type, dtype)):
             matmul = Matmul(operand_a, operand_b, c=operand_c, options=MatmulOptions(codegen=enforce_codegen))
 
             with matmul:
@@ -795,7 +794,7 @@ def test_release_operands(
     use_ust = use_ust.value
     enforce_codegen = enforce_codegen.value
     execute = execute.value
-    m, n, k = (13, 17, 19)
+    m, n, k = (13, 19, 17)
     density = 0.5
     dtype = DType.float32
     index_dtype = DType.int32
@@ -805,16 +804,16 @@ def test_release_operands(
         operand_placement,
         sparse_array_type,
         m,
-        n,
+        k,
         density,
         dtype,
         seed=RNG_SEED,
         index_dtype=index_dtype,
     )
-    b = create_random_dense_matrix(framework, operand_placement, n, k, dtype, seed=RNG_SEED)
-    c = create_random_dense_matrix(framework, operand_placement, m, k, dtype, seed=RNG_SEED)
+    b = create_random_dense_matrix(framework, operand_placement, k, n, dtype, seed=RNG_SEED)
+    c = create_random_dense_matrix(framework, operand_placement, m, n, dtype, seed=RNG_SEED)
 
-    try:
+    with allow_unsupported_conversion():
         operand_a = ust.Tensor.from_package(a) if use_ust else a
         operand_b = ust.Tensor.from_package(b) if use_ust else b
         operand_c = ust.Tensor.from_package(c) if use_ust else c
@@ -830,13 +829,11 @@ def test_release_operands(
         snap_a = ust_snapshot(operand_a) if use_ust else None
         snap_b = ust_snapshot(operand_b) if use_ust else None
         snap_c = ust_snapshot(operand_c) if use_ust else None
-    except (TypeError, NotImplementedError) as e:
-        pytest.skip(f"Unable to perform UST conversion: {str(e)}")
 
     matmul = None
     try:
         with (
-            allow_cusparse_unsupported(enabled=sparse_array_type == SparseArrayType.BSR),
+            allow_cusparse_unsupported(enabled=cusparse_may_reject(sparse_array_type, dtype)),
             Matmul(operand_a, operand_b, c=operand_c, options=MatmulOptions(codegen=enforce_codegen)) as matmul,
         ):
             if execute:
@@ -989,7 +986,7 @@ def test_reset_preserves_qualifiers(
         if index_dtype in framework2index_dtype[framework]
         for dtype in supported_dtypes
         if dtype in framework2dtype[framework]
-        for size in [(13, 17, 19), (32, 32, 32)]
+        for size in [(13, 19, 17), (32, 32, 32)]
         for enforce_codegen in [False, True]
         if use_ust or not enforce_codegen
         for use_unchecked in [False, True]
@@ -1015,7 +1012,7 @@ def test_reset_after_release(
     enforce_codegen = enforce_codegen.value
     use_unchecked = use_unchecked.value
 
-    with allow_cusparse_unsupported(enabled=sparse_array_type == SparseArrayType.BSR):
+    with allow_cusparse_unsupported(enabled=cusparse_may_reject(sparse_array_type, dtype)):
         run_matmul(
             size=size,
             framework=framework,
@@ -1084,9 +1081,9 @@ def test_non_default_device(
     enforce_codegen = enforce_codegen.value
     device_id = 1
 
-    with allow_cusparse_unsupported(enabled=sparse_array_type == SparseArrayType.BSR):
+    with allow_cusparse_unsupported(enabled=cusparse_may_reject(sparse_array_type, dtype)):
         run_matmul(
-            size=(13, 17, 19),
+            size=(13, 19, 17),
             framework=framework,
             operand_placement=operand_placement,
             sparse_array_type=sparse_array_type,
@@ -1148,9 +1145,9 @@ def test_non_default_stream(
     reset_b = reset_b.value
     reset_c = reset_c.value
 
-    with allow_cusparse_unsupported(enabled=sparse_array_type == SparseArrayType.BSR):
+    with allow_cusparse_unsupported(enabled=cusparse_may_reject(sparse_array_type, DType.float32)):
         run_matmul(
-            size=(13, 17, 19),
+            size=(13, 19, 17),
             framework=framework,
             operand_placement=operand_placement,
             sparse_array_type=sparse_array_type,
@@ -1201,7 +1198,7 @@ def test_reset_alpha_beta(use_ust, enforce_codegen, use_unchecked, reset_alpha, 
         pytest.skip("Alpha and beta reset is not supported for code generation")
 
     run_matmul(
-        size=(13, 17, 19),
+        size=(13, 19, 17),
         alpha=0.7,
         alpha1=-3.7,
         beta=3.3,
@@ -1278,32 +1275,30 @@ def test_reset_release_same_operands(
     use_unchecked = use_unchecked.value
     release_operands = release_operands.value
 
-    m, n, k = (13, 17, 19)
+    m, n, k = (13, 19, 17)
     density = 0.5
     dtype = DType.float32
     index_dtype = DType.int32
 
     a = create_random_sparse_matrix(
-        framework, operand_placement, sparse_array_type, m, n, density, dtype, RNG_SEED, index_dtype=index_dtype
+        framework, operand_placement, sparse_array_type, m, k, density, dtype, RNG_SEED, index_dtype=index_dtype
     )
-    b = create_random_dense_matrix(framework, operand_placement, n, k, dtype, RNG_SEED)
-    c = create_random_dense_matrix(framework, operand_placement, m, k, dtype, RNG_SEED)
+    b = create_random_dense_matrix(framework, operand_placement, k, n, dtype, RNG_SEED)
+    c = create_random_dense_matrix(framework, operand_placement, m, n, dtype, RNG_SEED)
     c_backup = copy_array(c)
 
     reference = calculate_reference(a, b, c, dtype)
 
-    try:
+    with allow_unsupported_conversion():
         if use_ust:
             a = ust.Tensor.from_package(a)
             b = ust.Tensor.from_package(b)
             c = ust.Tensor.from_package(c)
             c_backup = ust.Tensor.from_package(c_backup)
-    except (TypeError, NotImplementedError) as e:
-        pytest.skip(f"Unable to perform UST conversion: {str(e)}")
 
     try:
         with (
-            allow_cusparse_unsupported(enabled=sparse_array_type == SparseArrayType.BSR),
+            allow_cusparse_unsupported(enabled=cusparse_may_reject(sparse_array_type, dtype)),
             Matmul(a, b, c=c, options=MatmulOptions(codegen=enforce_codegen)) as mm,
         ):
             _matmul_plan(mm)
@@ -1317,9 +1312,9 @@ def test_reset_release_same_operands(
                 operand_placement,
                 None,
                 dtype,
-                (m, n),
-                (n, k),
                 (m, k),
+                (k, n),
+                (m, n),
             )
             compare_results(result.to_package() if use_ust else result, reference, dtype)
 
@@ -1348,9 +1343,9 @@ def test_reset_release_same_operands(
                 operand_placement,
                 None,
                 dtype,
-                (m, n),
-                (n, k),
                 (m, k),
+                (k, n),
+                (m, n),
             )
             compare_results(result.to_package() if use_ust else result, reference, dtype)
     except NotImplementedError as e:
@@ -1389,7 +1384,7 @@ def test_execute_release_workspace(
     release_workspace = release_workspace.value
     use_custom_stream = use_custom_stream.value
 
-    m, n, k = (13, 17, 19)
+    m, n, k = (13, 19, 17)
     density = 0.5
     dtype = DType.float32
     index_dtype = DType.int32
@@ -1398,10 +1393,10 @@ def test_execute_release_workspace(
 
     with use_stream_or_dummy_ctx(framework, stream):
         a = create_random_sparse_matrix(
-            framework, operand_placement, sparse_array_type, m, n, density, dtype, RNG_SEED, index_dtype=index_dtype
+            framework, operand_placement, sparse_array_type, m, k, density, dtype, RNG_SEED, index_dtype=index_dtype
         )
-        b = create_random_dense_matrix(framework, operand_placement, n, k, dtype, RNG_SEED)
-        c = create_random_dense_matrix(framework, operand_placement, m, k, dtype, RNG_SEED)
+        b = create_random_dense_matrix(framework, operand_placement, k, n, dtype, RNG_SEED)
+        c = create_random_dense_matrix(framework, operand_placement, m, n, dtype, RNG_SEED)
         c_backup = copy_array(c)
 
         reference = calculate_reference(a, b, c, dtype)
@@ -1411,26 +1406,26 @@ def test_execute_release_workspace(
 
     try:
         with (
-            allow_cusparse_unsupported(enabled=sparse_array_type == SparseArrayType.BSR),
+            allow_cusparse_unsupported(enabled=cusparse_may_reject(sparse_array_type, dtype)),
             Matmul(a, b, c=c, options=MatmulOptions(blocking=True), stream=stream) as mm,
         ):
             _matmul_plan(mm, stream=stream)
             result = mm.execute(stream=stream, release_workspace=release_workspace)
 
-            if mm.workspace_size != 0:
+            if mm.workspace.size != 0:
                 assert allocations[expected_key] == 1, f"{allocations}, {expected_key}"
 
-            check_meta_data(a, b, result, framework, operand_placement, None, dtype, (m, n), (n, k), (m, k))
+            check_meta_data(a, b, result, framework, operand_placement, None, dtype, (m, k), (k, n), (m, n))
             compare_results(result, reference, dtype)
 
             mm.reset_operands(c=c_backup)
 
             result = mm.execute(stream=stream, release_workspace=release_workspace)
 
-            if mm.workspace_size != 0:
+            if mm.workspace.size != 0:
                 assert allocations[expected_key] == (1 + release_workspace), f"{allocations}, {expected_key}"
 
-            check_meta_data(a, b, result, framework, operand_placement, None, dtype, (m, n), (n, k), (m, k))
+            check_meta_data(a, b, result, framework, operand_placement, None, dtype, (m, k), (k, n), (m, n))
             compare_results(result, reference, dtype)
 
     except NotImplementedError as e:
@@ -1483,9 +1478,9 @@ def test_plan_custom_compute_capability(
     enforce_codegen = enforce_codegen.value
     cc = cc.value
 
-    with allow_cusparse_unsupported(enabled=sparse_array_type == SparseArrayType.BSR):
+    with allow_cusparse_unsupported(enabled=cusparse_may_reject(sparse_array_type, dtype)):
         run_matmul(
-            size=(13, 17, 19),
+            size=(13, 19, 17),
             framework=framework,
             operand_placement=operand_placement,
             sparse_array_type=sparse_array_type,
@@ -1547,7 +1542,11 @@ def test_blocking(monkeypatch, operand_placement, options_blocking, expect_sync_
 
 
 @pytest.mark.skipif(Framework.torch not in Framework.enabled(), reason="Torch is required for this test")
-def test_reset_operands_all_none():
+@pytest.mark.parametrize("with_release", [False, True])
+def test_reset_operands_all_none(with_release):
+    """reset_operands() with all-None always raises ValueError.
+    See assert_reset_to_none_behavior."""
+    d_type = DType.float32
     a = create_random_sparse_matrix(
         Framework.torch,
         OperandPlacement.device,
@@ -1555,16 +1554,20 @@ def test_reset_operands_all_none():
         32,
         32,
         0.5,
-        DType.float32,
+        d_type,
         seed=RNG_SEED,
         index_dtype=DType.int32,
     )
-    b = create_random_dense_matrix(Framework.torch, OperandPlacement.device, 32, 32, DType.float32, seed=RNG_SEED)
-    c = create_random_dense_matrix(Framework.torch, OperandPlacement.device, 32, 32, DType.float32, seed=RNG_SEED)
+    b = create_random_dense_matrix(Framework.torch, OperandPlacement.device, 32, 32, d_type, seed=RNG_SEED)
+    c = create_random_dense_matrix(Framework.torch, OperandPlacement.device, 32, 32, d_type, seed=RNG_SEED)
 
-    with pytest.raises(ValueError, match=r"Use release_operands\(\) to release all operands."), Matmul(a, b, c=c) as mm:
+    with Matmul(a, b, c=c) as mm:
         _matmul_plan(mm)
-        mm.reset_operands()
+        assert_reset_to_none_behavior(
+            with_release=with_release,
+            single_operand=False,
+            obj=mm,
+        )
 
 
 @pytest.mark.skipif(Framework.torch not in Framework.enabled(), reason="Torch is required for this test")
@@ -1668,28 +1671,28 @@ def test_reset_invalid_dtype(
         operand_placement,
         sparse_array_type,
         m,
-        n,
+        k,
         0.5,
         base_dtype,
         seed=RNG_SEED,
         index_dtype=DType.int32,
     )
-    b = create_random_dense_matrix(framework, operand_placement, n, k, base_dtype, seed=RNG_SEED)
-    c = create_random_dense_matrix(framework, operand_placement, m, k, base_dtype, seed=RNG_SEED)
+    b = create_random_dense_matrix(framework, operand_placement, k, n, base_dtype, seed=RNG_SEED)
+    c = create_random_dense_matrix(framework, operand_placement, m, n, base_dtype, seed=RNG_SEED)
 
     a1 = create_random_sparse_matrix(
         framework,
         operand_placement,
         sparse_array_type,
         m,
-        n,
+        k,
         0.5,
         mismatch_dtype,
         seed=RNG_SEED + 1,
         index_dtype=DType.int32,
     )
-    b1 = create_random_dense_matrix(framework, operand_placement, n, k, mismatch_dtype, seed=RNG_SEED + 1)
-    c1 = create_random_dense_matrix(framework, operand_placement, m, k, mismatch_dtype, seed=RNG_SEED + 1)
+    b1 = create_random_dense_matrix(framework, operand_placement, k, n, mismatch_dtype, seed=RNG_SEED + 1)
+    c1 = create_random_dense_matrix(framework, operand_placement, m, n, mismatch_dtype, seed=RNG_SEED + 1)
 
     if use_ust:
         a = ust.Tensor.from_package(a)
@@ -1699,7 +1702,7 @@ def test_reset_invalid_dtype(
         b1 = ust.Tensor.from_package(b1)
         c1 = ust.Tensor.from_package(c1)
 
-    with allow_cusparse_unsupported(enabled=sparse_array_type == SparseArrayType.BSR):
+    with allow_cusparse_unsupported(enabled=cusparse_may_reject(sparse_array_type, base_dtype)):
         try:
             with pytest.raises(TypeError, match="doesn't match the original one"), Matmul(a, b, c=c) as mm:
                 _matmul_plan(mm)
@@ -1762,21 +1765,21 @@ def test_reset_invalid_index_dtype(
         operand_placement,
         sparse_array_type,
         m,
-        n,
+        k,
         0.5,
         dtype,
         seed=RNG_SEED,
         index_dtype=base_index_dtype,
     )
-    b = create_random_dense_matrix(framework, operand_placement, n, k, dtype, seed=RNG_SEED)
-    c = create_random_dense_matrix(framework, operand_placement, m, k, dtype, seed=RNG_SEED)
+    b = create_random_dense_matrix(framework, operand_placement, k, n, dtype, seed=RNG_SEED)
+    c = create_random_dense_matrix(framework, operand_placement, m, n, dtype, seed=RNG_SEED)
 
     a1 = create_random_sparse_matrix(
         framework,
         operand_placement,
         sparse_array_type,
         m,
-        n,
+        k,
         0.5,
         dtype,
         seed=RNG_SEED + 1,
@@ -1824,22 +1827,22 @@ def test_reset_invalid_batch_size(sparse_array_type, original_batch_dims, mismat
         operand_placement,
         sparse_array_type,
         m,
-        n,
+        k,
         0.5,
         dtype,
         seed=RNG_SEED,
         index_dtype=index_dtype,
         batch_dims=original_batch_dims,
     )
-    b = create_random_dense_matrix(framework, operand_placement, n, k, dtype, seed=RNG_SEED, batch_dims=original_batch_dims)
-    c = create_random_dense_matrix(framework, operand_placement, m, k, dtype, seed=RNG_SEED, batch_dims=original_batch_dims)
+    b = create_random_dense_matrix(framework, operand_placement, k, n, dtype, seed=RNG_SEED, batch_dims=original_batch_dims)
+    c = create_random_dense_matrix(framework, operand_placement, m, n, dtype, seed=RNG_SEED, batch_dims=original_batch_dims)
 
     a1 = create_random_sparse_matrix(
         framework,
         operand_placement,
         sparse_array_type,
         m,
-        n,
+        k,
         0.5,
         dtype,
         seed=RNG_SEED + 1,
@@ -1847,10 +1850,10 @@ def test_reset_invalid_batch_size(sparse_array_type, original_batch_dims, mismat
         batch_dims=mismatch_batch_dims,
     )
     b1 = create_random_dense_matrix(
-        framework, operand_placement, n, k, dtype, seed=RNG_SEED + 1, batch_dims=mismatch_batch_dims
+        framework, operand_placement, k, n, dtype, seed=RNG_SEED + 1, batch_dims=mismatch_batch_dims
     )
     c1 = create_random_dense_matrix(
-        framework, operand_placement, m, k, dtype, seed=RNG_SEED + 1, batch_dims=mismatch_batch_dims
+        framework, operand_placement, m, n, dtype, seed=RNG_SEED + 1, batch_dims=mismatch_batch_dims
     )
 
     if use_ust:
@@ -1907,7 +1910,7 @@ def test_reset_invalid_shape(
     use_ust,
 ):
     use_ust = use_ust.value
-    m, n, k = (13, 17, 19)
+    m, n, k = (13, 19, 17)
     dtype = DType.float32
     index_dtype = DType.int32
 
@@ -1916,32 +1919,32 @@ def test_reset_invalid_shape(
         operand_placement,
         sparse_array_type,
         m,
-        n,
+        k,
         0.5,
         dtype,
         seed=RNG_SEED,
         index_dtype=index_dtype,
     )
-    b = create_random_dense_matrix(framework, operand_placement, n, k, dtype, seed=RNG_SEED)
-    c = create_random_dense_matrix(framework, operand_placement, m, k, dtype, seed=RNG_SEED)
+    b = create_random_dense_matrix(framework, operand_placement, k, n, dtype, seed=RNG_SEED)
+    c = create_random_dense_matrix(framework, operand_placement, m, n, dtype, seed=RNG_SEED)
 
     a1 = create_random_sparse_matrix(
         framework,
         operand_placement,
         sparse_array_type,
         m,
-        n + 1,
+        k + 1,
         0.5,
         dtype,
         seed=RNG_SEED + 1,
         index_dtype=index_dtype,
     )
-    b1 = create_random_dense_matrix(framework, operand_placement, n + 1, k, dtype, seed=RNG_SEED + 1)
+    b1 = create_random_dense_matrix(framework, operand_placement, k + 1, n, dtype, seed=RNG_SEED + 1)
     c1 = create_random_dense_matrix(
         framework,
         operand_placement,
         m + 1 if shape_mismatch == "c_rows" else m,
-        k + 1 if shape_mismatch == "c_cols" else k,
+        n + 1 if shape_mismatch == "c_cols" else n,
         dtype,
         seed=RNG_SEED + 1,
     )
@@ -1956,7 +1959,7 @@ def test_reset_invalid_shape(
 
     try:
         with (
-            allow_cusparse_unsupported(enabled=sparse_array_type == SparseArrayType.BSR),
+            allow_cusparse_unsupported(enabled=cusparse_may_reject(sparse_array_type, dtype)),
             pytest.raises(TypeError, match="doesn't match the original one"),
             Matmul(a, b, c=c) as mm,
         ):
@@ -1996,28 +1999,28 @@ def test_reset_invalid_placement(sparse_array_type, basic_placement, mismatch_op
         basic_placement,
         sparse_array_type,
         m,
-        n,
+        k,
         0.5,
         dtype,
         seed=RNG_SEED,
         index_dtype=index_dtype,
     )
-    b = create_random_dense_matrix(Framework.torch, basic_placement, n, k, dtype, seed=RNG_SEED)
-    c = create_random_dense_matrix(Framework.torch, basic_placement, m, k, dtype, seed=RNG_SEED)
+    b = create_random_dense_matrix(Framework.torch, basic_placement, k, n, dtype, seed=RNG_SEED)
+    c = create_random_dense_matrix(Framework.torch, basic_placement, m, n, dtype, seed=RNG_SEED)
 
     a1 = create_random_sparse_matrix(
         Framework.torch,
         mismatch_placement,
         sparse_array_type,
         m,
-        n,
+        k,
         0.5,
         dtype,
         seed=RNG_SEED,
         index_dtype=index_dtype,
     )
-    b1 = create_random_dense_matrix(Framework.torch, mismatch_placement, n, k, dtype, seed=RNG_SEED)
-    c1 = create_random_dense_matrix(Framework.torch, mismatch_placement, m, k, dtype, seed=RNG_SEED)
+    b1 = create_random_dense_matrix(Framework.torch, mismatch_placement, k, n, dtype, seed=RNG_SEED)
+    c1 = create_random_dense_matrix(Framework.torch, mismatch_placement, m, n, dtype, seed=RNG_SEED)
 
     if use_ust:
         a = ust.Tensor.from_package(a)
@@ -2090,30 +2093,30 @@ def test_reset_invalid_package(
         placement,
         sparse_array_type,
         m,
-        n,
+        k,
         0.5,
         dtype,
         seed=RNG_SEED,
         index_dtype=index_dtype,
     )
-    b = create_random_dense_matrix(original_framework, placement, n, k, dtype, seed=RNG_SEED)
-    c = create_random_dense_matrix(original_framework, placement, m, k, dtype, seed=RNG_SEED)
+    b = create_random_dense_matrix(original_framework, placement, k, n, dtype, seed=RNG_SEED)
+    c = create_random_dense_matrix(original_framework, placement, m, n, dtype, seed=RNG_SEED)
 
     a1 = create_random_sparse_matrix(
         mismatch_framework,
         placement,
         SparseArrayType.CSR,
         m,
-        n,
+        k,
         0.5,
         dtype,
         seed=RNG_SEED + 1,
         index_dtype=index_dtype,
     )
-    b1 = create_random_dense_matrix(mismatch_framework, placement, n, k, dtype, seed=RNG_SEED + 1)
-    c1 = create_random_dense_matrix(mismatch_framework, placement, m, k, dtype, seed=RNG_SEED + 1)
+    b1 = create_random_dense_matrix(mismatch_framework, placement, k, n, dtype, seed=RNG_SEED + 1)
+    c1 = create_random_dense_matrix(mismatch_framework, placement, m, n, dtype, seed=RNG_SEED + 1)
 
-    try:
+    with allow_unsupported_conversion():
         if use_ust:
             a = ust.Tensor.from_package(a)
             b = ust.Tensor.from_package(b)
@@ -2127,10 +2130,7 @@ def test_reset_invalid_package(
             b1 = ust.Tensor.from_package(b1)
             c1 = ust.Tensor.from_package(c1)
 
-    except (TypeError, NotImplementedError) as e:
-        pytest.skip(f"Unable to perform UST conversion: {str(e)}")
-
-    with allow_cusparse_unsupported(enabled=sparse_array_type == SparseArrayType.BSR):
+    with allow_cusparse_unsupported(enabled=cusparse_may_reject(sparse_array_type, dtype)):
         try:
             with pytest.raises(TypeError, match="doesn't match the original one"), Matmul(a, b, c=c) as mm:
                 _matmul_plan(mm)
@@ -2157,7 +2157,7 @@ def _torch_column_major_last_two_dims(t):
 )
 def test_dense_layout_mismatch_after_reset(operand_placement, mismatch):
     mismatch = mismatch.value
-    m, n, k = 19, 23, 29
+    m, n, k = 19, 29, 23
     dtype = DType.float32
 
     a = create_random_sparse_matrix(
@@ -2165,17 +2165,17 @@ def test_dense_layout_mismatch_after_reset(operand_placement, mismatch):
         operand_placement,
         SparseArrayType.CSR,
         m,
-        n,
+        k,
         0.5,
         dtype,
         seed=RNG_SEED,
         index_dtype=DType.int32,
     )
-    b = create_random_dense_matrix(Framework.torch, operand_placement, n, k, dtype, seed=RNG_SEED)
-    c = create_random_dense_matrix(Framework.torch, operand_placement, m, k, dtype, seed=RNG_SEED)
+    b = create_random_dense_matrix(Framework.torch, operand_placement, k, n, dtype, seed=RNG_SEED)
+    c = create_random_dense_matrix(Framework.torch, operand_placement, m, n, dtype, seed=RNG_SEED)
 
-    b_repl = create_random_dense_matrix(Framework.torch, operand_placement, n, k, dtype, seed=RNG_SEED + 1)
-    c_repl = create_random_dense_matrix(Framework.torch, operand_placement, m, k, dtype, seed=RNG_SEED + 1)
+    b_repl = create_random_dense_matrix(Framework.torch, operand_placement, k, n, dtype, seed=RNG_SEED + 1)
+    c_repl = create_random_dense_matrix(Framework.torch, operand_placement, m, n, dtype, seed=RNG_SEED + 1)
 
     if mismatch == "b_row_to_col":
         b_repl = _torch_column_major_last_two_dims(b_repl)
@@ -2192,3 +2192,80 @@ def test_dense_layout_mismatch_after_reset(operand_placement, mismatch):
 
         with pytest.raises(TypeError, match="strides"):
             mm.reset_operands(b=b_repl, c=c_repl)
+
+
+@pytest.mark.parametrize(
+    ("framework", "operand_placement", "original_format", "mismatch_format", "enforce_codegen", "use_ust"),
+    [
+        (
+            framework,
+            operand_placement,
+            original_format,
+            mismatch_format,
+            Param("enforce_codegen", enforce_codegen),
+            Param("use_ust", use_ust),
+        )
+        for framework in Framework.enabled()
+        if framework in sparse_supporting_frameworks
+        for operand_placement in framework2operand_placement[framework]
+        for original_format in supported_formats
+        if original_format in framework2sparse_array_type_support[framework]
+        for mismatch_format in supported_formats
+        if mismatch_format in framework2sparse_array_type_support[framework]
+        if mismatch_format != original_format
+        for enforce_codegen in [False, True]
+        if enforce_codegen or original_format in supported_dispatch_formats
+        for use_ust in [False, True]
+    ],
+    ids=idfn,
+)
+def test_reset_invalid_sparse_format(framework, operand_placement, original_format, mismatch_format, enforce_codegen, use_ust):
+    use_ust = use_ust.value
+    m, n, k = (32, 32, 32)
+    dtype = DType.float32
+    index_dtype = framework2index_dtype[framework][-1]
+
+    a = create_random_sparse_matrix(
+        framework,
+        operand_placement,
+        original_format,
+        m,
+        k,
+        0.5,
+        dtype,
+        seed=RNG_SEED,
+        index_dtype=index_dtype,
+    )
+    a1 = create_random_sparse_matrix(
+        framework,
+        operand_placement,
+        mismatch_format,
+        m,
+        k,
+        0.5,
+        dtype,
+        seed=RNG_SEED + 1,
+        index_dtype=index_dtype,
+    )
+    b = create_random_dense_matrix(framework, operand_placement, k, n, dtype, seed=RNG_SEED)
+    c = create_random_dense_matrix(framework, operand_placement, m, n, dtype, seed=RNG_SEED)
+    c1 = create_random_dense_matrix(framework, operand_placement, m, n, dtype, seed=RNG_SEED)
+
+    if use_ust:
+        with allow_unsupported_conversion():
+            a = ust.Tensor.from_package(a)
+            a1 = ust.Tensor.from_package(a1)
+            b = ust.Tensor.from_package(b)
+            c = ust.Tensor.from_package(c)
+            c1 = ust.Tensor.from_package(c1)
+
+    try:
+        with (
+            allow_cusparse_unsupported(enabled=not enforce_codegen and cusparse_may_reject(original_format, dtype)),
+            pytest.raises(TypeError, match="format"),
+            Matmul(a, b, c=c, options=MatmulOptions(codegen=enforce_codegen)) as mm,
+        ):
+            _matmul_plan(mm)
+            mm.reset_operands(a=a1, c=c1)
+    except NotImplementedError as e:
+        pytest.skip(f"Unable to perform matmul: {e}")

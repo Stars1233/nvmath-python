@@ -40,16 +40,16 @@ with torch.cuda.device(device_id):
     b = torch.ones(*row_wise_distribution.shape(rank, (n, k)), device="cuda", dtype=torch.float8_e4m3fn)
 
 # Get a transposed view to obtain column-major memory layout. Note that this
-# also changes the distribution of a and b (see example01 for more information).
-a = a.T  # a is now (k, m) with col_wise_distribution
-b = b.T  # b is now (k, n) with col_wise_distribution
+# also changes the distribution of 'a' and 'b' (see example01 for more information).
+a = a.T  # 'a' is now (k, m) with col_wise_distribution
+b = b.T  # 'b' is now (k, n) with col_wise_distribution
 
-# Distributions for A, B, and result matrix D
+# Distributions for 'a', 'b', and result matrix 'd'
 distributions = [col_wise_distribution, col_wise_distribution, row_wise_distribution]
 
 if rank == 0:
-    print(f"A = \n{a}")
-    print(f"\nB = \n{b}")
+    print(f"'a' = \n{a}")
+    print(f"\n'b' = \n{b}")
 
 scales = {"a": 3, "b": 2, "d": 1}
 
@@ -71,14 +71,14 @@ with nvmath.distributed.linalg.advanced.Matmul(
     result = mm.execute()
     if rank == 0:
         # Printing the tensor synchronizes on the default CUDA stream.
-        print(f"\nA (A scale: {scales['a']}) @ B (B scale: {scales['b']}) = (D scale: {scales['d']}) \n{result}")
+        print(f"\n'a' (scale: {scales['a']}) @ 'b' (scale: {scales['b']}) = 'd' (scale: {scales['d']}) \n{result}")
 
-    # Replace A with a matrix filled with 128 and adjust A and D scales.
-    # Note that since no new scale for B is specified, it will remain unchanged.
+    # Replace 'a' with a matrix filled with 128 and adjust 'a' and 'd' scales.
+    # Note that since no new scale for 'b' is specified, it will remain unchanged.
     with torch.cuda.device(device_id):
         new_a = torch.full(row_wise_distribution.shape(rank, (m, k)), 128, device="cuda").type(torch.float8_e5m2).T
     if rank == 0:
-        print(f"\nnew A = \n{new_a}")
+        print(f"\nnew 'a' = \n{new_a}")
     new_a_scale = 1
     new_d_scale = 0.01
     mm.reset_operands(a=new_a, quantization_scales={"a": new_a_scale, "d": new_d_scale})
@@ -87,4 +87,4 @@ with nvmath.distributed.linalg.advanced.Matmul(
     result2 = mm.execute()
     if rank == 0:
         # Printing the tensor synchronizes on the default CUDA stream.
-        print(f"\nA (A scale: {new_a_scale}) @ B (B scale: {scales['b']}) = (D scale: {new_d_scale}) \n{result2}")
+        print(f"\n'a' (scale: {new_a_scale}) @ 'b' (scale: {scales['b']}) = 'd' (scale: {new_d_scale}) \n{result2}")

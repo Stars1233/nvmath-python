@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 from numba import cuda
 
-from nvmath.device import fft
+from nvmath.device import FFT
 
 from .helpers import _TOLERANCE, l2error
 
@@ -27,12 +27,11 @@ class FFTConvNumba:
         assert fft_type == "c2c"
 
         make_fft = functools.partial(
-            fft,
+            FFT,
             fft_type="c2c",
             size=size,
             precision=precision,
             execution="Block",
-            compiler="numba",
             ffts_per_block=ffts_per_block,
             elements_per_thread=elements_per_thread,
         )
@@ -70,9 +69,8 @@ class FFTConvNumba:
             assert complex_type == np.dtype(np.complex64)
         else:
             assert complex_type == np.dtype(np.complex128)
-        assert all(code.endswith(".ltoir") for code in FWD.files + INV.files)
 
-        @cuda.jit(link=FWD.files + INV.files)
+        @cuda.jit()
         def f(input, output, filter):
             if use_vectorized_load_store:
                 input_fp32x2 = input.view(complex_type)
@@ -95,7 +93,7 @@ class FFTConvNumba:
                         thread_data[i] = input[global_fft_id, idx]
 
             # Execute FFT
-            FWD(thread_data, shared_mem)
+            FWD.execute(thread_data, shared_mem)
 
             # Pointwise multiplication
             for i in range(elements_per_thread):
@@ -107,7 +105,7 @@ class FFTConvNumba:
                         thread_data[i] = thread_data[i] * filter[global_fft_id, idx]
 
             # Inverse FFT
-            INV(thread_data, shared_mem)
+            INV.execute(thread_data, shared_mem)
 
             # Save results
             for i in range(elements_per_thread):

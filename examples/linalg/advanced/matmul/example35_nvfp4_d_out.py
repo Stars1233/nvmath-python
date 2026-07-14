@@ -4,18 +4,18 @@
 
 """
 This example demonstrates automatic output scaling in NVFP4 mode.
-When using NVFP4 with an FP4 result type, the result of the matmul
-is automatically scaled during the operation and the scale
-used is returned as "d_out_scale". This scale can then be applied to
-the result to recover the dequantized values.
+When using NVFP4 with an FP4 result type, the output is automatically scaled during the
+operation, and the scale factors that were applied are returned in the auxiliary output
+under the `d_out_scale` key. These scales can then be applied to the result to recover
+the dequantized values.
 
 To this end, we set up a contrived example where only a single output
 element is non-zero, making the expected value analytically
 calculable (similar to example34_nvfp4):
 
-    - A: 128x64 matrix with 16 ones in row 5, K-group 2 (cols 32-47), scale = 1.0
-    - B: 64x128 matrix with 16 ones in col 32, K-group 2 (rows 32-47), scale = 4.0
-    - True result (before quantization): C[5, 32] = 16 * 1.0 * 4.0 = 64.0
+    - 'a': 128x64 matrix with 16 ones in row 5, K-group 2 (cols 32-47), scale = 1.0
+    - 'b': 64x128 matrix with 16 ones in col 32, K-group 2 (rows 32-47), scale = 4.0
+    - True result (before quantization): c[5, 32] = 16 * 1.0 * 4.0 = 64.0
 
 We run the matmul operation with the following options
 to enable automatic output scaling:
@@ -50,12 +50,12 @@ m, k, n = 128, 64, 128
 device = "cuda"
 scaling_format = BlockScalingFormat.NVFP4
 
-# A matrix
+# 'a' matrix
 a_float = torch.zeros(m, k, device=device, dtype=torch.float32)
 a_float[5, 32:48] = 1.0  # row 5, K-group 2 (cols 32-47)
 a_fp4 = quantize_to_fp4(a_float, axis=-1)
 
-# B matrix
+# 'b' matrix
 b_float = torch.zeros(k, n, device=device, dtype=torch.float32)
 b_float[32:48, 32] = 1.0  # col 32, K-group 2 (rows 32-47)
 b_fp4 = quantize_to_fp4(b_float, axis=-2)
@@ -100,7 +100,7 @@ result_unpacked = unpack_fp4(result, axis=-1)
 print(f"Unpacked result shape: {result_unpacked.shape}, dtype: {result_unpacked.dtype}")
 
 # Step 2: Expand the 1D tiled d_out_scale to a full (M, N) matrix.
-# For the output matrix D (M x N): blocked in rows (axis=-1).
+# For the output matrix 'd' (M x N): blocked in rows (axis=-1).
 # We convert the float8_e4m3fn scales to float16,
 # as torch does not support fp32 * fp8_e4m3fn elementwise multiplication directly.
 scales_expanded = expand_block_scale(d_out_scale, result, scaling_format, output_dtype=torch.float16)
@@ -118,6 +118,6 @@ fp4_raw = result_unpacked[5, 32].item()
 scale_at_pos = scales_expanded[5, 32].item()
 actual_value = dequantized[5, 32].item()
 print(f"True (unquantized) value  = {true_value:.1f}")
-print(f"FP4 raw value at C[5, 32] = {fp4_raw}")
-print(f"d_out_scale at C[5, 32]   = {scale_at_pos}")
-print(f"Dequantized C[5, 32]      = {fp4_raw} * {scale_at_pos} = {actual_value:.1f}")
+print(f"FP4 raw value at c[5, 32] = {fp4_raw}")
+print(f"d_out_scale at c[5, 32]   = {scale_at_pos}")
+print(f"Dequantized c[5, 32]      = {fp4_raw} * {scale_at_pos} = {actual_value:.1f}")

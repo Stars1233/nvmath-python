@@ -148,6 +148,9 @@ class CSRTensorHolder(SparseTensorHolder):
         No copy is performed if the CSRTensor is already on the requested device.
         """
 
+        if self.tensor_package == "nvmath":
+            return super().to(device_id=device_id, stream_holder=stream_holder)
+
         target_crow_indices = self.crow_indices.to(device_id=device_id, stream_holder=stream_holder)
         target_col_indices = self.col_indices.to(device_id=device_id, stream_holder=stream_holder)
         target_values = self.values.to(device_id=device_id, stream_holder=stream_holder)
@@ -264,3 +267,22 @@ and values() tensors) must use the C-layout."
 
             values = self._attr_name_map["values"](tensor)
             self._values = wrapper(values)
+
+    def release_keeping_shell(self):
+        """Release the wrapped tensor and constituent data by setting them to None."""
+        self.tensor = None
+        self._crow_indices.tensor = None
+        self._col_indices.tensor = None
+        self._values.tensor = None
+
+    def reset_unchecked_keeping_shell(self, tensor):
+        """Reset the wrapped tensor and update constituent data accordingly.
+
+        Assumes that the new tensor has the same shape, device, dtype, and
+        index type as the original.
+        """
+        self.tensor = tensor
+        attr_map = self._attr_name_map
+        self._crow_indices.tensor = attr_map["crow_indices"](tensor)
+        self._col_indices.tensor = attr_map["col_indices"](tensor)
+        self._values.tensor = attr_map["values"](tensor)

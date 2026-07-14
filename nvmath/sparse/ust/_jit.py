@@ -11,29 +11,17 @@ __all__ = []
 import re
 from collections.abc import Sequence
 
-from nvmath.internal import utils
+from cuda.core import (
+    LaunchConfig,
+    Linker,
+    LinkerOptions,
+    ObjectCode,
+    Program,
+    ProgramOptions,
+    launch,
+)
 
-# TODO: support cuda.core >=0.5.0
-try:
-    from cuda.core import (
-        LaunchConfig,
-        Linker,
-        LinkerOptions,
-        ObjectCode,
-        Program,
-        ProgramOptions,
-        launch,
-    )
-except ImportError:
-    from cuda.core.experimental import (
-        LaunchConfig,
-        Linker,
-        LinkerOptions,
-        ObjectCode,
-        Program,
-        ProgramOptions,
-        launch,
-    )
+from nvmath.internal import utils
 
 
 def _check_numba_available():
@@ -180,33 +168,21 @@ def compile_cpp_and_link(
     return linked_code.get_kernel(function_name)
 
 
-# TODO: take grid instead of problem size.
-def launch_kernel(kernel, parameters, problem_size, *, device_id, stream_holder, blocking=True):
+def launch_kernel(kernel, grid, block, params, *, device_id, stream_holder, blocking=True):
     """
     Launch the kernel on the specified device and stream.
 
     Args:
         kernel: the CUDA kernel to launch.
-        parameters: the kernel arguments as a sequence or None.
-        problem_size: the size of the problem (work to divide among threads).
+        grid, block: the CUDA grid and block dimensions for launch.
+        params: the kernel arguments as a sequence or None.
         device_id: the device ID on which to launch the kernel.
-        stream_holder: a `nvmath.internal.utils.StreamHolder` object encapsulating the
-            stream to use.
+        stream_holder: a `nvmath.internal.utils.StreamHolder` object for the stream to use.
         blocking: if True, the call blocks.
     """
-
-    if problem_size == 0:
-        return
-
-    # Prepare grid.
-    threads_per_block = min(1024, problem_size)
-    batch_size = (problem_size + threads_per_block - 1) // threads_per_block
-    grid = LaunchConfig(grid=batch_size, block=threads_per_block)
-
-    # Launch the kernel.
+    config = LaunchConfig(grid=grid, block=block)
     with utils.device_ctx(device_id):
-        launch(stream_holder.obj, grid, kernel, *parameters)
-
+        launch(stream_holder.obj, config, kernel, *params)
     # TODO: make this non-blocking by default.
     if blocking:
         stream_holder.obj.sync()

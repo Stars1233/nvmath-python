@@ -115,43 +115,53 @@ Device APIs
 -----------
 
 The device APIs of nvmath-python allow you to access the functionalities
-of cuFFTDx, cuBLASDx, and cuRAND libraries in your kernels.
+of cuFFTDx, cuBLASDx, cuSOLVERDx, and cuRAND libraries in your kernels.
 
-This example shows how to use the cuRAND to sample
-a single-precision value from a normal distribution.
-
-First, create the array of bit-generator states (one per thread).
-In this example, we'll use
-:py:class:`Philox4_32_10<nvmath.device.random.StatesPhilox4_32_10>` generator.
+This example shows how to solve a linear system ``A @ x = b`` directly inside
+a kernel with the cuSOLVERDx-based :py:class:`nvmath.device.LUPivotSolver`,
+which uses LU factorization with partial pivoting. The solver device functions
+accept data in global memory or in shared memory (recommended for
+performance).
 
 .. doctest::
 
+    >>> import cupy as cp
+    >>> import numpy as np
     >>> from numba import cuda
-    >>> from nvmath.device import random
-    >>> compiled_apis = random.Compile()
+    >>> from nvmath.device import LUPivotSolver
     >>>
-    >>> threads, blocks = 64, 64
-    >>> nthreads = blocks * threads
+    >>> n = 8
+    >>> solver = LUPivotSolver(
+    ...     size=(n, n, 1),
+    ...     precision=np.float64,
+    ...     execution="Block",
+    ...     arrangement=("row_major", "row_major"),
+    ... )
+    >>> n_ipiv = solver.ipiv_size
     >>>
-    >>> states = random.StatesPhilox4_32_10(nthreads)
+    >>> # Define a kernel that factorizes A and solves the system in place.
+    >>> @cuda.jit
+    ... def kernel(a, b, info):
+    ...     ipiv = cuda.shared.array(n_ipiv, dtype=np.int32)
+    ...     solver.factorize(a, ipiv, info)
+    ...     cuda.syncthreads()
+    ...     solver.solve(a, ipiv, b)
     >>>
-    >>> # Next, define and launch a setup kernel, which will initialize the states using
-    >>> # nvmath.device.random.init function.
-    >>> @cuda.jit(link=compiled_apis.files, extensions=compiled_apis.extension)
-    ... def setup(states):
-    ...     i = cuda.grid(1)
-    ...     random.init(1234, i, 0, states[i])
+    >>> # Prepare a random system directly on the GPU.
+    >>> rng = cp.random.default_rng(2026)
+    >>> a = rng.standard_normal((n, n))
+    >>> b = rng.standard_normal(n)
+    >>> info = cp.empty(solver.info_shape, dtype=solver.info_type)
     >>>
-    >>> setup[blocks, threads](states)
+    >>> # Compute the reference solution before the kernel overwrites a and b.
+    >>> x_ref = cp.linalg.solve(a, b)
     >>>
-    >>> # With your states array ready, you can use samplers such as
-    >>> # nvmath.device.random.normal2 to sample random values in your kernels.
-    >>> @cuda.jit(link=compiled_apis.files, extensions=compiled_apis.extension)
-    ... def kernel(states):
-    ...     i = cuda.grid(1)
-    ...     random_values = random.normal2(states[i])
+    >>> kernel[1, solver.block_dim](a, b, info)
+    >>> cuda.synchronize()
     >>>
-    >>> kernel[blocks, threads](states)
+    >>> # The solution x overwrites b.
+    >>> print(cp.allclose(b, x_ref))
+    True
 
 To learn more about this and other Device APIs,
 visit the documentation of :mod:`nvmath.device`.

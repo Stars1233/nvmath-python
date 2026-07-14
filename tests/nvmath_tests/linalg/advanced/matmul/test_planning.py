@@ -6,11 +6,14 @@
 This set of tests checks basic properties of separated planning.
 """
 
+from collections import Counter
+
 import numpy as np
 import pytest
 
 from nvmath.bindings import cublasLt as cublaslt
-from nvmath.linalg.advanced import Matmul, MatmulPlanPreferences
+from nvmath.linalg.advanced import Algorithm, Matmul, MatmulPlanPreferences
+from nvmath.linalg.advanced import MatmulEpilog as Epilog
 
 from ...utils import allow_cublas_unsupported, assert_tensors_equal, sample_matrix
 
@@ -144,9 +147,12 @@ def test_algorithms(framework, serialize, use_cuda):
     with Matmul(a, b) as mm:
         algos = mm.plan(preferences=MatmulPlanPreferences(limit=10))
     if serialize:
-        import pickle
+        import tempfile
 
-        algos = pickle.loads(pickle.dumps(algos))
+        with tempfile.TemporaryFile() as f:
+            np.save(f, [a.as_numpy() for a in algos], allow_pickle=False)
+            f.seek(0)
+            algos = [Algorithm.from_numpy(s) for s in np.load(f)]
     c = d = sample_matrix(framework, "float32", (20, 20), use_cuda)
 
     # Test providing multiple algorithms
@@ -233,3 +239,75 @@ def test_algo_attributes():
         with allow_cublas_unsupported(allow_invalid_value=True, message=message.format(attr="cluster_shape")):
             best.cluster_shape = (1, 1, 1)
             assert best.cluster_shape == (1, 1, 1)
+
+
+def test_repeated_plan_does_not_leak_resources():
+    """
+    Test that across repeated ``Matmul.plan()`` calls on the same object,
+    including ones that pass different epilogs (changing the epilog might change
+    the result layout traits, so B and D must be rebuilt), every created
+    cuBLASLt matrix layout and preference handle is eventually destroyed.
+    """
+    layout_created: list[int] = []
+    layout_destroyed: list[int] = []
+    pref_created: list[int] = []
+    pref_destroyed: list[int] = []
+
+    orig_layout_create = cublaslt.matrix_layout_create
+    orig_layout_destroy = cublaslt.matrix_layout_destroy
+    orig_pref_create = cublaslt.matmul_preference_create
+    orig_pref_destroy = cublaslt.matmul_preference_destroy
+
+    def tracked_layout_create(*args, **kwargs):
+        handle = orig_layout_create(*args, **kwargs)
+        layout_created.append(handle)
+        return handle
+
+    def tracked_layout_destroy(handle, *args, **kwargs):
+        layout_destroyed.append(handle)
+        return orig_layout_destroy(handle, *args, **kwargs)
+
+    def tracked_pref_create(*args, **kwargs):
+        handle = orig_pref_create(*args, **kwargs)
+        pref_created.append(handle)
+        return handle
+
+    def tracked_pref_destroy(handle, *args, **kwargs):
+        pref_destroyed.append(handle)
+        return orig_pref_destroy(handle, *args, **kwargs)
+
+    cublaslt.matrix_layout_create = tracked_layout_create
+    cublaslt.matrix_layout_destroy = tracked_layout_destroy
+    cublaslt.matmul_preference_create = tracked_pref_create
+    cublaslt.matmul_preference_destroy = tracked_pref_destroy
+    try:
+        a = cupy.zeros((40, 60), dtype=cupy.float32)
+        b = cupy.zeros((60, 50), dtype=cupy.float32)
+        # End on epilog=None so the final execute() yields plain a @ b.
+        epilogs = (None, Epilog.RELU, Epilog.GELU, Epilog.RELU, None)
+        with Matmul(a, b) as mm:
+            for epilog in epilogs:
+                mm.plan(epilog=epilog)
+            assert_tensors_equal(mm.execute(), a @ b)
+    finally:
+        cublaslt.matrix_layout_create = orig_layout_create
+        cublaslt.matrix_layout_destroy = orig_layout_destroy
+        cublaslt.matmul_preference_create = orig_pref_create
+        cublaslt.matmul_preference_destroy = orig_pref_destroy
+
+    # By the time the Matmul context exits, every created handle must have
+    # been destroyed exactly once. We compare multisets (Counter) rather
+    # than just lengths so we also detect the masking case where a leak of
+    # one handle and a double-free of another have matching counts
+    # (e.g. created=[A,B,C], destroyed=[A,A,B]: totals match but the
+    # invariant is violated).
+    assert Counter(layout_created) == Counter(layout_destroyed), (
+        f"cuBLASLt layout leak across plan() calls: "
+        f"leaked={Counter(layout_created) - Counter(layout_destroyed)}, "
+        f"double-freed={Counter(layout_destroyed) - Counter(layout_created)}"
+    )
+    assert Counter(pref_created) == Counter(pref_destroyed), (
+        f"preference leak across plan() calls: "
+        f"leaked={Counter(pref_created) - Counter(pref_destroyed)}, "
+        f"double-freed={Counter(pref_destroyed) - Counter(pref_created)}"
+    )

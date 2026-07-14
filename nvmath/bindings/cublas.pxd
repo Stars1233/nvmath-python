@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 #
-# This code was automatically generated across versions from 11.0.3 to 13.2.0, generator version 0.3.1.dev1301+g7215ac36e. Do not modify it directly.
+# This code was automatically generated across versions from 11.0.3 to 13.2.0, generator version 0.3.1.dev1471+g7122059e9. Do not modify it directly.
 
 from libc.stdint cimport intptr_t
 
@@ -316,10 +316,10 @@ cpdef sgemv_batched(intptr_t handle, int trans, int m, int n, intptr_t alpha, in
 cpdef dgemv_batched(intptr_t handle, int trans, int m, int n, intptr_t alpha, intptr_t aarray, int lda, intptr_t xarray, int incx, intptr_t beta, intptr_t yarray, int incy, int batch_count)
 cpdef cgemv_batched(intptr_t handle, int trans, int m, int n, intptr_t alpha, intptr_t aarray, int lda, intptr_t xarray, int incx, intptr_t beta, intptr_t yarray, int incy, int batch_count)
 cpdef zgemv_batched(intptr_t handle, int trans, int m, int n, intptr_t alpha, intptr_t aarray, int lda, intptr_t xarray, int incx, intptr_t beta, intptr_t yarray, int incy, int batch_count)
-cpdef sgemv_strided_batched(intptr_t handle, int trans, int m, int n, intptr_t alpha, intptr_t a, int lda, long long int stride_a, intptr_t x, int incx, long long int strid_ex, intptr_t beta, intptr_t y, int incy, long long int stridey, int batch_count)
-cpdef dgemv_strided_batched(intptr_t handle, int trans, int m, int n, intptr_t alpha, intptr_t a, int lda, long long int stride_a, intptr_t x, int incx, long long int strid_ex, intptr_t beta, intptr_t y, int incy, long long int stridey, int batch_count)
-cpdef cgemv_strided_batched(intptr_t handle, int trans, int m, int n, intptr_t alpha, intptr_t a, int lda, long long int stride_a, intptr_t x, int incx, long long int strid_ex, intptr_t beta, intptr_t y, int incy, long long int stridey, int batch_count)
-cpdef zgemv_strided_batched(intptr_t handle, int trans, int m, int n, intptr_t alpha, intptr_t a, int lda, long long int stride_a, intptr_t x, int incx, long long int strid_ex, intptr_t beta, intptr_t y, int incy, long long int stridey, int batch_count)
+cpdef sgemv_strided_batched(intptr_t handle, int trans, int m, int n, intptr_t alpha, intptr_t a, int lda, long long int stride_a, intptr_t x, int incx, long long int stridex, intptr_t beta, intptr_t y, int incy, long long int stridey, int batch_count)
+cpdef dgemv_strided_batched(intptr_t handle, int trans, int m, int n, intptr_t alpha, intptr_t a, int lda, long long int stride_a, intptr_t x, int incx, long long int stridex, intptr_t beta, intptr_t y, int incy, long long int stridey, int batch_count)
+cpdef cgemv_strided_batched(intptr_t handle, int trans, int m, int n, intptr_t alpha, intptr_t a, int lda, long long int stride_a, intptr_t x, int incx, long long int stridex, intptr_t beta, intptr_t y, int incy, long long int stridey, int batch_count)
+cpdef zgemv_strided_batched(intptr_t handle, int trans, int m, int n, intptr_t alpha, intptr_t a, int lda, long long int stride_a, intptr_t x, int incx, long long int stridex, intptr_t beta, intptr_t y, int incy, long long int stridey, int batch_count)
 cpdef set_vector_64(int64_t n, int64_t elem_size, intptr_t x, int64_t incx, intptr_t device_ptr, int64_t incy)
 cpdef get_vector_64(int64_t n, int64_t elem_size, intptr_t x, int64_t incx, intptr_t y, int64_t incy)
 cpdef set_matrix_64(int64_t rows, int64_t cols, int64_t elem_size, intptr_t a, int64_t lda, intptr_t b, int64_t ldb)
@@ -464,10 +464,10 @@ cpdef sgemv_batched_64(intptr_t handle, int trans, int64_t m, int64_t n, intptr_
 cpdef dgemv_batched_64(intptr_t handle, int trans, int64_t m, int64_t n, intptr_t alpha, intptr_t aarray, int64_t lda, intptr_t xarray, int64_t incx, intptr_t beta, intptr_t yarray, int64_t incy, int64_t batch_count)
 cpdef cgemv_batched_64(intptr_t handle, int trans, int64_t m, int64_t n, intptr_t alpha, intptr_t aarray, int64_t lda, intptr_t xarray, int64_t incx, intptr_t beta, intptr_t yarray, int64_t incy, int64_t batch_count)
 cpdef zgemv_batched_64(intptr_t handle, int trans, int64_t m, int64_t n, intptr_t alpha, intptr_t aarray, int64_t lda, intptr_t xarray, int64_t incx, intptr_t beta, intptr_t yarray, int64_t incy, int64_t batch_count)
-cpdef sgemv_strided_batched_64(intptr_t handle, int trans, int64_t m, int64_t n, intptr_t alpha, intptr_t a, int64_t lda, long long int stride_a, intptr_t x, int64_t incx, long long int strid_ex, intptr_t beta, intptr_t y, int64_t incy, long long int stridey, int64_t batch_count)
-cpdef dgemv_strided_batched_64(intptr_t handle, int trans, int64_t m, int64_t n, intptr_t alpha, intptr_t a, int64_t lda, long long int stride_a, intptr_t x, int64_t incx, long long int strid_ex, intptr_t beta, intptr_t y, int64_t incy, long long int stridey, int64_t batch_count)
-cpdef cgemv_strided_batched_64(intptr_t handle, int trans, int64_t m, int64_t n, intptr_t alpha, intptr_t a, int64_t lda, long long int stride_a, intptr_t x, int64_t incx, long long int strid_ex, intptr_t beta, intptr_t y, int64_t incy, long long int stridey, int64_t batch_count)
-cpdef zgemv_strided_batched_64(intptr_t handle, int trans, int64_t m, int64_t n, intptr_t alpha, intptr_t a, int64_t lda, long long int stride_a, intptr_t x, int64_t incx, long long int strid_ex, intptr_t beta, intptr_t y, int64_t incy, long long int stridey, int64_t batch_count)
+cpdef sgemv_strided_batched_64(intptr_t handle, int trans, int64_t m, int64_t n, intptr_t alpha, intptr_t a, int64_t lda, long long int stride_a, intptr_t x, int64_t incx, long long int stridex, intptr_t beta, intptr_t y, int64_t incy, long long int stridey, int64_t batch_count)
+cpdef dgemv_strided_batched_64(intptr_t handle, int trans, int64_t m, int64_t n, intptr_t alpha, intptr_t a, int64_t lda, long long int stride_a, intptr_t x, int64_t incx, long long int stridex, intptr_t beta, intptr_t y, int64_t incy, long long int stridey, int64_t batch_count)
+cpdef cgemv_strided_batched_64(intptr_t handle, int trans, int64_t m, int64_t n, intptr_t alpha, intptr_t a, int64_t lda, long long int stride_a, intptr_t x, int64_t incx, long long int stridex, intptr_t beta, intptr_t y, int64_t incy, long long int stridey, int64_t batch_count)
+cpdef zgemv_strided_batched_64(intptr_t handle, int trans, int64_t m, int64_t n, intptr_t alpha, intptr_t a, int64_t lda, long long int stride_a, intptr_t x, int64_t incx, long long int stridex, intptr_t beta, intptr_t y, int64_t incy, long long int stridey, int64_t batch_count)
 cpdef sgemm_64(intptr_t handle, int transa, int transb, int64_t m, int64_t n, int64_t k, intptr_t alpha, intptr_t a, int64_t lda, intptr_t b, int64_t ldb, intptr_t beta, intptr_t c, int64_t ldc)
 cpdef dgemm_64(intptr_t handle, int transa, int transb, int64_t m, int64_t n, int64_t k, intptr_t alpha, intptr_t a, int64_t lda, intptr_t b, int64_t ldb, intptr_t beta, intptr_t c, int64_t ldc)
 cpdef cgemm_64(intptr_t handle, int transa, int transb, int64_t m, int64_t n, int64_t k, intptr_t alpha, intptr_t a, int64_t lda, intptr_t b, int64_t ldb, intptr_t beta, intptr_t c, int64_t ldc)

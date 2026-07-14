@@ -2,6 +2,8 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-from . import ndbuffer, package_utils
+from nvmath.internal._layout import StridedLayout
 
-__all__ = ["ndbuffer", "package_utils"]
+from ._ndbuffer import NDBuffer
+
+__all__ = ["NDBuffer", "StridedLayout"]

@@ -31,7 +31,7 @@ b = cp.ones((n,))
 
 # Set the preferences for the plan, factorization, and solution.
 plan_preferences = {
-    "reordering_algorithm": nvmath.sparse.advanced.DirectSolverAlgType.ALG_1,
+    "reordering_algorithm": nvmath.sparse.advanced.DirectSolverReorderingAlg.NESTED_DISSECTION,
 }
 factorization_preferences = {
     "pivot_eps": 1e-12,
